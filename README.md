@@ -42,3 +42,22 @@ MIT - [View License](LICENSE)
 ---
 
 Developed by [Luka Löhr](https://github.com/luka-loehr)
+
+---
+
+## Extractor (first native module)
+
+`extractor/` is the substitution-plan extractor: a Kotlin port of the
+geometric Untis-table parser, using Apache PDFBox glyph positions (on-device
+it swaps to the API-compatible [PdfBox-Android](https://github.com/TomRoush/PdfBox-Android)).
+It is verified at **100% parity** against the golden dataset in
+[lgka-app/verification](https://github.com/lgka-app/verification).
+
+```bash
+# run over the verification fixtures
+git clone https://github.com/lgka-app/verification.git ../verification
+cd extractor
+gradle run --args "../../verification/fixtures/substitution /tmp/out-kotlin"
+# compare against goldens
+python3 ../../verification/tool/compare_report.py /tmp/out-kotlin
+```
