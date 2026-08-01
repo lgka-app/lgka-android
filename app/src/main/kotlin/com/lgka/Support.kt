@@ -2,6 +2,7 @@ package com.lgka
 
 import android.content.Context
 import android.content.SharedPreferences
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
@@ -259,4 +260,44 @@ object DiskCache {
     }
 
     fun store(data: ByteArray, url: String) = File(dir, key(url)).writeBytes(data)
+}
+
+
+/// New Year's Day fireworks — mirrors fireworks_overlay.dart (Jan 1, Berlin).
+@androidx.compose.runtime.Composable
+fun FireworksOverlay() {
+    val isNewYear = androidx.compose.runtime.remember {
+        val berlin = java.time.ZonedDateTime.now(java.time.ZoneId.of("Europe/Berlin"))
+        berlin.monthValue == 1 && berlin.dayOfMonth == 1
+    }
+    if (!isNewYear) return
+    var t by androidx.compose.runtime.remember { androidx.compose.runtime.mutableFloatStateOf(0f) }
+    androidx.compose.runtime.LaunchedEffect(Unit) {
+        val start = System.nanoTime()
+        while (true) {
+            androidx.compose.runtime.withFrameNanos { now -> t = (now - start) / 1e9f }
+        }
+    }
+    val colors = listOf(
+        Color(0xFFFFD54F), Color(0xFFFF8A65), Color(0xFFF06292),
+        Color(0xFF4DD0E1), Color(0xFFBA68C8))
+    androidx.compose.foundation.Canvas(
+        androidx.compose.ui.Modifier.fillMaxSize()) {
+        // simple radial bursts cycling every 2.2s from varying origins
+        val burst = (t / 2.2f).toInt()
+        val phase = (t % 2.2f) / 2.2f
+        val rnd = java.util.Random(burst.toLong())
+        val cx = size.width * (0.2f + rnd.nextFloat() * 0.6f)
+        val cy = size.height * (0.15f + rnd.nextFloat() * 0.3f)
+        val color = colors[burst % colors.size]
+        for (i in 0 until 42) {
+            val angle = i / 42f * (Math.PI * 2).toFloat()
+            val dist = phase * (140f + rnd.nextFloat() * 120f)
+            val alpha = (1f - phase).coerceIn(0f, 1f)
+            drawCircle(color.copy(alpha = alpha * 0.9f), radius = 5f * (1f - phase * 0.5f),
+                       center = androidx.compose.ui.geometry.Offset(
+                           cx + kotlin.math.cos(angle) * dist,
+                           cy + kotlin.math.sin(angle) * dist + phase * phase * 90f))
+        }
+    }
 }

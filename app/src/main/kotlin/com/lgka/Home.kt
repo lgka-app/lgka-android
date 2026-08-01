@@ -1,7 +1,9 @@
 package com.lgka
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -274,6 +276,7 @@ private fun displayWeekday(weekday: String?): String {
 
 // ── Schedule ────────────────────────────────────────────────────────────────
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun ScheduleCard(onSetClass: () -> Unit, onOpen: (PdfRequest) -> Unit) {
     val scope = rememberCoroutineScope()
@@ -314,7 +317,8 @@ fun ScheduleCard(onSetClass: () -> Unit, onOpen: (PdfRequest) -> Unit) {
             val half = if (group.firstOrNull()?.halbjahr == "1. Halbjahr")
                 L.s("firstSemester") else L.s("secondSemester")
             Card(shape = RoundedCornerShape(16.dp),
-                 modifier = Modifier.clickable(enabled = !loading) {
+                 modifier = Modifier.combinedClickable(enabled = !loading,
+                     onLongClick = onSetClass) {
                      val isJ = cls.startsWith("j")
                      val target = (if (isJ) group.firstOrNull { it.gradeLevel == "J11/J12" }
                                    else group.firstOrNull { it.gradeLevel == "Klassen 5-10" })

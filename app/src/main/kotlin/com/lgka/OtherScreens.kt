@@ -150,6 +150,30 @@ fun NewsDetailScreen(nav: NavController, index: Int) {
                     }
                 }
                 item {
+                    // "Weitere Neuigkeiten" — recommended articles (parity)
+                    val others = HomeModel.newsList?.withIndex()
+                        ?.filter { it.value.url != md.url }?.take(3) ?: emptyList()
+                    if (others.isNotEmpty()) {
+                        HorizontalDivider(Modifier.padding(vertical = 12.dp))
+                        Text(if (L.isGerman) "Weitere Neuigkeiten" else "More news",
+                             style = MaterialTheme.typography.titleLarge,
+                             fontWeight = FontWeight.Bold)
+                        Spacer(Modifier.height(12.dp))
+                        others.forEach { (idx, other) ->
+                            Card(shape = RoundedCornerShape(16.dp),
+                                 modifier = Modifier.padding(bottom = 12.dp).clickable {
+                                     nav.navigate("newsDetail/$idx")
+                                 }) {
+                                Column(Modifier.padding(16.dp)) {
+                                    Text(other.title, fontWeight = FontWeight.SemiBold)
+                                    Spacer(Modifier.height(4.dp))
+                                    Text("${other.author} · ${other.createdDate}",
+                                         style = MaterialTheme.typography.bodySmall,
+                                         color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f))
+                                }
+                            }
+                        }
+                    }
                     (a.standaloneLinks.map { it["text"] to it["url"] } +
                      a.downloads.map { (it["title"] as? String) to (it["url"] as? String) })
                         .forEach { (text, url) ->
@@ -268,6 +292,11 @@ private fun PdfViewerContent(request: PdfRequest, onClose: () -> Unit) {
                     } else {
                         IconButton(onClick = {
                             val q = query.trim().lowercase()
+                            // schedule-PDF parity: searching a class persists it
+                            if (request.targetPage != null &&
+                                q.matches(Regex("^(j1[12]|\\d{1,2}[a-e])$"))) {
+                                prefs.selectedScheduleClass = q
+                            }
                             matches = pageTexts.withIndex()
                                 .filter { it.value.contains(q) && q.isNotEmpty() }
                                 .map { it.index }

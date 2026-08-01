@@ -17,21 +17,43 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import com.tom_roush.pdfbox.android.PDFBoxResourceLoader
+import androidx.lifecycle.lifecycleScope
+import kotlinx.coroutines.launch
 
 lateinit var prefs: Prefs
+private lateinit var prefsBacking: Prefs
 
 class MainActivity : ComponentActivity() {
+    override fun onResume() {
+        super.onResume()
+        // main.dart parity: refresh critical data on resume
+        if (::prefsBacking.isInitialized && prefs.isAuthenticated) {
+            androidx.lifecycle.lifecycleScope.launch { HomeModel.loadAll() }
+        }
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         PDFBoxResourceLoader.init(applicationContext)
         DiskCache.init(applicationContext)
         prefs = Prefs(applicationContext)
+        prefsBacking = prefs
 
         setContent {
             LgkaTheme {
                 LaunchedEffect(Unit) { HomeModel.bootstrap() }
-                RootNav()
+                // main.dart parity: 1-minute expired-cache refresh timer
+                LaunchedEffect(Unit) {
+                    while (true) {
+                        kotlinx.coroutines.delay(60_000)
+                        if (prefs.isAuthenticated) HomeModel.loadAll()
+                    }
+                }
+                androidx.compose.foundation.layout.Box {
+                    RootNav()
+                    FireworksOverlay()
+                }
             }
         }
     }

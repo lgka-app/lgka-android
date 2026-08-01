@@ -4,6 +4,7 @@ import android.graphics.RuntimeShader
 import android.os.Build
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
@@ -246,6 +247,16 @@ fun WeatherScreen(nav: NavController) {
                 if (w.hourly.isNotEmpty()) { HourlyCard(w); Spacer(Modifier.height(14.dp)) }
                 if (w.daily.isNotEmpty()) { DailyCard(w); Spacer(Modifier.height(14.dp)) }
                 StatsGrid(w)
+                Spacer(Modifier.height(20.dp))
+                val ctx = androidx.compose.ui.platform.LocalContext.current
+                Text(L.s("weatherAttribution"),
+                     color = Color.White.copy(alpha = 0.6f), fontSize = 12.sp,
+                     modifier = Modifier.align(Alignment.CenterHorizontally)
+                         .clickable {
+                             ctx.startActivity(android.content.Intent(
+                                 android.content.Intent.ACTION_VIEW,
+                                 android.net.Uri.parse("https://open-meteo.com/")))
+                         })
                 Spacer(Modifier.height(24.dp))
             }
         } else {
