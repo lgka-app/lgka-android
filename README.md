@@ -53,6 +53,10 @@ it swaps to the API-compatible [PdfBox-Android](https://github.com/TomRoush/PdfB
 It is verified at **100% parity** against the golden dataset in
 [lgka-app/verification](https://github.com/lgka-app/verification).
 
+Runner modes: `substitution` and `classindex` (PDFs), `schedulehtml`
+(Stundenplan page scrape), `news`, `events`, `weather` — the app's complete
+data layer, all verified against the goldens.
+
 ```bash
 # run over the verification fixtures
 git clone https://github.com/lgka-app/verification.git ../verification
