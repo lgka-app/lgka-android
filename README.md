@@ -47,7 +47,7 @@ Developed by [Luka Löhr](https://github.com/luka-loehr)
 
 ## Extractor (first native module)
 
-`extractor/` is the substitution-plan extractor: a Kotlin port of the
+`extractor/` contains the substitution-plan extractor and the schedule class-to-page index: a Kotlin port of the
 geometric Untis-table parser, using Apache PDFBox glyph positions (on-device
 it swaps to the API-compatible [PdfBox-Android](https://github.com/TomRoush/PdfBox-Android)).
 It is verified at **100% parity** against the golden dataset in
@@ -57,7 +57,8 @@ It is verified at **100% parity** against the golden dataset in
 # run over the verification fixtures
 git clone https://github.com/lgka-app/verification.git ../verification
 cd extractor
-gradle run --args "../../verification/fixtures/substitution /tmp/out-kotlin"
+gradle run --args "substitution ../../verification/fixtures/substitution /tmp/out-kotlin"
+gradle run --args "classindex ../../verification/fixtures/schedule /tmp/out-kotlin"
 # compare against goldens (Rust; run once, get report.html)
 cargo run --release --manifest-path ../../verification/tool/compare-report/Cargo.toml -- /tmp/out-kotlin
 ```
