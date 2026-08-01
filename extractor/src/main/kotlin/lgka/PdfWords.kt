@@ -10,13 +10,6 @@ import java.io.File
  * into visual lines. Everything past this file is library-agnostic, so the
  * Android app only swaps this one file for the pdfbox-android imports.
  */
-data class Word(val text: String, val left: Double, val right: Double)
-
-data class Line(val top: Double, val words: List<Word>) {
-    /** Words joined with single spaces — used for anchor/regex matching. */
-    val text: String = words.joinToString(" ") { it.text }
-}
-
 private class PositionCollector : PDFTextStripper() {
     val positions = mutableListOf<TextPosition>()
 

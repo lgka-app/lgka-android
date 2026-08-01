@@ -3,22 +3,12 @@ plugins {
     application
 }
 
-repositories {
-    mavenCentral()
-}
-
 dependencies {
-    // On Android this becomes com.tom-roush:pdfbox-android (same API,
-    // different package prefix) — keep PDFBox usage isolated in PdfWords.kt.
+    api(project(":core"))
+    // JVM-only; the Android app swaps in com.tom-roush:pdfbox-android
     implementation("org.apache.pdfbox:pdfbox:3.0.4")
     implementation("com.google.code.gson:gson:2.11.0")
-    implementation("org.jsoup:jsoup:1.18.3")
 }
 
-application {
-    mainClass.set("lgka.MainKt")
-}
-
-kotlin {
-    jvmToolchain(21)
-}
+application { mainClass.set("lgka.MainKt") }
+kotlin { jvmToolchain(17) }

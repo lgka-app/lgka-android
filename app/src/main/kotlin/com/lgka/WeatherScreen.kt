@@ -1,0 +1,419 @@
+package com.lgka
+
+import android.graphics.RuntimeShader
+import android.os.Build
+import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.background
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.TheaterComedy
+import androidx.compose.material.icons.outlined.*
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.ShaderBrush
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import androidx.navigation.NavController
+import kotlinx.coroutines.launch
+import kotlin.math.sin
+import kotlin.random.Random
+
+/// WMO -> Material icon mapping (UI layer).
+object WmoIcons {
+    fun icon(code: Int, isDay: Boolean): ImageVector = when (code) {
+        0, 1 -> if (isDay) Icons.Outlined.WbSunny else Icons.Outlined.NightsStay
+        2 -> Icons.Outlined.WbCloudy
+        3 -> Icons.Outlined.Cloud
+        45, 48 -> Icons.Outlined.Dehaze
+        in 51..67, in 80..82 -> Icons.Outlined.WaterDrop
+        in 71..77, 85, 86 -> Icons.Outlined.AcUnit
+        95, 96, 99 -> Icons.Outlined.Thunderstorm
+        else -> Icons.Outlined.Cloud
+    }
+}
+
+/// AGSL port of the iOS Sky.metal fbm cloud shader (Android 13+, with a
+/// gradient fallback below).
+private const val SKY_AGSL = """
+uniform float2 iRes;
+uniform float iTime;
+uniform float uCloud;
+uniform float uDay;
+
+float hash21(float2 p) {
+    p = fract(p * float2(123.34, 456.21));
+    p += dot(p, p + 45.32);
+    return fract(p.x * p.y);
+}
+float vnoise(float2 p) {
+    float2 i = floor(p); float2 f = fract(p);
+    float2 u = f * f * (3.0 - 2.0 * f);
+    float a = hash21(i); float b = hash21(i + float2(1.0, 0.0));
+    float c = hash21(i + float2(0.0, 1.0)); float d = hash21(i + float2(1.0, 1.0));
+    return mix(mix(a, b, u.x), mix(c, d, u.x), u.y);
+}
+float fbm(float2 p) {
+    float v = 0.0; float amp = 0.5;
+    for (int i = 0; i < 5; i++) {
+        v += amp * vnoise(p);
+        p = p * 2.03 + float2(17.0, 9.2);
+        amp *= 0.55;
+    }
+    return v;
+}
+half4 main(float2 fragCoord) {
+    float2 uv = fragCoord / iRes;
+    float aspect = iRes.x / iRes.y;
+    float overcast = smoothstep(0.55, 0.95, uCloud);
+    float3 top = uDay > 0.5
+        ? mix(float3(0.16, 0.42, 0.82), float3(0.36, 0.42, 0.50), overcast)
+        : float3(0.015, 0.03, 0.10);
+    float3 bottom = uDay > 0.5
+        ? mix(float3(0.52, 0.72, 0.94), float3(0.55, 0.60, 0.66), overcast)
+        : float3(0.08, 0.12, 0.26);
+    float3 col = mix(top, bottom, uv.y);
+
+    if (uDay > 0.5 && uCloud < 0.8) {
+        float2 d2 = (uv - float2(0.78, 0.20)) * float2(aspect, 1.0);
+        float d = length(d2);
+        float glow = exp(-d * d * 28.0) * 0.55 * (0.95 + 0.05 * sin(iTime * 0.8));
+        float core = exp(-d * d * 420.0) * 1.1;
+        col += float3(1.0, 0.86, 0.45) * (glow + core) * (1.0 - uCloud * 0.85);
+    }
+
+    if (uDay < 0.5 && uCloud < 0.6) {
+        float dim = (1.0 - uCloud) * (1.0 - smoothstep(0.55, 0.95, uv.y));
+        float2 suv = uv * float2(aspect, 1.0);
+        float2 g = suv * 150.0;
+        float2 cell = floor(g);
+        float h = hash21(cell);
+        if (h > 0.90) {
+            float2 sp = cell + 0.15 + 0.7 * float2(hash21(cell + 7.0), hash21(cell + 13.0));
+            float d = length(g - sp);
+            float size = 0.045 + 0.05 * hash21(cell + 3.0);
+            float core = exp(-d * d / (size * size)) * 0.6;
+            float tw = 0.55 + 0.45 * sin(iTime * (0.4 + h * 1.6) + h * 40.0);
+            col += float3(0.85, 0.9, 1.0) * core * tw * dim;
+        }
+        float2 g2 = suv * 34.0;
+        float2 base = floor(g2);
+        for (int dy = -1; dy <= 1; dy++) {
+            for (int dx = -1; dx <= 1; dx++) {
+                float2 c2 = base + float2(float(dx), float(dy));
+                float h2 = hash21(c2);
+                if (h2 <= 0.965) continue;
+                float2 sp = c2 + 0.2 + 0.6 * float2(hash21(c2 + 7.0), hash21(c2 + 13.0));
+                float2 dv = g2 - sp;
+                float d = length(dv);
+                float mag = (h2 - 0.965) / 0.035;
+                float size = 0.05 + 0.10 * mag;
+                float tw = 0.65 + 0.35 * sin(iTime * (0.5 + h2 * 2.0) + h2 * 60.0);
+                float core = exp(-d * d / (size * size));
+                float glow = exp(-d * d / (size * size * 26.0)) * 0.20 * mag;
+                float spikes = 0.0;
+                if (mag > 0.5) {
+                    float sx = exp(-abs(dv.x) * 26.0) * exp(-abs(dv.y) * 3.2);
+                    float sy = exp(-abs(dv.y) * 26.0) * exp(-abs(dv.x) * 3.2);
+                    spikes = (sx + sy) * 0.35 * (mag - 0.5) * 2.0;
+                }
+                float3 tint = mix(float3(0.80, 0.88, 1.0), float3(1.0, 0.92, 0.78),
+                                  hash21(c2 + 21.0));
+                col += tint * (core + glow + spikes) * tw * dim * (0.55 + 0.45 * mag);
+            }
+        }
+    }
+
+    float2 p1 = uv * float2(2.6 * aspect, 5.2) + float2(iTime * 0.020, 0.0);
+    float2 p2 = uv * float2(4.6 * aspect, 8.8) + float2(iTime * 0.045, 3.7);
+    float n = fbm(p1) * 0.72 + fbm(p2) * 0.42;
+    float threshold = 0.72 - uCloud * 0.38;
+    float shape = smoothstep(threshold, threshold + 0.32, n) * min(uCloud * 1.25, 1.0);
+    float shade = fbm(p1 + float2(0.0, 0.35));
+    float3 cd = mix(float3(0.99, 0.99, 1.0), float3(0.72, 0.74, 0.79), shade * 0.8);
+    float3 cn = mix(float3(0.20, 0.22, 0.28), float3(0.10, 0.11, 0.15), shade * 0.8);
+    col = mix(col, uDay > 0.5 ? cd : cn, shape * 0.92);
+
+    col += (hash21(fragCoord + fract(iTime) * 61.7) - 0.5) / 160.0;
+    return half4(half3(col), 1.0);
+}
+"""
+
+fun cloudiness(code: Int): Float = when (code) {
+    0, 1 -> 0.12f
+    2 -> 0.5f
+    45, 48 -> 0.95f
+    else -> 0.85f
+}
+
+/// Animated sky: AGSL RuntimeShader (33+) or gradient fallback; optional
+/// Canvas rain/snow particles.
+@Composable
+fun SkyBox(code: Int, isDay: Boolean, particles: Boolean, modifier: Modifier = Modifier) {
+    var t by remember { mutableStateOf(0f) }
+    LaunchedEffect(Unit) {
+        val start = System.nanoTime()
+        while (true) {
+            withFrameNanos { now -> t = (now - start) / 1e9f }
+        }
+    }
+
+    Box(modifier) {
+        if (Build.VERSION.SDK_INT >= 33) {
+            val shader = remember { RuntimeShader(SKY_AGSL) }
+            Canvas(Modifier.matchParentSize()) {
+                shader.setFloatUniform("iRes", size.width, size.height)
+                shader.setFloatUniform("iTime", t)
+                shader.setFloatUniform("uCloud", cloudiness(code))
+                shader.setFloatUniform("uDay", if (isDay) 1f else 0f)
+                drawRect(brush = ShaderBrush(shader))
+            }
+        } else {
+            Box(Modifier.matchParentSize().background(Brush.verticalGradient(
+                if (isDay) listOf(Color(0xFF2A6BD1), Color(0xFF85B8F0))
+                else listOf(Color(0xFF04081A), Color(0xFF141F42)))))
+        }
+        if (particles) {
+            when (code) {
+                in 51..67, in 80..82, 95, 96, 99 -> Precip(rain = true)
+                in 71..77, 85, 86 -> Precip(rain = false)
+            }
+        }
+    }
+}
+
+@Composable
+private fun BoxScope.Precip(rain: Boolean) {
+    var t by remember { mutableStateOf(0f) }
+    LaunchedEffect(Unit) {
+        val start = System.nanoTime()
+        while (true) { withFrameNanos { now -> t = (now - start) / 1e9f } }
+    }
+    val seeds = remember { List(if (rain) 90 else 60) { Random(it).nextFloat() to Random(it + 999).nextFloat() } }
+    Canvas(Modifier.matchParentSize()) {
+        seeds.forEachIndexed { i, (a, b) ->
+            if (rain) {
+                val speed = 1500f + a * 700f
+                val x = b * size.width + sin(t * 0.7f) * 24f
+                val y = (a * size.height + t * speed) % (size.height + 60f) - 40f
+                drawLine(Color.White.copy(alpha = 0.35f),
+                         start = androidx.compose.ui.geometry.Offset(x, y),
+                         end = androidx.compose.ui.geometry.Offset(x - 6f, y + 36f),
+                         strokeWidth = 3.5f)
+            } else {
+                val speed = 140f + a * 140f
+                val x = b * size.width + sin(t * (0.6f + a) + i) * 50f
+                val y = (a * size.height + t * speed) % (size.height + 30f) - 20f
+                drawCircle(Color.White.copy(alpha = 0.8f), radius = 5f + a * 6f,
+                           center = androidx.compose.ui.geometry.Offset(x, y))
+            }
+        }
+    }
+}
+
+// ── Weather screen ──────────────────────────────────────────────────────────
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun WeatherScreen(nav: NavController) {
+    val scope = rememberCoroutineScope()
+    var preview by remember { mutableStateOf<Pair<Int, Boolean>?>(null) }
+    var menu by remember { mutableStateOf(false) }
+    val w = HomeModel.weather
+
+    Box(Modifier.fillMaxSize()) {
+        if (w != null) {
+            SkyBox(code = preview?.first ?: w.code,
+                   isDay = preview?.second ?: w.isDay,
+                   particles = true,
+                   modifier = Modifier.matchParentSize())
+            Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState())
+                       .systemBarsPadding().padding(horizontal = 16.dp)) {
+                Spacer(Modifier.height(56.dp))
+                Hero(w)
+                Spacer(Modifier.height(20.dp))
+                if (w.hourly.isNotEmpty()) { HourlyCard(w); Spacer(Modifier.height(14.dp)) }
+                if (w.daily.isNotEmpty()) { DailyCard(w); Spacer(Modifier.height(14.dp)) }
+                StatsGrid(w)
+                Spacer(Modifier.height(24.dp))
+            }
+        } else {
+            Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                if (HomeModel.weatherError) {
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Text(L.s("weatherDataNotAvailable"), fontWeight = FontWeight.SemiBold)
+                        Spacer(Modifier.height(8.dp))
+                        Button(onClick = { scope.launch { HomeModel.loadWeather(FetchMode.Refresh) } }) {
+                            Text(L.s("tryAgain"))
+                        }
+                    }
+                } else CircularProgressIndicator()
+            }
+        }
+
+        // top bar overlay
+        Row(Modifier.fillMaxWidth().systemBarsPadding().padding(4.dp),
+            verticalAlignment = Alignment.CenterVertically) {
+            IconButton(onClick = { nav.popBackStack() }) {
+                Icon(Icons.AutoMirrored.Filled.ArrowBack, null, tint = Color.White)
+            }
+            Spacer(Modifier.weight(1f))
+            Box {
+                IconButton(onClick = { menu = true }) {
+                    Icon(Icons.Filled.TheaterComedy, null, tint = Color.White)
+                }
+                DropdownMenu(expanded = menu, onDismissRequest = { menu = false }) {
+                    DropdownMenuItem(text = { Text("Live") },
+                                     onClick = { preview = null; menu = false })
+                    listOf("Klar (Tag)" to (0 to true), "Klar (Nacht)" to (0 to false),
+                           "Teilweise bewölkt" to (2 to true), "Bedeckt" to (3 to true),
+                           "Nebel" to (45 to true), "Regen (Tag)" to (63 to true),
+                           "Regen (Nacht)" to (63 to false), "Gewitter" to (95 to true),
+                           "Schnee (Tag)" to (73 to true), "Schnee (Nacht)" to (73 to false))
+                        .forEach { (label, value) ->
+                            DropdownMenuItem(text = { Text(label) },
+                                             onClick = { preview = value; menu = false })
+                        }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun Hero(w: SchoolApi.WeatherData) {
+    Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally) {
+        Text("Karlsruhe", color = Color.White, fontSize = 22.sp, fontWeight = FontWeight.Medium)
+        Text("${w.temp.toInt()}°", color = Color.White, fontSize = 92.sp,
+             fontWeight = FontWeight.Thin)
+        Text(L.wmoDescription(w.code), color = Color.White.copy(alpha = 0.95f),
+             fontWeight = FontWeight.Medium)
+        w.daily.firstOrNull()?.let { today ->
+            Text("H: ${today.tempMax.toInt()}°  T: ${today.tempMin.toInt()}°",
+                 color = Color.White, fontWeight = FontWeight.Medium)
+        }
+    }
+}
+
+@Composable
+private fun GlassCard(content: @Composable ColumnScope.() -> Unit) {
+    Column(Modifier.fillMaxWidth()
+               .background(Color.Black.copy(alpha = 0.25f), RoundedCornerShape(18.dp))
+               .padding(14.dp), content = content)
+}
+
+@Composable
+private fun HourlyCard(w: SchoolApi.WeatherData) {
+    GlassCard {
+        Text(L.s("hourlyForecastLabel"), color = Color.White.copy(alpha = 0.65f),
+             fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
+        Spacer(Modifier.height(8.dp))
+        Row(Modifier.horizontalScroll(rememberScrollState()),
+            horizontalArrangement = Arrangement.spacedBy(22.dp)) {
+            w.hourly.forEach { h ->
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Text(h.time, color = Color.White, fontSize = 12.sp,
+                         fontWeight = FontWeight.SemiBold)
+                    Spacer(Modifier.height(6.dp))
+                    Icon(WmoIcons.icon(h.code, h.isDay), null, tint = Color.White,
+                         modifier = Modifier.size(20.dp))
+                    if (h.pop >= 0.1) Text("${(h.pop * 100).toInt()}%",
+                                           color = Color(0xFF7FDBFF), fontSize = 10.sp)
+                    Spacer(Modifier.height(4.dp))
+                    Text("${h.temp.toInt()}°", color = Color.White,
+                         fontWeight = FontWeight.SemiBold)
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun DailyCard(w: SchoolApi.WeatherData) {
+    val weekMin = w.daily.minOf { it.tempMin }
+    val weekMax = w.daily.maxOf { it.tempMax }
+    val span = (weekMax - weekMin).coerceAtLeast(1.0)
+    GlassCard {
+        Text(L.s("threeDayForecastLabel"), color = Color.White.copy(alpha = 0.65f),
+             fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
+        w.daily.forEach { d ->
+            Row(Modifier.padding(vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
+                Text(dayLabel(d.date), color = Color.White, fontWeight = FontWeight.Medium,
+                     modifier = Modifier.width(52.dp))
+                Icon(WmoIcons.icon(d.code, true), null, tint = Color.White,
+                     modifier = Modifier.size(20.dp))
+                Spacer(Modifier.width(8.dp))
+                Text(if (d.pop >= 0.1) "${(d.pop * 100).toInt()}%" else "",
+                     color = Color(0xFF7FDBFF), fontSize = 12.sp,
+                     modifier = Modifier.width(36.dp))
+                Text("${d.tempMin.toInt()}°", color = Color.White.copy(alpha = 0.7f))
+                Spacer(Modifier.width(8.dp))
+                val startF = ((d.tempMin - weekMin) / span).toFloat().coerceIn(0f, 1f)
+                val endF = ((d.tempMax - weekMin) / span).toFloat().coerceIn(0f, 1f)
+                Row(Modifier.weight(1f).height(5.dp)
+                        .background(Color.Black.copy(alpha = 0.3f), RoundedCornerShape(3.dp))) {
+                    if (startF > 0f) Spacer(Modifier.weight(startF.coerceAtLeast(0.001f)))
+                    Box(Modifier.weight((endF - startF).coerceAtLeast(0.05f)).fillMaxHeight()
+                        .background(Brush.horizontalGradient(
+                            listOf(Color(0xFF7FDBFF), Color(0xFFFFDC00))),
+                            RoundedCornerShape(3.dp)))
+                    if (endF < 1f) Spacer(Modifier.weight((1f - endF).coerceAtLeast(0.001f)))
+                }
+                Spacer(Modifier.width(8.dp))
+                Text("${d.tempMax.toInt()}°", color = Color.White,
+                     fontWeight = FontWeight.SemiBold)
+            }
+        }
+    }
+}
+
+@Composable
+private fun StatsGrid(w: SchoolApi.WeatherData) {
+    val uviLabel = when {
+        w.uvi < 3 -> L.s("uviLow"); w.uvi < 6 -> L.s("uviMedium")
+        w.uvi < 8 -> L.s("uviHigh"); w.uvi < 11 -> L.s("uviVeryHigh")
+        else -> L.s("uviExtreme")
+    }
+    Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
+        Row(horizontalArrangement = Arrangement.spacedBy(14.dp)) {
+            StatTile(L.s("weatherHumidityShort"), "${w.humidity} %", Modifier.weight(1f))
+            StatTile(L.s("weatherWindShort"), "${w.windSpeed.toInt()} km/h", Modifier.weight(1f))
+        }
+        Row(horizontalArrangement = Arrangement.spacedBy(14.dp)) {
+            StatTile("hPa", "${w.pressure}", Modifier.weight(1f))
+            StatTile("UV-Index", "%.1f · %s".format(w.uvi, uviLabel), Modifier.weight(1f))
+        }
+    }
+}
+
+@Composable
+private fun StatTile(label: String, value: String, modifier: Modifier = Modifier) {
+    Column(modifier.background(Color.Black.copy(alpha = 0.25f), RoundedCornerShape(18.dp))
+               .padding(14.dp).height(64.dp)) {
+        Text(label.uppercase(), color = Color.White.copy(alpha = 0.65f), fontSize = 11.sp,
+             fontWeight = FontWeight.SemiBold)
+        Spacer(Modifier.height(6.dp))
+        Text(value, color = Color.White, fontSize = 18.sp, fontWeight = FontWeight.Medium)
+    }
+}
+
+private fun dayLabel(iso: String): String {
+    val today = java.time.LocalDate.now()
+    val date = runCatching { java.time.LocalDate.parse(iso) }.getOrNull() ?: return iso
+    if (date == today) return L.s("today")
+    return date.format(java.time.format.DateTimeFormatter.ofPattern("EEE",
+        if (L.isGerman) Locale.GERMAN else Locale.ENGLISH))
+}
+
+private typealias Locale = java.util.Locale

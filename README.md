@@ -66,3 +66,22 @@ gradle run --args "classindex ../../verification/fixtures/schedule /tmp/out-kotl
 # compare against goldens (Rust; run once, get report.html)
 cargo run --release --manifest-path ../../verification/tool/compare-report/Cargo.toml -- /tmp/out-kotlin
 ```
+
+
+---
+
+## Native app modules
+
+- `:core` — the verified data-layer parsers (shared; JVM + Android)
+- `:extractor` — parity CLI (Apache PDFBox, JVM); goldens gate in
+  [lgka-app/verification](https://github.com/lgka-app/verification)
+- `:app` — the native app (Jetpack Compose Material 3, AGSL weather shader,
+  PdfBox-Android for on-device PDF geometry)
+
+Build (needs Android SDK + first-run dependency downloads — do this on WiFi):
+
+```bash
+# with ANDROID_HOME set and cmdline-tools installed:
+gradle :app:assembleRelease
+gradle :extractor:run --args "..."   # parity CLI unchanged
+```
