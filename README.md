@@ -58,6 +58,6 @@ It is verified at **100% parity** against the golden dataset in
 git clone https://github.com/lgka-app/verification.git ../verification
 cd extractor
 gradle run --args "../../verification/fixtures/substitution /tmp/out-kotlin"
-# compare against goldens
-python3 ../../verification/tool/compare_report.py /tmp/out-kotlin
+# compare against goldens (Rust; run once, get report.html)
+cargo run --release --manifest-path ../../verification/tool/compare-report/Cargo.toml -- /tmp/out-kotlin
 ```
