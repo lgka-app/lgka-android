@@ -28,6 +28,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
 import kotlinx.coroutines.launch
+import java.util.Locale
 import kotlin.math.sin
 import kotlin.random.Random
 
@@ -279,6 +280,8 @@ fun WeatherScreen(nav: NavController) {
             IconButton(onClick = { nav.popBackStack() }) {
                 Icon(Icons.AutoMirrored.Filled.ArrowBack, null, tint = Color.White)
             }
+            Text(L.s("weatherPageTitle"), color = Color.White,
+                 fontWeight = FontWeight.SemiBold)
             Spacer(Modifier.weight(1f))
             Box {
                 IconButton(onClick = { menu = true }) {
@@ -427,4 +430,3 @@ private fun dayLabel(iso: String): String {
         if (L.isGerman) Locale.GERMAN else Locale.ENGLISH))
 }
 
-private typealias Locale = java.util.Locale

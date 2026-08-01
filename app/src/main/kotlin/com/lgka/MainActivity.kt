@@ -4,6 +4,7 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.material3.ColorScheme
 import androidx.compose.material3.MaterialTheme
@@ -11,7 +12,6 @@ import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.remember
 import androidx.compose.ui.graphics.Color
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
@@ -21,14 +21,17 @@ import androidx.lifecycle.lifecycleScope
 import kotlinx.coroutines.launch
 
 lateinit var prefs: Prefs
-private lateinit var prefsBacking: Prefs
 
 class MainActivity : ComponentActivity() {
     override fun onResume() {
         super.onResume()
         // main.dart parity: refresh critical data on resume
-        if (::prefsBacking.isInitialized && prefs.isAuthenticated) {
-            androidx.lifecycle.lifecycleScope.launch { HomeModel.loadAll() }
+        if (::prefs.isInitialized && prefs.isAuthenticated) {
+            // subs+weather are invalidated on background in the Flutter app
+            lifecycleScope.launch {
+                HomeModel.loadSubstitution(FetchMode.Refresh)
+                HomeModel.loadWeather(FetchMode.Refresh)
+            }
         }
     }
 
@@ -38,7 +41,6 @@ class MainActivity : ComponentActivity() {
         PDFBoxResourceLoader.init(applicationContext)
         DiskCache.init(applicationContext)
         prefs = Prefs(applicationContext)
-        prefsBacking = prefs
 
         setContent {
             LgkaTheme {
@@ -50,7 +52,7 @@ class MainActivity : ComponentActivity() {
                         if (prefs.isAuthenticated) HomeModel.loadAll()
                     }
                 }
-                androidx.compose.foundation.layout.Box {
+                Box {
                     RootNav()
                     FireworksOverlay()
                 }
@@ -110,7 +112,8 @@ fun MainNav() {
         }
         composable("krankmeldungInfo") { KrankmeldungInfoScreen(nav) }
         composable("krankmeldungForm") {
-            WebScreen(nav, "https://drkrankmeldung.lgka-online.de", L.s("krankmeldung"))
+            WebScreen(nav, "https://drkrankmeldung.lgka-online.de", L.s("krankmeldung"),
+                      confineToHost = "lgka-online.de")
         }
         composable("bugReport") {
             WebScreen(nav,

@@ -21,6 +21,8 @@ enum class FetchMode { CacheFirst, CacheAny, Refresh }
 /// SchoolAPI. Fetch + disk cache + reshape parser maps into UI models.
 object SchoolApi {
     const val BASE = "https://lessing-gymnasium-karlsruhe.de"
+    /// Same User-Agent format the Flutter app sends (app_info.dart).
+    val userAgent = "LGKA-App-Luka-Loehr/" + BuildConfig.VERSION_NAME
     private val auth =
         "Basic " + Base64.encodeToString("vertretungsplan:ephraim".toByteArray(), Base64.NO_WRAP)
 
@@ -28,7 +30,7 @@ object SchoolApi {
         const val SUBSTITUTION = 60L
         const val SCHEDULES = 24 * 3600L
         const val NEWS = 3600L
-        const val WEATHER = 3600L
+        const val WEATHER = 60L // CacheService parity (1 min)
         const val EVENTS = 3600L
     }
 
@@ -37,7 +39,7 @@ object SchoolApi {
             val conn = URL(url).openConnection() as HttpURLConnection
             conn.connectTimeout = 15000
             conn.readTimeout = 15000
-            conn.setRequestProperty("User-Agent", "LGKA+/3.0.0")
+            conn.setRequestProperty("User-Agent", userAgent)
             if (authenticated) conn.setRequestProperty("Authorization", auth)
             try {
                 if (conn.responseCode != 200) throw RuntimeException("HTTP ${conn.responseCode}")

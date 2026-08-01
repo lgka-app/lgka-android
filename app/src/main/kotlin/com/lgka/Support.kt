@@ -137,7 +137,19 @@ object L {
         "openInBrowser" to "Im Browser öffnen",
         "sharePdf" to "PDF teilen", "searchInPdf" to "Im PDF suchen",
         "cancel" to "Abbrechen",
+        "weitereNeuigkeiten" to "Weitere Neuigkeiten",
+        "mehrErfahren" to "Mehr erfahren",
     )
+
+    /// "Klasse {x} existiert nicht." (noResultsFound parity)
+    fun noResults(query: String): String =
+        if (isGerman) "Klasse ${query.uppercase()} existiert nicht."
+        else "Class ${query.uppercase()} does not exist."
+
+    /// "Deine Klasse wurde auf {x} geändert." (classChanged parity)
+    fun classChanged(name: String): String =
+        if (isGerman) "Deine Klasse wurde auf $name geändert."
+        else "Your class was changed to $name."
 
     val en = mapOf(
         "welcomeHeadline" to "Welcome!",
@@ -208,6 +220,8 @@ object L {
         "openInBrowser" to "Open in browser",
         "sharePdf" to "Share PDF", "searchInPdf" to "Search in PDF",
         "cancel" to "Cancel",
+        "weitereNeuigkeiten" to "More news",
+        "mehrErfahren" to "Learn more",
     )
 
     fun wmoDescription(code: Int): String = if (isGerman) wmoDe(code) else wmoEn(code)
@@ -266,9 +280,19 @@ object DiskCache {
 /// New Year's Day fireworks — mirrors fireworks_overlay.dart (Jan 1, Berlin).
 @androidx.compose.runtime.Composable
 fun FireworksOverlay() {
-    val isNewYear = androidx.compose.runtime.remember {
+    fun check(): Boolean {
         val berlin = java.time.ZonedDateTime.now(java.time.ZoneId.of("Europe/Berlin"))
-        berlin.monthValue == 1 && berlin.dayOfMonth == 1
+        return berlin.monthValue == 1 && berlin.dayOfMonth == 1
+    }
+    var isNewYear by androidx.compose.runtime.remember {
+        androidx.compose.runtime.mutableStateOf(check())
+    }
+    // fireworks_provider parity: re-check every minute to catch midnight
+    androidx.compose.runtime.LaunchedEffect(Unit) {
+        while (true) {
+            kotlinx.coroutines.delay(60_000)
+            isNewYear = check()
+        }
     }
     if (!isNewYear) return
     var t by androidx.compose.runtime.remember { androidx.compose.runtime.mutableFloatStateOf(0f) }

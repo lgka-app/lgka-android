@@ -38,22 +38,35 @@ fun HomeScreen(nav: NavController) {
     var pdf by remember { mutableStateOf<PdfRequest?>(null) }
     val pull = rememberPullToRefreshState()
     var refreshing by remember { mutableStateOf(false) }
+    val snackbarState = remember { SnackbarHostState() }
+    val haptic = androidx.compose.ui.platform.LocalHapticFeedback.current
 
     Scaffold(
+        snackbarHost = { SnackbarHost(snackbarState) },
         topBar = {
             TopAppBar(
                 title = { Text(L.s("appTitle"), fontWeight = FontWeight.ExtraBold) },
                 actions = {
-                    IconButton(onClick = { nav.navigate("news") }) {
+                    IconButton(onClick = {
+                        haptic.performHapticFeedback(
+                            androidx.compose.ui.hapticfeedback.HapticFeedbackType.TextHandleMove)
+                        nav.navigate("news")
+                    }) {
                         Icon(Icons.Outlined.Newspaper, L.s("news"))
                     }
                     IconButton(onClick = {
+                        haptic.performHapticFeedback(
+                            androidx.compose.ui.hapticfeedback.HapticFeedbackType.TextHandleMove)
                         if (prefs.krankmeldungInfoShown) nav.navigate("krankmeldungForm")
                         else nav.navigate("krankmeldungInfo")
                     }) {
                         Icon(Icons.Outlined.MedicalServices, L.s("krankmeldung"))
                     }
-                    IconButton(onClick = { showSettings = true }) {
+                    IconButton(onClick = {
+                        haptic.performHapticFeedback(
+                            androidx.compose.ui.hapticfeedback.HapticFeedbackType.TextHandleMove)
+                        showSettings = true
+                    }) {
                         Icon(Icons.Outlined.Settings, L.s("settings"))
                     }
                 })
@@ -62,6 +75,8 @@ fun HomeScreen(nav: NavController) {
             isRefreshing = refreshing,
             state = pull,
             onRefresh = {
+                haptic.performHapticFeedback(
+                    androidx.compose.ui.hapticfeedback.HapticFeedbackType.LongPress)
                 scope.launch {
                     refreshing = true
                     HomeModel.loadAll(FetchMode.Refresh)
@@ -69,6 +84,7 @@ fun HomeScreen(nav: NavController) {
                 }
             },
             modifier = Modifier.padding(padding)) {
+            CompositionLocalProvider(LocalSnackbar provides snackbarState) {
             LazyColumn(
                 Modifier.fillMaxSize().padding(horizontal = 20.dp),
                 verticalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -82,6 +98,7 @@ fun HomeScreen(nav: NavController) {
                 item { EventsColumn() }
                 item { Spacer(Modifier.height(16.dp)) }
             }
+            }
         }
     }
 
@@ -92,7 +109,12 @@ fun HomeScreen(nav: NavController) {
     }
 }
 
-data class PdfRequest(val file: java.io.File, val title: String, val targetPage: Int?)
+data class PdfRequest(val file: java.io.File, val title: String,
+                      val targetPage: Int?, val gradeLevel: String? = null)
+
+/// Snackbar host handle for schedule download failures.
+val LocalSnackbar =
+    androidx.compose.runtime.staticCompositionLocalOf<SnackbarHostState?> { null }
 
 @Composable
 fun SectionHeader(title: String) {
@@ -138,6 +160,10 @@ fun WeatherRow(onOpen: () -> Unit) {
                          fontWeight = FontWeight.Medium)
                     Text(L.wmoDescription(w.code), color = Color.White.copy(alpha = 0.9f),
                          fontSize = 13.sp, fontWeight = FontWeight.Medium)
+                    Text((if (L.isGerman) "Gefühlt " else "Feels like ") +
+                             "${w.feelsLike.toInt()}°",
+                         color = Color.White.copy(alpha = 0.8f), fontSize = 11.sp,
+                         fontWeight = FontWeight.SemiBold)
                 }
                 Spacer(Modifier.weight(1f))
                 Column(horizontalAlignment = Alignment.End) {
@@ -152,13 +178,22 @@ fun WeatherRow(onOpen: () -> Unit) {
             }
         }
     } else if (HomeModel.weatherError) {
+        val scope = rememberCoroutineScope()
         HomeCard {
             Icon(Icons.Outlined.CloudOff, null,
                  tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.4f))
             Spacer(Modifier.width(14.dp))
             Text(L.s("weatherDataNotAvailable"),
                  style = MaterialTheme.typography.bodySmall,
-                 color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f))
+                 color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
+                 modifier = Modifier.weight(1f))
+            IconButton(onClick = {
+                scope.launch { HomeModel.loadWeather(FetchMode.Refresh) }
+            }) {
+                Icon(Icons.Filled.Refresh, null,
+                     tint = MaterialTheme.colorScheme.primary,
+                     modifier = Modifier.size(18.dp))
+            }
         }
     } else {
         SkeletonRow()
@@ -226,8 +261,32 @@ fun SubstitutionCards(onOpen: (PdfRequest) -> Unit) {
     }
 }
 
+/// Per-card failure row (home_screen per-day retry parity).
+@Composable
+private fun SubErrorCard() {
+    val scope = rememberCoroutineScope()
+    Card(shape = RoundedCornerShape(16.dp),
+         modifier = Modifier.clickable {
+             scope.launch { HomeModel.loadSubstitution(FetchMode.Refresh) }
+         }) {
+        Row(Modifier.fillMaxWidth().height(76.dp).padding(horizontal = 18.dp),
+            verticalAlignment = Alignment.CenterVertically) {
+            IconTile(Icons.Filled.Refresh)
+            Spacer(Modifier.width(14.dp))
+            Text(if (L.isGerman) "Fehler beim Laden" else "Error loading",
+                 fontWeight = FontWeight.SemiBold, modifier = Modifier.weight(1f))
+            Icon(Icons.Filled.Refresh, null, Modifier.size(18.dp),
+                 tint = MaterialTheme.colorScheme.primary)
+        }
+    }
+}
+
 @Composable
 private fun SubCard(plan: SchoolApi.SubPlan?, onOpen: (PdfRequest) -> Unit) {
+    if (plan == null && !HomeModel.subLoading && !HomeModel.subError) {
+        SubErrorCard()
+        return
+    }
     val canOpen = plan?.canDisplay == true
     val weekday = displayWeekday(plan?.weekday)
     Card(shape = RoundedCornerShape(16.dp),
@@ -280,6 +339,7 @@ private fun displayWeekday(weekday: String?): String {
 @Composable
 fun ScheduleCard(onSetClass: () -> Unit, onOpen: (PdfRequest) -> Unit) {
     val scope = rememberCoroutineScope()
+    val snackbar = LocalSnackbar.current
     var loading by remember { mutableStateOf(false) }
 
     if (HomeModel.scheduleLoading) {
@@ -291,7 +351,17 @@ fun ScheduleCard(onSetClass: () -> Unit, onOpen: (PdfRequest) -> Unit) {
             Spacer(Modifier.width(12.dp))
             Text(if (HomeModel.scheduleError) L.s("serverConnectionFailed")
                  else L.s("noSchedulesAvailable"),
-                 color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f))
+                 color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
+                 modifier = Modifier.weight(1f))
+            if (HomeModel.scheduleError) {
+                IconButton(onClick = {
+                    scope.launch { HomeModel.loadSchedules(FetchMode.Refresh) }
+                }) {
+                    Icon(Icons.Filled.Refresh, null,
+                         tint = MaterialTheme.colorScheme.primary,
+                         modifier = Modifier.size(18.dp))
+                }
+            }
         }
     } else {
         val cls = prefs.selectedScheduleClass
@@ -327,8 +397,14 @@ fun ScheduleCard(onSetClass: () -> Unit, onOpen: (PdfRequest) -> Unit) {
                      scope.launch {
                          try {
                              val (file, index) = SchoolApi.schedulePdf(target)
-                             onOpen(PdfRequest(file, "${formatClass(cls)} – $half", index[cls]))
-                         } catch (_: Exception) {}
+                             onOpen(PdfRequest(file, "${formatClass(cls)} – $half",
+                                               index[cls], target.gradeLevel))
+                         } catch (e: Exception) {
+                             // home_screen SnackBar parity
+                             snackbar?.showSnackbar("$half " +
+                                 (if (L.isGerman) "ist noch nicht verfügbar"
+                                  else "is not available yet"))
+                         }
                          loading = false
                      }
                  }) {
@@ -386,13 +462,24 @@ fun EventsColumn() {
             repeat(4) { SkeletonRow() }
         }
     } else if (HomeModel.events.isEmpty()) {
+        val scope = rememberCoroutineScope()
         HomeCard {
             Icon(Icons.Outlined.Event, null,
                  tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.4f))
             Spacer(Modifier.width(12.dp))
             Text(if (HomeModel.eventsError) L.s("serverConnectionFailed")
                  else L.s("noEventsAvailable"),
-                 color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f))
+                 color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
+                 modifier = Modifier.weight(1f))
+            if (HomeModel.eventsError) {
+                IconButton(onClick = {
+                    scope.launch { HomeModel.loadEvents(FetchMode.Refresh) }
+                }) {
+                    Icon(Icons.Filled.Refresh, null,
+                         tint = MaterialTheme.colorScheme.primary,
+                         modifier = Modifier.size(18.dp))
+                }
+            }
         }
     } else {
         Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {

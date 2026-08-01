@@ -65,9 +65,26 @@ fun NewsListScreen(nav: NavController) {
             })
     }) { padding ->
         when {
-            list != null -> LazyColumn(
-                Modifier.padding(padding).padding(horizontal = 20.dp),
-                verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            list != null && list.isEmpty() -> Box(
+                Modifier.fillMaxSize().padding(padding), Alignment.Center) {
+                Text(L.s("noNewsAvailable"),
+                     color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f))
+            }
+            list != null -> {
+                var refreshing by remember { mutableStateOf(false) }
+                PullToRefreshBox(
+                    isRefreshing = refreshing,
+                    onRefresh = {
+                        scope.launch {
+                            refreshing = true
+                            HomeModel.loadNews(FetchMode.Refresh)
+                            refreshing = false
+                        }
+                    },
+                    modifier = Modifier.padding(padding)) {
+                LazyColumn(
+                    Modifier.fillMaxSize().padding(horizontal = 20.dp),
+                    verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 itemsIndexed(list) { i, md ->
                     Card(shape = RoundedCornerShape(16.dp),
                          modifier = Modifier.clickable { nav.navigate("newsDetail/$i") }) {
@@ -80,11 +97,32 @@ fun NewsListScreen(nav: NavController) {
                                      color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f))
                             }
                             Spacer(Modifier.height(6.dp))
-                            Text("${md.author} · ${md.createdDate}",
+                            Text("${md.author} · ${md.createdDate} · ${md.views} 👁",
                                  style = MaterialTheme.typography.bodySmall,
                                  color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.4f))
+                            if (md.tags.isNotEmpty()) {
+                                Spacer(Modifier.height(6.dp))
+                                Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                                    md.tags.take(3).forEach { tag ->
+                                        Text(tag,
+                                             style = MaterialTheme.typography.labelSmall,
+                                             color = MaterialTheme.colorScheme.primary,
+                                             modifier = Modifier.background(
+                                                 MaterialTheme.colorScheme.primary.copy(alpha = 0.12f),
+                                                 RoundedCornerShape(50)
+                                             ).padding(horizontal = 8.dp, vertical = 3.dp))
+                                    }
+                                }
+                            }
+                            Spacer(Modifier.height(6.dp))
+                            Text(L.s("mehrErfahren") + " →",
+                                 style = MaterialTheme.typography.labelMedium,
+                                 color = MaterialTheme.colorScheme.primary,
+                                 fontWeight = FontWeight.SemiBold)
                         }
                     }
+                }
+                }
                 }
             }
             HomeModel.newsFailed -> Column(
@@ -140,13 +178,42 @@ fun NewsDetailScreen(nav: NavController, index: Int) {
                          style = MaterialTheme.typography.bodySmall,
                          color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f))
                     Spacer(Modifier.height(16.dp))
-                    a.content?.let { Text(it) }
+                    a.content?.let { text ->
+                        // tappable embedded links (news_detail RichText parity)
+                        val accent = MaterialTheme.colorScheme.primary
+                        val annotated = androidx.compose.ui.text.buildAnnotatedString {
+                            append(text)
+                            a.links.forEach { link ->
+                                val lt = link["text"] ?: return@forEach
+                                val url = link["url"] ?: return@forEach
+                                var start = text.indexOf(lt)
+                                if (start >= 0) {
+                                    addLink(androidx.compose.ui.text.LinkAnnotation.Url(url),
+                                            start, start + lt.length)
+                                    addStyle(androidx.compose.ui.text.SpanStyle(
+                                        color = accent,
+                                        textDecoration = androidx.compose.ui.text.style.TextDecoration.Underline),
+                                        start, start + lt.length)
+                                }
+                            }
+                        }
+                        Text(annotated)
+                    }
                     Spacer(Modifier.height(16.dp))
                 }
                 items(a.images.size) { i ->
                     (a.images[i]["url"] as? String)?.let { url ->
-                        AsyncImage(model = url, contentDescription = null,
-                                   modifier = Modifier.fillMaxWidth().padding(bottom = 12.dp))
+                        Box(Modifier.fillMaxWidth().padding(bottom = 12.dp)
+                                .clickable {
+                                    context.startActivity(
+                                        Intent(Intent.ACTION_VIEW, Uri.parse(url)))
+                                }) {
+                            AsyncImage(model = url, contentDescription = null,
+                                       modifier = Modifier.fillMaxWidth())
+                            Icon(Icons.AutoMirrored.Filled.OpenInNew, null,
+                                 Modifier.align(Alignment.TopEnd).padding(8.dp).size(16.dp),
+                                 tint = Color.White.copy(alpha = 0.8f))
+                        }
                     }
                 }
                 item {
@@ -155,7 +222,7 @@ fun NewsDetailScreen(nav: NavController, index: Int) {
                         ?.filter { it.value.url != md.url }?.take(3) ?: emptyList()
                     if (others.isNotEmpty()) {
                         HorizontalDivider(Modifier.padding(vertical = 12.dp))
-                        Text(if (L.isGerman) "Weitere Neuigkeiten" else "More news",
+                        Text(L.s("weitereNeuigkeiten"),
                              style = MaterialTheme.typography.titleLarge,
                              fontWeight = FontWeight.Bold)
                         Spacer(Modifier.height(12.dp))
@@ -214,23 +281,38 @@ fun PdfViewerDialog(request: PdfRequest, onClose: () -> Unit) {
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun PdfViewerContent(request: PdfRequest, onClose: () -> Unit) {
     val context = LocalContext.current
+    var currentFile by remember { mutableStateOf(request.file) }
+    var currentTitle by remember { mutableStateOf(request.title) }
+    var currentGrade by remember { mutableStateOf(request.gradeLevel) }
     var pages by remember { mutableStateOf<List<Bitmap>>(emptyList()) }
     var pageTexts by remember { mutableStateOf<List<String>>(emptyList()) }
     var query by remember { mutableStateOf("") }
     var showSearch by remember { mutableStateOf(false) }
     var matches by remember { mutableStateOf<List<Int>>(emptyList()) }
     var matchIndex by remember { mutableStateOf(0) }
+    var feedback by remember { mutableStateOf<String?>(null) }
     var scale by remember { mutableStateOf(1f) }
+    var pan by remember { mutableStateOf(androidx.compose.ui.geometry.Offset.Zero) }
     val listState: LazyListState = rememberLazyListState()
     val scope = rememberCoroutineScope()
 
-    LaunchedEffect(request.file) {
+    // pdf_viewer parity: allow rotation while a PDF is open
+    DisposableEffect(Unit) {
+        val activity = context as? android.app.Activity
+        activity?.requestedOrientation =
+            android.content.pm.ActivityInfo.SCREEN_ORIENTATION_FULL_SENSOR
+        onDispose {
+            activity?.requestedOrientation =
+                android.content.pm.ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
+        }
+    }
+
+    suspend fun loadPdf(file: java.io.File, targetPage: Int?) {
         withContext(Dispatchers.IO) {
-            val fd = ParcelFileDescriptor.open(request.file, ParcelFileDescriptor.MODE_READ_ONLY)
+            val fd = ParcelFileDescriptor.open(file, ParcelFileDescriptor.MODE_READ_ONLY)
             PdfRenderer(fd).use { renderer ->
                 pages = (0 until renderer.pageCount).map { i ->
                     renderer.openPage(i).use { page ->
@@ -242,16 +324,18 @@ private fun PdfViewerContent(request: PdfRequest, onClose: () -> Unit) {
                     }
                 }
             }
-            pageTexts = runCatching { pageTextsAndroid(request.file) }.getOrDefault(emptyList())
+            pageTexts = runCatching { pageTextsAndroid(file) }.getOrDefault(emptyList())
         }
-        request.targetPage?.let { display ->
+        targetPage?.let { display ->
             listState.scrollToItem((display - 2).coerceAtLeast(0))
         }
     }
 
+    LaunchedEffect(request.file) { loadPdf(request.file, request.targetPage) }
+
     Scaffold(topBar = {
         TopAppBar(
-            title = { Text(request.title, maxLines = 1) },
+            title = { Text(currentTitle, maxLines = 1) },
             navigationIcon = {
                 IconButton(onClick = onClose) { Icon(Icons.Filled.Close, null) }
             },
@@ -260,7 +344,14 @@ private fun PdfViewerContent(request: PdfRequest, onClose: () -> Unit) {
                     Icon(Icons.Filled.Search, L.s("searchInPdf"))
                 }
                 IconButton(onClick = {
-                    val uri = FileProvider.getUriForFile(context, "com.lgka.files", request.file)
+                    // pdf_share_service parity: friendly filename
+                    val prefix = if (currentGrade != null) "LGKA_Stundenplan_"
+                                 else "LGKA_Vertretungsplan_"
+                    val safe = currentTitle.replace(Regex("[^A-Za-z0-9]+"), "_").trim('_')
+                    val shareFile = java.io.File(context.cacheDir,
+                        prefix + (safe.ifEmpty { "Plan" }) + ".pdf")
+                    currentFile.copyTo(shareFile, overwrite = true)
+                    val uri = FileProvider.getUriForFile(context, "com.lgka.files", shareFile)
                     context.startActivity(Intent.createChooser(
                         Intent(Intent.ACTION_SEND).apply {
                             type = "application/pdf"
@@ -292,21 +383,52 @@ private fun PdfViewerContent(request: PdfRequest, onClose: () -> Unit) {
                     } else {
                         IconButton(onClick = {
                             val q = query.trim().lowercase()
-                            // schedule-PDF parity: searching a class persists it
-                            if (request.targetPage != null &&
-                                q.matches(Regex("^(j1[12]|\\d{1,2}[a-e])$"))) {
+                            feedback = null
+                            val isClass = q.matches(Regex("^(j1[12]|\\d{1,2}[a-e])$"))
+                            if (currentGrade != null && isClass) {
                                 prefs.selectedScheduleClass = q
+                                val targetGroup =
+                                    if (q.startsWith("j")) "J11/J12" else "Klassen 5-10"
+                                if (targetGroup != currentGrade) {
+                                    // cross-PDF class switching (_navigateCrossPdf parity)
+                                    val other = HomeModel.preferredGroup
+                                        .firstOrNull { it.gradeLevel == targetGroup }
+                                    if (other != null) {
+                                        scope.launch {
+                                            try {
+                                                val (file, index) = SchoolApi.schedulePdf(other)
+                                                currentFile = file
+                                                currentGrade = targetGroup
+                                                currentTitle = formatClass(q)
+                                                loadPdf(file, index[q])
+                                                feedback = L.classChanged(formatClass(q))
+                                            } catch (e: Exception) {
+                                                feedback = L.s("serverConnectionFailed")
+                                            }
+                                        }
+                                        return@IconButton
+                                    }
+                                }
                             }
                             matches = pageTexts.withIndex()
                                 .filter { it.value.contains(q) && q.isNotEmpty() }
                                 .map { it.index }
                             matchIndex = 0
+                            if (matches.isEmpty() && q.isNotEmpty()) {
+                                feedback = if (isClass) L.noResults(q)
+                                    else if (L.isGerman) "Keine Treffer" else "No matches"
+                            }
                             matches.firstOrNull()?.let {
                                 scope.launch { listState.animateScrollToItem(it) }
                             }
                         }) { Icon(Icons.Filled.Search, null) }
                     }
                 }
+            }
+            feedback?.let { fb ->
+                Text(fb, style = MaterialTheme.typography.bodySmall,
+                     color = MaterialTheme.colorScheme.primary,
+                     modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp))
             }
             if (pages.isEmpty()) {
                 Box(Modifier.fillMaxSize(), Alignment.Center) { CircularProgressIndicator() }
@@ -315,11 +437,14 @@ private fun PdfViewerContent(request: PdfRequest, onClose: () -> Unit) {
                     state = listState,
                     modifier = Modifier.fillMaxSize()
                         .pointerInput(Unit) {
-                            detectTransformGestures { _, _, zoom, _ ->
+                            detectTransformGestures { _, panDelta, zoom, _ ->
                                 scale = (scale * zoom).coerceIn(1f, 4f)
+                                pan = if (scale > 1f) pan + panDelta
+                                      else androidx.compose.ui.geometry.Offset.Zero
                             }
                         }
-                        .graphicsLayer(scaleX = scale, scaleY = scale)) {
+                        .graphicsLayer(scaleX = scale, scaleY = scale,
+                                       translationX = pan.x, translationY = pan.y)) {
                     itemsIndexed(pages) { _, bmp ->
                         Image(bmp.asImageBitmap(), null,
                               modifier = Modifier.fillMaxWidth().padding(bottom = 4.dp))
@@ -383,8 +508,11 @@ fun KrankmeldungInfoScreen(nav: NavController) {
 @SuppressLint("SetJavaScriptEnabled")
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun WebScreen(nav: NavController, url: String, title: String) {
+fun WebScreen(nav: NavController, url: String, title: String,
+              confineToHost: String? = null) {
     var progress by remember { mutableStateOf(0) }
+    var failed by remember { mutableStateOf(false) }
+    var reloadToken by remember { mutableStateOf(0) }
     Scaffold(topBar = {
         TopAppBar(
             title = { Text(title) },
@@ -399,9 +527,33 @@ fun WebScreen(nav: NavController, url: String, title: String) {
                 WebView(context).apply {
                     settings.javaScriptEnabled = true
                     settings.cacheMode = WebSettings.LOAD_NO_CACHE
-                    settings.userAgentString = "LGKA+/3.0.0"
+                    settings.userAgentString = SchoolApi.userAgent
                     CookieManager.getInstance().removeAllCookies(null)
-                    webViewClient = object : WebViewClient() {}
+                    webViewClient = object : WebViewClient() {
+                        // webview_screen parity: basic-auth challenges
+                        override fun onReceivedHttpAuthRequest(
+                            view: WebView?, handler: android.webkit.HttpAuthHandler,
+                            host: String?, realm: String?) {
+                            handler.proceed("vertretungsplan", "ephraim")
+                        }
+                        // webview_screen parity: external links -> browser
+                        override fun shouldOverrideUrlLoading(
+                            view: WebView?,
+                            request: android.webkit.WebResourceRequest?): Boolean {
+                            val target = request?.url ?: return false
+                            if (confineToHost != null &&
+                                target.host?.contains(confineToHost) != true) {
+                                context.startActivity(Intent(Intent.ACTION_VIEW, target))
+                                return true
+                            }
+                            return false
+                        }
+                        override fun onReceivedError(
+                            view: WebView?, request: android.webkit.WebResourceRequest?,
+                            error: android.webkit.WebResourceError?) {
+                            if (request?.isForMainFrame == true) failed = true
+                        }
+                    }
                     webChromeClient = object : android.webkit.WebChromeClient() {
                         override fun onProgressChanged(view: WebView?, newProgress: Int) {
                             progress = newProgress
@@ -409,8 +561,28 @@ fun WebScreen(nav: NavController, url: String, title: String) {
                     }
                     loadUrl(url)
                 }
+            }, update = { view ->
+                if (reloadToken > 0 && failed.not() && progress == 0) view.loadUrl(url)
             }, modifier = Modifier.fillMaxSize())
-            if (progress < 100) {
+            if (failed) {
+                Column(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.surface)
+                           .padding(32.dp),
+                       horizontalAlignment = Alignment.CenterHorizontally,
+                       verticalArrangement = Arrangement.Center) {
+                    Icon(Icons.Outlined.WifiOff, null, Modifier.size(56.dp),
+                         tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.4f))
+                    Spacer(Modifier.height(16.dp))
+                    Text(L.s("formLoadError"), fontWeight = FontWeight.SemiBold)
+                    Spacer(Modifier.height(6.dp))
+                    Text(L.s("formLoadErrorHint"),
+                         style = MaterialTheme.typography.bodySmall,
+                         color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f))
+                    Spacer(Modifier.height(20.dp))
+                    Button(onClick = { failed = false; progress = 0; reloadToken++ }) {
+                        Text(L.s("tryAgain"))
+                    }
+                }
+            } else if (progress < 100) {
                 Box(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.surface),
                     Alignment.Center) {
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
@@ -487,7 +659,7 @@ fun SettingsSheet(nav: NavController, onDismiss: () -> Unit) {
                 Text("Luka Löhr", style = MaterialTheme.typography.bodySmall,
                      color = MaterialTheme.colorScheme.primary.copy(alpha = 0.6f),
                      fontWeight = FontWeight.Medium)
-                Text(" • v3.0.0", style = MaterialTheme.typography.bodySmall,
+                Text(" • v" + BuildConfig.VERSION_NAME, style = MaterialTheme.typography.bodySmall,
                      color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.4f))
             }
         }
