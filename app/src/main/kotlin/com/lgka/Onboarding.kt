@@ -58,8 +58,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.hapticfeedback.HapticFeedbackType
-import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
@@ -73,6 +71,10 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.Dp
+import androidx.compose.material3.HorizontalDivider
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -91,11 +93,14 @@ fun OnboardingFlow() {
 }
 
 @Composable
-private fun OnboardingScaffold(button: String, onContinue: () -> Unit, content: @Composable ColumnScope.() -> Unit) {
+private fun OnboardingScaffold(button: String, onContinue: () -> Unit, horizontalPadding: Dp = 32.dp,
+                               content: @Composable ColumnScope.() -> Unit) {
+    val haptics = rememberHaptics()
     Surface(Modifier.fillMaxSize()) {
-        Column(Modifier.fillMaxSize().safeDrawingPadding().readableWidth(560.dp).padding(24.dp)) {
+        Column(Modifier.fillMaxSize().safeDrawingPadding().readableWidth(560.dp).padding(horizontal = horizontalPadding)) {
             Column(Modifier.weight(1f), horizontalAlignment = Alignment.CenterHorizontally, content = content)
-            Button(onClick = onContinue, modifier = Modifier.fillMaxWidth().heightIn(min = 52.dp).testTag("onboarding.continue"),
+            Button(onClick = { haptics.medium(); onContinue() },
+                   modifier = Modifier.fillMaxWidth().heightIn(min = 52.dp).padding(bottom = 16.dp).testTag("onboarding.continue"),
                    shape = RoundedCornerShape(16.dp)) {
                 Text(button, fontWeight = FontWeight.SemiBold)
             }
@@ -105,15 +110,16 @@ private fun OnboardingScaffold(button: String, onContinue: () -> Unit, content: 
 
 @Composable
 fun WelcomeStep(onContinue: () -> Unit) {
+    // WelcomeScreen (iOS): 160dp mark, large bold headline, secondary subtitle, centred
     OnboardingScaffold(stringResource(R.string.continue_label), onContinue) {
         Spacer(Modifier.weight(1f))
-        Image(painterResource(R.mipmap.ic_launcher_foreground), stringResource(R.string.a11y_app_logo), Modifier.size(180.dp))
-        Spacer(Modifier.height(8.dp))
-        Text(stringResource(R.string.welcome_headline), style = MaterialTheme.typography.displaySmall,
-             fontWeight = FontWeight.Bold, modifier = Modifier.semantics { heading() })
+        Image(painterResource(R.mipmap.ic_launcher_foreground), stringResource(R.string.a11y_app_logo), Modifier.size(160.dp))
+        Spacer(Modifier.height(16.dp))
+        Text(stringResource(R.string.welcome_headline), style = MaterialTheme.typography.headlineLarge,
+             fontWeight = FontWeight.Bold, textAlign = TextAlign.Center, modifier = Modifier.semantics { heading() })
         Spacer(Modifier.height(12.dp))
         Text(stringResource(R.string.welcome_subtitle), textAlign = TextAlign.Center,
-             color = MaterialTheme.colorScheme.onSurfaceVariant)
+             style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
         Spacer(Modifier.weight(1f))
     }
 }
@@ -127,27 +133,31 @@ fun FeaturesStep(onContinue: () -> Unit) {
         Triple(Icons.Outlined.Newspaper, R.string.feature_news_title, R.string.feature_news_desc),
         Triple(Icons.Outlined.MedicalServices, R.string.feature_sick_title, R.string.feature_sick_desc),
         Triple(Icons.Outlined.Event, R.string.feature_events_title, R.string.feature_events_desc))
-    OnboardingScaffold(stringResource(R.string.continue_label), onContinue) {
-        Text(stringResource(R.string.info_header), style = MaterialTheme.typography.headlineMedium,
-             fontWeight = FontWeight.Bold, modifier = Modifier.align(Alignment.Start).semantics { heading() })
-        Spacer(Modifier.height(16.dp))
-        LazyColumn(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-            items(features) { (icon, title, desc) ->
-                Card(shape = CardShape, modifier = Modifier.semantics(mergeDescendants = true) {}) {
-                    Row(Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
-                        Box(Modifier.size(48.dp).background(MaterialTheme.colorScheme.primary.copy(alpha = 0.1f), RoundedCornerShape(12.dp)),
-                            contentAlignment = Alignment.Center) {
-                            Icon(icon, null, tint = MaterialTheme.colorScheme.primary)
+    // FeaturesScreen (iOS): one grouped card, uniform rows with a divider, not six differently sized cards
+    OnboardingScaffold(stringResource(R.string.continue_label), onContinue, horizontalPadding = 20.dp) {
+        Column(Modifier.fillMaxWidth().verticalScroll(rememberScrollState())) {
+            Spacer(Modifier.height(16.dp))
+            Text(stringResource(R.string.info_header), style = MaterialTheme.typography.headlineMedium,
+                 fontWeight = FontWeight.Bold, modifier = Modifier.padding(horizontal = 4.dp).semantics { heading() })
+            Spacer(Modifier.height(16.dp))
+            Card(shape = CardShape, modifier = Modifier.fillMaxWidth()) {
+                Column {
+                    features.forEachIndexed { index, (icon, title, desc) ->
+                        Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp).semantics(mergeDescendants = true) {},
+                            verticalAlignment = Alignment.CenterVertically) {
+                            IconTile(icon)
+                            Spacer(Modifier.width(14.dp))
+                            Column(Modifier.weight(1f)) {
+                                Text(stringResource(title), style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.Medium)
+                                Text(stringResource(desc), style = MaterialTheme.typography.bodyMedium,
+                                     color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            }
                         }
-                        Spacer(Modifier.width(16.dp))
-                        Column {
-                            Text(stringResource(title), fontWeight = FontWeight.SemiBold)
-                            Text(stringResource(desc), style = MaterialTheme.typography.bodyMedium,
-                                 color = MaterialTheme.colorScheme.onSurfaceVariant)
-                        }
+                        if (index < features.lastIndex) HorizontalDivider(Modifier.padding(start = 74.dp))
                     }
                 }
             }
+            Spacer(Modifier.height(16.dp))
         }
     }
 }
@@ -171,7 +181,7 @@ fun AccentStep(onContinue: () -> Unit) {
 @Composable
 fun AccentRow(swatchSize: Int) {
     val prefs = LocalContainer.current.prefs
-    val haptic = LocalHapticFeedback.current
+    val haptics = rememberHaptics()
     val selectedLabel = stringResource(R.string.a11y_selected)
     Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
         Accent.entries.forEach { accent ->
@@ -180,8 +190,7 @@ fun AccentRow(swatchSize: Int) {
             Box(
                 Modifier.size(maxOf(swatchSize, 48).dp)
                     .selectable(selected = selected, role = Role.RadioButton, onClick = {
-                        haptic.performHapticFeedback(HapticFeedbackType.SegmentTick)
-                        prefs.accentColor = accent.key
+                        if (!selected) { haptics.light(); prefs.accentColor = accent.key }
                     })
                     .semantics { contentDescription = if (selected) "$name, $selectedLabel" else name },
                 contentAlignment = Alignment.Center) {
@@ -215,6 +224,7 @@ fun AppearanceStep(onContinue: () -> Unit) {
 @Composable
 fun ThemeModeRow() {
     val prefs = LocalContainer.current.prefs
+    val haptics = rememberHaptics()
     val options = listOf(
         Triple("dark", Icons.Filled.DarkMode, R.string.theme_dark),
         Triple("system", Icons.Filled.BrightnessAuto, R.string.theme_auto),
@@ -223,7 +233,7 @@ fun ThemeModeRow() {
         options.forEachIndexed { i, (mode, icon, label) ->
             SegmentedButton(
                 selected = prefs.themeMode == mode,
-                onClick = { prefs.themeMode = mode },
+                onClick = { if (prefs.themeMode != mode) { haptics.light(); prefs.themeMode = mode } },
                 shape = SegmentedButtonDefaults.itemShape(index = i, count = options.size),
                 icon = { Icon(icon, null, Modifier.size(16.dp)) }) {
                 Text(stringResource(label))
@@ -243,7 +253,7 @@ fun AuthScreen() {
     var loading by remember { mutableStateOf(false) }
     var message by remember { mutableStateOf<String?>(null) }
     val scope = rememberCoroutineScope()
-    val haptic = LocalHapticFeedback.current
+    val haptics = rememberHaptics()
     val failedText = stringResource(R.string.login_failed)
     val offlineText = stringResource(R.string.login_offline)
 
@@ -257,6 +267,7 @@ fun AuthScreen() {
     fun validate() {
         if (!canLogin || flash != 0) return
         val pair = Credentials.Pair(username.trim(), password.trim())
+        haptics.medium()
         loading = true
         message = null
         scope.launch {
@@ -264,18 +275,18 @@ fun AuthScreen() {
                 if (container.api.verify(pair)) {
                     container.credentials.save(pair)
                     flash = 2
-                    haptic.performHapticFeedback(HapticFeedbackType.Confirm)
+                    haptics.success()
                     delay(500)
                     container.prefs.isAuthenticated = true
                     container.prefs.onboardingCompleted = true
                 } else {
                     flash = 1; message = failedText
-                    haptic.performHapticFeedback(HapticFeedbackType.Reject)
+                    haptics.error()
                     delay(700); flash = 0
                 }
             } catch (e: Exception) {
                 flash = 1; message = offlineText
-                haptic.performHapticFeedback(HapticFeedbackType.Reject)
+                haptics.error()
                 delay(700); flash = 0
             } finally {
                 loading = false

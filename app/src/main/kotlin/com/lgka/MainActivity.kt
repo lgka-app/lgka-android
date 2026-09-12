@@ -16,6 +16,14 @@ import androidx.navigation3.runtime.NavKey
 import androidx.navigation3.runtime.entryProvider
 import androidx.navigation3.runtime.rememberNavBackStack
 import androidx.navigation3.ui.NavDisplay
+import androidx.compose.animation.togetherWith
+import androidx.compose.animation.slideOutHorizontally
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.core.CubicBezierEasing
+import androidx.compose.animation.ContentTransform
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.serialization.Serializable
@@ -114,10 +122,14 @@ fun RootNav() {
 @Composable
 fun MainNav() {
     val backStack = rememberNavBackStack(HomeRoute)
-    val pop: () -> Unit = { backStack.removeLastOrNull() }
+    val haptics = rememberHaptics()
+    val pop: () -> Unit = { haptics.light(); backStack.removeLastOrNull() }
     NavDisplay(
         backStack = backStack,
-        onBack = { backStack.removeLastOrNull() },
+        onBack = { haptics.light(); backStack.removeLastOrNull() },
+        transitionSpec = { iosPush() },
+        popTransitionSpec = { iosPop() },
+        predictivePopTransitionSpec = { iosPop() },
         entryProvider = entryProvider {
             entry<HomeRoute> { HomeScreen(onNavigate = { backStack.add(it) }) }
             entry<WeatherRoute> { WeatherScreen(onBack = pop) }
@@ -151,3 +163,16 @@ fun MainNav() {
         },
     )
 }
+
+// ── iOS navigation transitions: the new screen slides in from the right while the
+// previous one parallaxes a third of the way out and dims; pop reverses it.
+private const val NAV_MS = 380
+private val navEasing = CubicBezierEasing(0.2f, 0.9f, 0.2f, 1f)
+
+fun iosPush(): ContentTransform =
+    (slideInHorizontally(tween(NAV_MS, easing = navEasing)) { it }) togetherWith
+        (slideOutHorizontally(tween(NAV_MS, easing = navEasing)) { -it / 3 } + fadeOut(tween(NAV_MS), targetAlpha = 0.85f))
+
+fun iosPop(): ContentTransform =
+    (slideInHorizontally(tween(NAV_MS, easing = navEasing)) { -it / 3 } + fadeIn(tween(NAV_MS), initialAlpha = 0.85f)) togetherWith
+        slideOutHorizontally(tween(NAV_MS, easing = navEasing)) { it }

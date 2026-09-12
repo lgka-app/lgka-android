@@ -1,6 +1,33 @@
 package com.lgka
 
 import androidx.compose.foundation.background
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.CoroutineScope
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.platform.LocalView
+import androidx.compose.ui.draw.clip
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.getValue
+import androidx.compose.material3.Surface
+import androidx.compose.foundation.layout.safeDrawingPadding
+import androidx.compose.foundation.layout.BoxScope
+import androidx.compose.foundation.combinedClickable
+import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.animation.slideOutVertically
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.AnimatedVisibility
+import android.view.View
+import android.view.HapticFeedbackConstants
+import android.os.Build
 import androidx.compose.foundation.layout.Box
 import androidx.compose.ui.unit.Dp
 import androidx.compose.foundation.layout.wrapContentWidth
@@ -52,14 +79,78 @@ fun IconTile(icon: ImageVector, alpha: Float = 0.12f) {
     }
 }
 
-/** Tappable list card — the whole card is one touch target with Role.Button. */
+/**
+ * Haptics — the same grammar as the iOS app (light for navigation and secondary taps,
+ * medium for primary actions, success/error for outcomes), driven through the View so
+ * it works inside dialogs and sheets too.
+ */
+class Haptics(private val view: View) {
+    private fun perform(constant: Int) { view.performHapticFeedback(constant) }
+    fun light() = perform(HapticFeedbackConstants.CONTEXT_CLICK)
+    fun medium() = perform(if (Build.VERSION.SDK_INT >= 30) HapticFeedbackConstants.CONFIRM else HapticFeedbackConstants.KEYBOARD_TAP)
+    fun success() = perform(if (Build.VERSION.SDK_INT >= 30) HapticFeedbackConstants.CONFIRM else HapticFeedbackConstants.LONG_PRESS)
+    fun error() = perform(if (Build.VERSION.SDK_INT >= 30) HapticFeedbackConstants.REJECT else HapticFeedbackConstants.LONG_PRESS)
+}
+
+@Composable
+fun rememberHaptics(): Haptics {
+    val view = LocalView.current
+    return remember(view) { view.isHapticFeedbackEnabled = true; Haptics(view) }
+}
+
+/**
+ * Floating toast — the iOS glass pill / Flutter FloatingToast: a capsule at the bottom
+ * that slides in, stays 2 s and fades out. Never inline text, never a Snackbar bar.
+ */
+class ToastState(private val scope: CoroutineScope) {
+    var message by mutableStateOf<String?>(null)
+        private set
+    private var job: Job? = null
+    fun show(text: String) {
+        job?.cancel()
+        message = text
+        job = scope.launch { delay(2_200); message = null }
+    }
+}
+
+@Composable
+fun rememberToastState(): ToastState {
+    val scope = rememberCoroutineScope()
+    return remember { ToastState(scope) }
+}
+
+@Composable
+fun BoxScope.ToastHost(state: ToastState, modifier: Modifier = Modifier) {
+    var shown by remember { mutableStateOf(state.message ?: "") }
+    state.message?.let { shown = it }
+    AnimatedVisibility(
+        visible = state.message != null,
+        enter = fadeIn(tween(220)) + slideInVertically(tween(260, easing = FastOutSlowInEasing)) { it / 2 },
+        exit = fadeOut(tween(200)) + slideOutVertically(tween(220)) { it / 2 },
+        modifier = modifier.align(Alignment.BottomCenter).safeDrawingPadding().padding(bottom = 24.dp).padding(horizontal = 24.dp),
+    ) {
+        Surface(shape = RoundedCornerShape(50), color = MaterialTheme.colorScheme.inverseSurface,
+                contentColor = MaterialTheme.colorScheme.inverseOnSurface, shadowElevation = 6.dp) {
+            Text(shown, Modifier.padding(horizontal = 18.dp, vertical = 10.dp),
+                 style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.Medium, maxLines = 2)
+        }
+    }
+}
+
+/**
+ * Tappable list card — the whole card is one touch target with Role.Button, a medium
+ * haptic on tap and an optional long press (the iOS context menu equivalent).
+ */
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun HomeCard(
     modifier: Modifier = Modifier,
     onClick: (() -> Unit)? = null,
+    onLongClick: (() -> Unit)? = null,
     enabled: Boolean = true,
     content: @Composable RowScope.() -> Unit,
 ) {
+    val haptics = rememberHaptics()
     val row: @Composable () -> Unit = {
         Row(
             Modifier.fillMaxWidth().heightIn(min = 76.dp).padding(horizontal = 18.dp, vertical = 12.dp),
@@ -67,7 +158,11 @@ fun HomeCard(
         )
     }
     if (onClick != null) {
-        Card(onClick = onClick, enabled = enabled, shape = CardShape, modifier = modifier) { row() }
+        val shape = CardShape
+        Card(shape = shape, modifier = modifier.clip(shape).combinedClickable(
+            enabled = enabled, role = Role.Button,
+            onClick = { haptics.medium(); onClick() },
+            onLongClick = onLongClick?.let { { haptics.light(); it() } })) { row() }
     } else {
         Card(shape = CardShape, modifier = modifier) { row() }
     }
@@ -106,7 +201,8 @@ fun SkeletonRow() {
 /** Retry icon button with a 48dp target and a label for TalkBack. */
 @Composable
 fun RetryButton(onClick: () -> Unit) {
-    IconButton(onClick = onClick) {
+    val haptics = rememberHaptics()
+    IconButton(onClick = { haptics.light(); onClick() }) {
         Icon(Icons.Filled.Refresh, stringResource(R.string.a11y_retry),
              tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(20.dp))
     }
@@ -123,10 +219,11 @@ fun Loading(modifier: Modifier = Modifier) {
 /** Centered "server connection failed" state with retry. */
 @Composable
 fun ErrorState(message: String, onRetry: () -> Unit, modifier: Modifier = Modifier) {
+    val haptics = rememberHaptics()
     Column(modifier, horizontalAlignment = Alignment.CenterHorizontally) {
         Text(message, fontWeight = FontWeight.SemiBold)
         Spacer(Modifier.height(12.dp))
-        androidx.compose.material3.Button(onClick = onRetry) { Text(stringResource(R.string.try_again)) }
+        androidx.compose.material3.Button(onClick = { haptics.light(); onRetry() }) { Text(stringResource(R.string.try_again)) }
     }
 }
 

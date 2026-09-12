@@ -15,7 +15,6 @@ import androidx.compose.material.icons.outlined.School
 import androidx.compose.material3.Button
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
-import kotlinx.coroutines.delay
 import androidx.compose.foundation.gestures.detectTransformGestures
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -137,7 +136,8 @@ private fun PdfViewerContent(request: PdfRequest, onClose: () -> Unit) {
     var pages by remember { mutableStateOf<PdfPages?>(null) }
     var classInput by remember { mutableStateOf("") }
     var showClassBar by remember { mutableStateOf(false) }
-    var feedback by remember { mutableStateOf<String?>(null) }
+    val toast = rememberToastState()
+    val haptics = rememberHaptics()
     val pagerState = rememberPagerState { pages?.pageCount ?: 0 }
     val scope = rememberCoroutineScope()
     val focusRequester = remember { FocusRequester() }
@@ -153,7 +153,6 @@ private fun PdfViewerContent(request: PdfRequest, onClose: () -> Unit) {
 
     LaunchedEffect(request.file) { loadPdf(request.file, request.targetPage) }
     DisposableEffect(Unit) { onDispose { pages?.close() } }
-    LaunchedEffect(feedback) { if (feedback != null) { delay(2_000); feedback = null } }
     LaunchedEffect(showClassBar) { if (showClassBar) focusRequester.requestFocus() }
 
     fun applyClass(cls: String, page: Int) {
@@ -163,53 +162,58 @@ private fun PdfViewerContent(request: PdfRequest, onClose: () -> Unit) {
         classInput = ""
         showClassBar = false
         scope.launch { pagerState.scrollToPage((page - 2).coerceIn(0, (pages?.pageCount ?: 1) - 1)) }
-        feedback = resources.getString(R.string.class_changed, name)
+        haptics.success()
+        toast.show(resources.getString(R.string.class_changed, name))
     }
 
     /** _validateAndSaveClass parity: unknown class → "existiert nicht", known → persist, jump, confirm. */
+    fun notFound(q: String) { haptics.error(); toast.show(resources.getString(R.string.no_results, q.uppercase())) }
     fun submitClass() {
         val q = classInput.trim().lowercase()
         if (q.length < 2) return
-        if (!ScheduleGrades.isClassToken(q)) { feedback = resources.getString(R.string.no_results, q.uppercase()); return }
+        haptics.medium()
+        if (!ScheduleGrades.isClassToken(q)) { notFound(q); return }
         val current = currentSchedule
         if (current != null && !current.covers(q)) {
             // cross-PDF class switching (_navigateCrossPdf parity): the PDF whose grades contain the class
             val other = vm.preferredGroup.firstOrNull { it.covers(q) }
-            if (other == null) { feedback = resources.getString(R.string.no_results, q.uppercase()); return }
+            if (other == null) { notFound(q); return }
             scope.launch {
                 try {
                     val (file, index) = api.schedulePdf(other)
                     val page = index[q]
-                    if (page == null) { feedback = resources.getString(R.string.no_results, q.uppercase()); return@launch }
+                    if (page == null) { notFound(q); return@launch }
                     currentFile = file
                     currentSchedule = other
                     currentIndex = index
                     loadPdf(file, page)
                     applyClass(q, page)
                 } catch (e: Exception) {
-                    feedback = connectionFailed
+                    haptics.error(); toast.show(connectionFailed)
                 }
             }
             return
         }
         val page = currentIndex[q]
-        if (page == null) { feedback = resources.getString(R.string.no_results, q.uppercase()); return }
+        if (page == null) { notFound(q); return }
         applyClass(q, page)
     }
 
+    Box(Modifier.fillMaxSize()) {
     Scaffold(topBar = {
         TopAppBar(
             title = { Text(currentTitle, maxLines = 1) },
             navigationIcon = {
-                IconButton(onClick = onClose) { Icon(Icons.Filled.Close, stringResource(R.string.a11y_close)) }
+                IconButton(onClick = { haptics.light(); onClose() }) { Icon(Icons.Filled.Close, stringResource(R.string.a11y_close)) }
             },
             actions = {
                 if (isSchedule) {
-                    IconButton(onClick = { showClassBar = !showClassBar }, modifier = Modifier.testTag("pdf.changeClass")) {
+                    IconButton(onClick = { haptics.light(); showClassBar = !showClassBar }, modifier = Modifier.testTag("pdf.changeClass")) {
                         Icon(if (showClassBar) Icons.Filled.Close else Icons.Outlined.School, stringResource(R.string.a11y_change_class))
                     }
                 }
                 IconButton(onClick = {
+                    haptics.light()
                     // pdf_share_service parity: friendly filename
                     val prefix = if (currentSchedule != null) "LGKA_Stundenplan_" else "LGKA_Vertretungsplan_"
                     val safe = currentTitle.replace(Regex("[^A-Za-z0-9]+"), "_").trim('_')
@@ -242,10 +246,6 @@ private fun PdfViewerContent(request: PdfRequest, onClose: () -> Unit) {
                            modifier = Modifier.testTag("pdf.classSubmit")) { Text(stringResource(R.string.set_class_button)) }
                 }
             }
-            feedback?.let { fb ->
-                Text(fb, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.primary,
-                     modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp))
-            }
             val p = pages
             if (p == null) {
                 Box(Modifier.fillMaxSize(), Alignment.Center) { Loading() }
@@ -259,6 +259,8 @@ private fun PdfViewerContent(request: PdfRequest, onClose: () -> Unit) {
                 }
             }
         }
+    }
+    ToastHost(toast)
     }
 }
 

@@ -281,6 +281,7 @@ private fun BoxScope.Precip(rain: Boolean) {
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun WeatherScreen(onBack: () -> Unit) {
+    val haptics = rememberHaptics()
     val vm = LocalHomeViewModel.current
     val scope = rememberCoroutineScope()
     var preview by remember { mutableStateOf<Pair<Int, Boolean>?>(null) }
@@ -316,7 +317,7 @@ fun WeatherScreen(onBack: () -> Unit) {
                         Text(stringResource(R.string.check_internet_connection), color = Color.White.copy(alpha = 0.8f),
                              style = MaterialTheme.typography.bodyMedium)
                         Spacer(Modifier.height(12.dp))
-                        Button(onClick = { scope.launch { vm.loadWeather(FetchMode.Refresh) } }) { Text(stringResource(R.string.try_again)) }
+                        Button(onClick = { haptics.light(); scope.launch { vm.loadWeather(FetchMode.Refresh) } }) { Text(stringResource(R.string.try_again)) }
                     }
                 } else Loading()
             }
@@ -324,7 +325,7 @@ fun WeatherScreen(onBack: () -> Unit) {
 
         // top bar overlay
         Row(Modifier.fillMaxWidth().safeDrawingPadding().padding(4.dp), verticalAlignment = Alignment.CenterVertically) {
-            IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Filled.ArrowBack, stringResource(R.string.a11y_back), tint = Color.White) }
+            IconButton(onClick = { haptics.light(); onBack() }) { Icon(Icons.AutoMirrored.Filled.ArrowBack, stringResource(R.string.a11y_back), tint = Color.White) }
             Text(stringResource(R.string.weather_page_title), color = Color.White, fontWeight = FontWeight.SemiBold,
                  modifier = Modifier.semantics { heading() })
             Spacer(Modifier.weight(1f))

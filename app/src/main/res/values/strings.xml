@@ -69,7 +69,6 @@
     <string name="login_offline">Anmeldung nicht möglich – bitte Internetverbindung prüfen.</string>
     <string name="logout">Abmelden</string>
     <string name="logout_confirm">Wirklich abmelden? Du musst die Zugangsdaten danach erneut eingeben.</string>
-    <string name="mehr_erfahren">Mehr erfahren</string>
     <string name="news">Neuigkeiten</string>
     <string name="no_events_available">Keine Termine verfügbar</string>
     <string name="no_info_yet">Noch keine Infos</string>
