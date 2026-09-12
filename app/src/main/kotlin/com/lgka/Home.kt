@@ -145,7 +145,8 @@ fun HomeScreen(onNavigate: (Route) -> Unit) {
     pdf?.let { request -> PdfViewerDialog(request) { pdf = null } }
 }
 
-data class PdfRequest(val file: File, val title: String, val targetPage: Int?, val gradeLevel: String? = null)
+data class PdfRequest(val file: File, val title: String, val targetPage: Int?, val gradeLevel: String? = null,
+                      val classIndex: Map<String, Int> = emptyMap())
 
 // ── Weather row ─────────────────────────────────────────────────────────────
 
@@ -330,7 +331,7 @@ fun ScheduleCard(onSetClass: () -> Unit, onOpen: (PdfRequest) -> Unit, onUnavail
                     scope.launch {
                         try {
                             val (file, index) = api.schedulePdf(target)
-                            onOpen(PdfRequest(file, title, index[cls], target.gradeLevel))
+                            onOpen(PdfRequest(file, className, index[cls], target.gradeLevel, index)) // pdf_viewer header: class only
                         } catch (e: Exception) {
                             onUnavailable(unavailable) // home_screen SnackBar parity
                         }

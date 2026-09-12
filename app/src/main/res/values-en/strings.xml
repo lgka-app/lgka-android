@@ -2,16 +2,13 @@
 <resources xmlns:tools="http://schemas.android.com/tools">
     <string name="a11y_app_logo">LGKA+ logo</string>
     <string name="a11y_back">Back</string>
+    <string name="a11y_change_class">Change class</string>
     <string name="a11y_close">Close</string>
     <string name="a11y_day" tools:ignore="PluralsCandidate">%1$s: %2$s, high %3$d degrees, low %4$d degrees</string>
     <string name="a11y_hour" tools:ignore="PluralsCandidate">%1$s, %2$d degrees, %3$s</string>
-    <string name="a11y_match_position" tools:ignore="PluralsCandidate">Match %1$d of %2$d</string>
-    <string name="a11y_next_match">Next match</string>
     <string name="a11y_open_in_browser">Open in browser</string>
     <string name="a11y_page">Page %1$d</string>
-    <string name="a11y_previous_match">Previous match</string>
     <string name="a11y_retry">Reload</string>
-    <string name="a11y_search">Search in PDF</string>
     <string name="a11y_selected">selected</string>
     <string name="a11y_share">Share PDF</string>
     <string name="a11y_sky_preview">Sky preview</string>
@@ -77,7 +74,6 @@
     <string name="news">News</string>
     <string name="no_events_available">No events available</string>
     <string name="no_info_yet">No info yet</string>
-    <string name="no_matches">No matches</string>
     <string name="no_news_available">No news available</string>
     <string name="no_results">Class %1$s does not exist.</string>
     <string name="no_schedules_available">No timetables available</string>
@@ -91,7 +87,6 @@
     <string name="schedule_no_class_title">Which class are you in?</string>
     <string name="schedule_not_available">%1$s is not available yet</string>
     <string name="search_hint">Enter your class</string>
-    <string name="search_in_pdf">Search in PDF</string>
     <string name="second_semester">2nd semester</string>
     <string name="server_connection_failed">Server connection failed</string>
     <string name="server_connection_hint">You may be offline, or maintenance is being carried out at the Lessing-Gymnasium.</string>

@@ -2,16 +2,13 @@
 <resources xmlns:tools="http://schemas.android.com/tools">
     <string name="a11y_app_logo">LGKA+ Logo</string>
     <string name="a11y_back">Zurück</string>
+    <string name="a11y_change_class">Klasse wechseln</string>
     <string name="a11y_close">Schließen</string>
     <string name="a11y_day" tools:ignore="PluralsCandidate">%1$s: %2$s, Höchstwert %3$d Grad, Tiefstwert %4$d Grad</string>
     <string name="a11y_hour" tools:ignore="PluralsCandidate">%1$s Uhr, %2$d Grad, %3$s</string>
-    <string name="a11y_match_position" tools:ignore="PluralsCandidate">Treffer %1$d von %2$d</string>
-    <string name="a11y_next_match">Nächster Treffer</string>
     <string name="a11y_open_in_browser">Im Browser öffnen</string>
     <string name="a11y_page">Seite %1$d</string>
-    <string name="a11y_previous_match">Vorheriger Treffer</string>
     <string name="a11y_retry">Erneut laden</string>
-    <string name="a11y_search">Im PDF suchen</string>
     <string name="a11y_selected">ausgewählt</string>
     <string name="a11y_share">PDF teilen</string>
     <string name="a11y_sky_preview">Himmel-Vorschau</string>
@@ -77,7 +74,6 @@
     <string name="news">Neuigkeiten</string>
     <string name="no_events_available">Keine Termine verfügbar</string>
     <string name="no_info_yet">Noch keine Infos</string>
-    <string name="no_matches">Keine Treffer</string>
     <string name="no_news_available">Keine Neuigkeiten verfügbar</string>
     <string name="no_results">Klasse %1$s existiert nicht.</string>
     <string name="no_schedules_available">Keine Stundenpläne verfügbar</string>
@@ -91,7 +87,6 @@
     <string name="schedule_no_class_title">In welcher Klasse bist du?</string>
     <string name="schedule_not_available">%1$s ist noch nicht verfügbar</string>
     <string name="search_hint">Gib deine Klasse ein</string>
-    <string name="search_in_pdf">Im PDF suchen</string>
     <string name="second_semester">2. Halbjahr</string>
     <string name="server_connection_failed">Serververbindung fehlgeschlagen</string>
     <string name="server_connection_hint">Möglicherweise besteht keine Internetverbindung oder es finden gerade Wartungsarbeiten am Lessing-Gymnasium statt.</string>
