@@ -56,5 +56,21 @@ fun buildClassIndexAndroid(file: File): Map<String, Int> {
     return index
 }
 
+/**
+ * Jahrgang-to-page index: every page whose text carries a "J11"/"J12"/"J13"… header
+ * (Untis prints the Jahrgang where class pages print "5b"). Same page contract as
+ * [buildClassIndexAndroid]; the first page wins. Discovered, never hardcoded.
+ */
+fun buildJahrgangIndexAndroid(file: File): Map<String, Int> {
+    val marker = Regex("""\bj(1\d)\b""")
+    val index = linkedMapOf<String, Int>()
+    PDDocument.load(file).use { doc ->
+        pageTexts(doc).forEachIndexed { pageIndex, text ->
+            for (m in marker.findAll(text)) index.putIfAbsent("j${m.groupValues[1]}", pageIndex + 2)
+        }
+    }
+    return index
+}
+
 /** Per-page lowercased text — used by the PDF viewer's search. */
 fun pageTextsAndroid(file: File): List<String> = PDDocument.load(file).use { pageTexts(it) }

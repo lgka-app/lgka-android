@@ -10,6 +10,7 @@ import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import lgka.Events
+import lgka.ScheduleGrades
 import lgka.Extractor
 import lgka.News
 import lgka.ScheduleHtml
@@ -198,7 +199,12 @@ class SchoolApi(
 
     // ── Schedule ────────────────────────────────────────────────────────────
 
-    data class Schedule(val title: String, val halbjahr: String, val gradeLevel: String, val fullUrl: String)
+    data class Schedule(val title: String, val halbjahr: String, val gradeLevel: String, val fullUrl: String) {
+        /** Grades this PDF covers, discovered from the link title (empty when unknown). */
+        val grades: List<Int> get() = ScheduleGrades.fromTitle(title)
+        /** Does this PDF contain `cls` ("10b" → grade 10, "j11" → grade 11)? */
+        fun covers(cls: String): Boolean = ScheduleGrades.gradeOf(cls)?.let { it in grades } ?: false
+    }
 
     suspend fun schedules(mode: FetchMode = FetchMode.CacheFirst): List<Schedule> = withContext(Dispatchers.IO) {
         val url = "$BASE/cm3/index.php/unterricht/stundenplan"
@@ -218,11 +224,13 @@ class SchoolApi(
         withContext(Dispatchers.IO) {
             val data = cachedGet(schedule.fullUrl, ttl = TTL.SCHEDULES, mode = mode)
             val file = File(cache.dir, "schedule_${DiskCache.key(schedule.fullUrl)}.pdf").apply { writeBytes(data) }
-            if (schedule.gradeLevel == "J11/J12") {
-                file to mapOf("j11" to 2, "j12" to 3) // app-constant, never parsed
-            } else {
-                file to buildClassIndexAndroid(file)
-            }
+            // classes 5a…10e from the page texts, Jahrgänge from the "J11"/"J12"/… page headers
+            val index = LinkedHashMap(buildClassIndexAndroid(file))
+            buildJahrgangIndexAndroid(file).forEach { (k, v) -> index.putIfAbsent(k, v) }
+            // a single-Jahrgang PDF whose page carries no header still maps to its first page
+            val grades = schedule.grades
+            if (grades.size == 1 && grades[0] >= 11) index.putIfAbsent("j${grades[0]}", 2)
+            file to index
         }
 
     // ── News ────────────────────────────────────────────────────────────────

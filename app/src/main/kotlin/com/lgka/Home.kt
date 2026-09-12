@@ -56,6 +56,8 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.platform.LocalResources
+import lgka.ScheduleGrades
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
@@ -145,7 +147,7 @@ fun HomeScreen(onNavigate: (Route) -> Unit) {
     pdf?.let { request -> PdfViewerDialog(request) { pdf = null } }
 }
 
-data class PdfRequest(val file: File, val title: String, val targetPage: Int?, val gradeLevel: String? = null,
+data class PdfRequest(val file: File, val title: String, val targetPage: Int?, val schedule: SchoolApi.Schedule? = null,
                       val classIndex: Map<String, Int> = emptyMap())
 
 // ── Weather row ─────────────────────────────────────────────────────────────
@@ -324,14 +326,13 @@ fun ScheduleCard(onSetClass: () -> Unit, onOpen: (PdfRequest) -> Unit, onUnavail
                 enabled = !loading,
                 onClick = {
                     val isJ = cls.startsWith("j")
-                    val target = (if (isJ) group.firstOrNull { it.gradeLevel == "J11/J12" }
-                                  else group.firstOrNull { it.gradeLevel == "Klassen 5-10" })
-                        ?: group.firstOrNull() ?: return@HomeCard
+                    // the PDF whose discovered grades contain the class (5-10, J11, J12, a future J13, …)
+                    val target = scheduleFor(cls, group) ?: return@HomeCard
                     loading = true
                     scope.launch {
                         try {
                             val (file, index) = api.schedulePdf(target)
-                            onOpen(PdfRequest(file, className, index[cls], target.gradeLevel, index)) // pdf_viewer header: class only
+                            onOpen(PdfRequest(file, className, index[cls], target, index)) // pdf_viewer header: class only
                         } catch (e: Exception) {
                             onUnavailable(unavailable) // home_screen SnackBar parity
                         }
@@ -360,10 +361,25 @@ fun ScheduleCard(onSetClass: () -> Unit, onOpen: (PdfRequest) -> Unit, onUnavail
 }
 
 @Composable
-fun formatClass(cls: String): String = when (cls) {
-    "j11" -> stringResource(R.string.jahrgang11)
-    "j12" -> stringResource(R.string.jahrgang12)
-    else -> stringResource(R.string.class_name, cls.replaceFirstChar { it.uppercase() })
+fun formatClass(cls: String): String = classDisplayName(LocalResources.current, cls)
+
+/** "Klasse 7b" / "Jahrgang 11" — any Jahrgang number, no per-year strings. */
+fun classDisplayName(resources: android.content.res.Resources, cls: String): String {
+    val grade = ScheduleGrades.gradeOf(cls)
+    return if (grade != null && cls.lowercase().startsWith("j")) resources.getString(R.string.jahrgang_named, grade.toString())
+    else resources.getString(R.string.class_name, cls.replaceFirstChar { it.uppercase() })
+}
+
+/**
+ * The schedule PDF for a class: by discovered grades first, then by the legacy
+ * gradeLevel label, then the first available PDF.
+ */
+fun scheduleFor(cls: String, group: List<SchoolApi.Schedule>): SchoolApi.Schedule? {
+    group.firstOrNull { it.covers(cls) }?.let { return it }
+    val jahrgang = (ScheduleGrades.gradeOf(cls) ?: 0) >= 11
+    return group.firstOrNull { s -> if (jahrgang) s.grades.any { it >= 11 } else s.grades.any { it <= 10 } }
+        ?: group.firstOrNull { if (jahrgang) it.gradeLevel == "J11/J12" else it.gradeLevel == "Klassen 5-10" }
+        ?: group.firstOrNull()
 }
 
 @Composable
