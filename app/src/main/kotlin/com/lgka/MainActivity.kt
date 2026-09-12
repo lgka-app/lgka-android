@@ -86,6 +86,7 @@ private fun MainActivity.applyDebugSeed(container: AppContainer) {
     if (!BuildConfig.DEBUG) return
     if (intent?.hasExtra("lgka_debug_reset") == true) {
         container.prefs.signOut(container.credentials)
+        container.store.clear() // a reset run must not start from a previous login's snapshot
         container.prefs.onboardingCompleted = false
         container.prefs.krankmeldungInfoShown = false
         container.prefs.selectedScheduleClass = ""

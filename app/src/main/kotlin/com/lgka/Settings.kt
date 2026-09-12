@@ -64,6 +64,7 @@ fun SettingsSheet(onBugReport: () -> Unit, onDismiss: () -> Unit) {
     val container = LocalContainer.current
     var confirmLogout by remember { mutableStateOf(false) }
     val haptics = rememberHaptics()
+    val vm = LocalHomeViewModel.current
     val uriHandler = LocalUriHandler.current
     ModalBottomSheet(onDismissRequest = { haptics.light(); onDismiss() }) {
         Column(Modifier.padding(horizontal = 16.dp).padding(bottom = 32.dp)) {
@@ -132,7 +133,7 @@ fun SettingsSheet(onBugReport: () -> Unit, onDismiss: () -> Unit) {
                 TextButton(onClick = {
                     haptics.medium(); confirmLogout = false; onDismiss()
                     container.prefs.signOut(container.credentials)
-                    Thread { container.store.clear() }.start() // synced data belongs to the login
+                    vm.clear() // synced data belongs to the login: snapshot and in-memory state go
                 }) {
                     Text(stringResource(R.string.logout), color = MaterialTheme.colorScheme.error)
                 }

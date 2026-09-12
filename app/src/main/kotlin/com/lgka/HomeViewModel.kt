@@ -169,6 +169,17 @@ class HomeViewModel(private val container: AppContainer) : ViewModel() {
         }
     }
 
+    /**
+     * Explicit sign-out from Settings: the synced data belongs to the login that
+     * fetched it, so the snapshot on disk and the in-memory state both go. (A rotated
+     * school password does NOT come through here — that path keeps the snapshot.)
+     */
+    fun clear() {
+        substitutions = null; schedules = null; news = null; events = null; weatherData = null
+        unavailable = emptySet(); syncFailed = false; lastSyncAt = 0L
+        viewModelScope.launch(Dispatchers.IO) { store.clear() }
+    }
+
     /** The mirrored PDF for a resource file: from disk, else fetched once from the API. */
     suspend fun pdfFile(sha256: String, apiPath: String): File = withContext(Dispatchers.IO) {
         store.pdfFile(sha256) ?: run {
