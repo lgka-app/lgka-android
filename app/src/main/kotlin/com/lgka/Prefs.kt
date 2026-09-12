@@ -62,6 +62,21 @@ class Prefs(context: Context) {
         isAuthenticated = false
     }
 
+    /**
+     * Fresh-install state: an explicit sign-out in Settings starts over at the welcome
+     * screen (also the seed for automated screenshots). A rotated school password uses
+     * [signOut] instead and keeps the preferences.
+     */
+    fun reset(credentials: Credentials) {
+        signOut(credentials)
+        onboardingCompleted = false
+        krankmeldungInfoShown = false
+        selectedScheduleClass = ""
+        accentColor = "blue"
+        themeMode = "system"
+        passwordRotated = false
+    }
+
     private fun <T> pref(key: String, default: T) = object : ReadWriteProperty<Any?, T> {
         private var state by mutableStateOf(read(key, default))
         override fun getValue(thisRef: Any?, property: KProperty<*>) = state

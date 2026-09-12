@@ -132,8 +132,8 @@ fun SettingsSheet(onBugReport: () -> Unit, onDismiss: () -> Unit) {
             confirmButton = {
                 TextButton(onClick = {
                     haptics.medium(); confirmLogout = false; onDismiss()
-                    container.prefs.signOut(container.credentials)
-                    vm.clear() // synced data belongs to the login: snapshot and in-memory state go
+                    vm.clear() // explicit sign-out: snapshot, login and every preference go
+                    container.prefs.reset(container.credentials) // back to the welcome screen
                 }) {
                     Text(stringResource(R.string.logout), color = MaterialTheme.colorScheme.error)
                 }
