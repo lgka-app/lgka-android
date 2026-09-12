@@ -155,7 +155,10 @@ fun HomeScreen(onNavigate: (Route) -> Unit) {
     ToastHost(toast)
     }
 
-    if (showSettings) SettingsSheet(onBugReport = { showSettings = false; onNavigate(BugReportRoute) }) { showSettings = false }
+    if (showSettings) SettingsSheet(
+        onBugReport = { showSettings = false; onNavigate(BugReportRoute) },
+        // privacy / legal notice: the same path as the bug report (dismiss, then push)
+        onOpenWeb = { url, title -> showSettings = false; onNavigate(WebRoute(url, title)) }) { showSettings = false }
     if (showClassDialog) ClassDialog { showClassDialog = false }
     pdf?.let { request -> PdfViewerDialog(request) { pdf = null } }
 }

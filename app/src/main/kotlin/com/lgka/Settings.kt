@@ -43,7 +43,6 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.heading
@@ -59,13 +58,14 @@ import kotlin.math.sin
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun SettingsSheet(onBugReport: () -> Unit, onDismiss: () -> Unit) {
+fun SettingsSheet(onBugReport: () -> Unit, onOpenWeb: (String, String) -> Unit, onDismiss: () -> Unit) {
     val context = LocalContext.current
     val container = LocalContainer.current
     var confirmLogout by remember { mutableStateOf(false) }
     val haptics = rememberHaptics()
     val vm = LocalHomeViewModel.current
-    val uriHandler = LocalUriHandler.current
+    val privacyTitle = stringResource(R.string.privacy_label)
+    val legalTitle = stringResource(R.string.legal_label)
     ModalBottomSheet(onDismissRequest = { haptics.light(); onDismiss() }) {
         Column(Modifier.padding(horizontal = 16.dp).padding(bottom = 32.dp)) {
             Text(stringResource(R.string.settings), style = MaterialTheme.typography.headlineSmall,
@@ -98,11 +98,11 @@ fun SettingsSheet(onBugReport: () -> Unit, onDismiss: () -> Unit) {
                     SettingsTile(Icons.Outlined.BugReport, stringResource(R.string.bug_report)) { onDismiss(); onBugReport() }
                     HorizontalDivider(Modifier.padding(start = 16.dp))
                     SettingsTile(Icons.Outlined.PrivacyTip, stringResource(R.string.privacy_label)) {
-                        onDismiss(); uriHandler.openUri("https://lgka.app/privacy")
+                        onDismiss(); onOpenWeb("https://lgka.app/privacy", privacyTitle)
                     }
                     HorizontalDivider(Modifier.padding(start = 16.dp))
                     SettingsTile(Icons.Outlined.Info, stringResource(R.string.legal_label)) {
-                        onDismiss(); uriHandler.openUri("https://lgka.app/impressum")
+                        onDismiss(); onOpenWeb("https://lgka.app/impressum", legalTitle)
                     }
                     HorizontalDivider(Modifier.padding(start = 16.dp))
                     SettingsTile(Icons.AutoMirrored.Filled.Logout, stringResource(R.string.logout), external = false) { confirmLogout = true }
