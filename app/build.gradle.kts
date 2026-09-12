@@ -17,6 +17,7 @@ android {
         versionCode = 301
         versionName = "3.0.0"
         resourceConfigurations += listOf("de", "en")
+        testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
     buildTypes {
@@ -86,4 +87,20 @@ dependencies {
     implementation(libs.kotlinx.serialization.json)
     implementation(libs.coil.compose)
     implementation(libs.coil.network.okhttp)
+
+    // AGP aligns the androidTest classpath with the app's; androidx.test
+    // needs newer support libraries than the app would otherwise pull in.
+    constraints {
+        implementation(libs.androidx.concurrent.futures)
+        implementation(libs.androidx.tracing)
+    }
+
+    // Screenshot suite (app/src/androidTest, scripts/screenshots.sh)
+    androidTestImplementation(composeBom)
+    androidTestImplementation(libs.androidx.test.runner)
+    androidTestImplementation(libs.androidx.test.rules)
+    androidTestImplementation(libs.androidx.test.core)
+    androidTestImplementation(libs.androidx.test.ext.junit)
+    androidTestImplementation(libs.compose.ui.test.junit4)
+    debugImplementation(libs.compose.ui.test.manifest)
 }

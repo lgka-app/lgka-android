@@ -55,6 +55,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
@@ -97,15 +98,15 @@ fun HomeScreen(onNavigate: (Route) -> Unit) {
                     IconButton(onClick = {
                         haptic.performHapticFeedback(HapticFeedbackType.ContextClick)
                         onNavigate(NewsRoute)
-                    }) { Icon(Icons.Outlined.Newspaper, stringResource(R.string.news)) }
+                    }, modifier = Modifier.testTag("home.news")) { Icon(Icons.Outlined.Newspaper, stringResource(R.string.news)) }
                     IconButton(onClick = {
                         haptic.performHapticFeedback(HapticFeedbackType.ContextClick)
                         onNavigate(if (prefs.krankmeldungInfoShown) KrankmeldungFormRoute else KrankmeldungInfoRoute)
-                    }) { Icon(Icons.Outlined.MedicalServices, stringResource(R.string.krankmeldung)) }
+                    }, modifier = Modifier.testTag("home.sick")) { Icon(Icons.Outlined.MedicalServices, stringResource(R.string.krankmeldung)) }
                     IconButton(onClick = {
                         haptic.performHapticFeedback(HapticFeedbackType.ContextClick)
                         showSettings = true
-                    }) { Icon(Icons.Outlined.Settings, stringResource(R.string.settings)) }
+                    }, modifier = Modifier.testTag("home.settings")) { Icon(Icons.Outlined.Settings, stringResource(R.string.settings)) }
                 })
         }) { padding ->
         PullToRefreshBox(
@@ -160,11 +161,12 @@ fun WeatherRow(onOpen: () -> Unit) {
         Card(
             onClick = onOpen,
             shape = CardShape,
-            modifier = Modifier.fillMaxWidth().semantics { contentDescription = a11y; role = Role.Button },
+            modifier = Modifier.fillMaxWidth().testTag("home.weather").semantics { contentDescription = a11y; role = Role.Button },
         ) {
-            Box(Modifier.fillMaxWidth().heightIn(min = 112.dp).clip(CardShape)) {
+            Box(Modifier.fillMaxWidth().clip(CardShape)) {
                 SkyBox(code = w.code, isDay = w.isDay, particles = false, modifier = Modifier.matchParentSize())
-                Row(Modifier.matchParentSize().padding(horizontal = 18.dp, vertical = 12.dp),
+                // The row defines the card height (never clips at large font sizes).
+                Row(Modifier.fillMaxWidth().heightIn(min = 112.dp).padding(horizontal = 18.dp, vertical = 14.dp),
                     verticalAlignment = Alignment.CenterVertically) {
                     Column {
                         Text(stringResource(R.string.city), color = Color.White,
@@ -232,14 +234,14 @@ fun SubstitutionCards(onOpen: (PdfRequest) -> Unit) {
         }
     } else {
         Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-            SubCard(vm.today, onOpen)
-            SubCard(vm.tomorrow, onOpen)
+            SubCard(vm.today, onOpen, "home.plan.today")
+            SubCard(vm.tomorrow, onOpen, "home.plan.tomorrow")
         }
     }
 }
 
 @Composable
-private fun SubCard(plan: SchoolApi.SubPlan?, onOpen: (PdfRequest) -> Unit) {
+private fun SubCard(plan: SchoolApi.SubPlan?, onOpen: (PdfRequest) -> Unit, tag: String) {
     val vm = LocalHomeViewModel.current
     val scope = rememberCoroutineScope()
     if (plan == null) {
@@ -259,7 +261,8 @@ private fun SubCard(plan: SchoolApi.SubPlan?, onOpen: (PdfRequest) -> Unit) {
                        if (plan.entries.isEmpty()) stringResource(R.string.no_substitutions)
                        else pluralStringResource(R.plurals.substitutions_count, plan.entries.size, plan.entries.size))
     } else null
-    HomeCard(onClick = { plan.file?.let { onOpen(PdfRequest(it, weekday, null)) } }, enabled = canOpen) {
+    HomeCard(onClick = { plan.file?.let { onOpen(PdfRequest(it, weekday, null)) } }, enabled = canOpen,
+             modifier = Modifier.testTag(tag)) {
         IconTile(Icons.Outlined.CalendarToday, if (canOpen) 0.12f else 0.06f)
         Spacer(Modifier.width(14.dp))
         Column(Modifier.weight(1f)) {

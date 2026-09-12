@@ -71,6 +71,14 @@ class MainActivity : ComponentActivity() {
  */
 private fun MainActivity.applyDebugSeed(container: AppContainer) {
     if (!BuildConfig.DEBUG) return
+    if (intent?.hasExtra("lgka_debug_reset") == true) {
+        container.prefs.signOut(container.credentials)
+        container.prefs.onboardingCompleted = false
+        container.prefs.krankmeldungInfoShown = false
+        container.prefs.selectedScheduleClass = ""
+        container.prefs.accentColor = "blue"
+        container.prefs.themeMode = "system"
+    }
     intent?.getStringExtra("lgka_debug_login")?.let { pair ->
         val (user, password) = pair.split(":", limit = 2).let { it[0] to it.getOrElse(1) { "" } }
         container.credentials.save(Credentials.Pair(user, password))

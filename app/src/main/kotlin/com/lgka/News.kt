@@ -46,6 +46,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
@@ -86,7 +87,7 @@ fun NewsListScreen(onBack: () -> Unit, onOpen: (String) -> Unit) {
                     modifier = Modifier.padding(padding)) {
                     LazyColumn(Modifier.fillMaxSize().padding(horizontal = 20.dp),
                                verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                        items(list, key = { it.url }) { md -> NewsCard(md) { onOpen(md.url) } }
+                        items(list, key = { it.url }) { md -> NewsCard(md, Modifier.testTag("news.row")) { onOpen(md.url) } }
                         item { Spacer(Modifier.height(16.dp)) }
                     }
                 }
@@ -100,8 +101,8 @@ fun NewsListScreen(onBack: () -> Unit, onOpen: (String) -> Unit) {
 }
 
 @Composable
-private fun NewsCard(md: News.Metadata, onClick: () -> Unit) {
-    Card(onClick = onClick, shape = CardShape) {
+private fun NewsCard(md: News.Metadata, modifier: Modifier = Modifier, onClick: () -> Unit) {
+    Card(onClick = onClick, shape = CardShape, modifier = modifier) {
         Column(Modifier.padding(16.dp)) {
             Text(md.title, fontWeight = FontWeight.SemiBold)
             if (md.description.isNotEmpty()) {

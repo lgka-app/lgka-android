@@ -67,6 +67,17 @@ The parity CLI is unchanged:
 cargo run --release --manifest-path ../verification/tool/compare-report/Cargo.toml -- /tmp/out-kotlin
 ```
 
+## Screenshots
+
+The store screenshots are produced by an instrumented Compose test (`app/src/androidTest/.../ScreenshotTest.kt`) on an emulator — no manual navigation:
+
+```bash
+LGKA_LOGIN=user:pass scripts/screenshots.sh               # de/en × phone/tablet × dark/light
+LGKA_LOGIN=user:pass scripts/screenshots.sh dark phone    # one theme / form factor
+```
+
+Output: `app_store_assets/screenshots/<locale>/android/<phone|tablet>/<dark|light>/NN_name.png` at native resolution (Pixel 9: 1080×2424, Pixel Tablet: 2560×1600). The suite also contains a real login-flow regression test.
+
 ## Login and credentials
 
 The school website's read-only credentials are entered once by the user, verified with a request to the server and kept in a private preference file that is excluded from backups. They are never part of the source code and are only ever sent to `lessing-gymnasium-karlsruhe.de`.

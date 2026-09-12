@@ -25,6 +25,20 @@ object Extractor {
 
     private const val SEGMENT_GAP = 15.0
 
+    /**
+     * Untis 2027 draws a cell and the following empty-cell marker "---" as one
+     * text run without a gap glyph, so geometry yields "7a---" in the class
+     * column and nothing in the next one. Move the marker over.
+     */
+    internal fun splitGluedEmptyMarkers(cells: MutableList<String>) {
+        for (c in 0 until cells.size - 1) {
+            if (cells[c + 1].isEmpty() && cells[c].length > 3 && cells[c].endsWith("---")) {
+                cells[c + 1] = "---"
+                cells[c] = cells[c].dropLast(3).trim()
+            }
+        }
+    }
+
     /** "6ab" -> [6a, 6b]; "5a, 7c" -> [5a, 7c]; "J11" -> [J11]. */
     private fun expandClasses(cell: String): List<String> {
         val out = mutableListOf<String>()
@@ -64,7 +78,7 @@ object Extractor {
         var classesIdx: Int? = null
         var headerIdx: Int? = null
         var footerIdx: Int? = null
-        val footerAnchor = Regex("\\d{1,2}\\.\\d{1,2}\\.\\d{4}\\s*\\(\\d+\\)\\s*SJ\\s")
+        val footerAnchor = Regex("\\d{1,2}\\.\\d{1,2}\\.\\d{4}\\s*\\(\\d+\\)")
         for ((i, line) in lines.withIndex()) {
             val t = line.text.trim()
             if (titleIdx == null && t.contains("Klassen") && t.contains("/") &&
@@ -87,7 +101,7 @@ object Extractor {
             for (segment in segments(lines[i])) {
                 val t = segment.trim()
                 when {
-                    Regex("^SJ \\d{4}-\\d{4}$").matches(t) -> plan["schoolYear"] = t
+                    Regex("^(SJ|Schuljahr) \\d{4}-\\d{4}$").matches(t) -> plan["schoolYear"] = t
                     t.startsWith("Untis ") -> plan["untisVersion"] = t
                     Regex("^\\d{1,2}\\.\\d{1,2}\\.\\d{4}\\s+\\d{1,2}:\\d{2}$").matches(t) ->
                         plan["generatedAt"] = t.replace(Regex("\\s+"), " ")
@@ -101,7 +115,7 @@ object Extractor {
         var footerYear: String? = null
         if (footerIdx != null) {
             val m = Regex(
-                "(?:Periode\\s+(\\d+)\\s+)?(\\d{1,2})\\.(\\d{1,2})\\.(\\d{4})\\s+\\((\\d+)\\)\\s+SJ\\s+(\\S+)"
+                "(?:Periode\\s+(\\d+)\\s+)?(\\d{1,2})\\.(\\d{1,2})\\.(\\d{4})\\s+\\((\\d+)\\)(?:\\s+SJ\\s+(\\S+))?"
             ).find(lines[footerIdx].text.replace(Regex("\\s+"), " "))
             if (m != null) {
                 footerYear = m.groupValues[4]
@@ -111,7 +125,7 @@ object Extractor {
                     "untisPeriod" to m.groupValues[1].ifEmpty { null }?.toInt(),
                     "date" to "$dd.$mm.${m.groupValues[4]}",
                     "calendarWeek" to m.groupValues[5].toInt(),
-                    "schoolYearShort" to "SJ ${m.groupValues[6]}",
+                    "schoolYearShort" to m.groupValues[6].ifEmpty { null }?.let { "SJ $it" },
                 )
             }
         }
@@ -193,6 +207,7 @@ object Extractor {
                     prevRight = w.right
                 }
                 if (cells.all { it.isEmpty() }) continue
+                splitGluedEmptyMarkers(cells)
 
                 if (cells[0].isNotEmpty() || cells[1].isNotEmpty()) {
                     val entry = linkedMapOf<String, Any?>()

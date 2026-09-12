@@ -26,7 +26,8 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.TheaterComedy
+import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.material.icons.outlined.AcUnit
 import androidx.compose.material.icons.outlined.Cloud
 import androidx.compose.material.icons.outlined.Dehaze
@@ -277,6 +278,7 @@ private fun BoxScope.Precip(rain: Boolean) {
 // Apple-Weather-style full-bleed sky with translucent cards. The cards are
 // content, so they are plain scrims (DESIGN_GUIDELINES.md §1.3).
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun WeatherScreen(onBack: () -> Unit) {
     val vm = LocalHomeViewModel.current
@@ -327,10 +329,10 @@ fun WeatherScreen(onBack: () -> Unit) {
                  modifier = Modifier.semantics { heading() })
             Spacer(Modifier.weight(1f))
             if (BuildConfig.DEBUG) {
+                // Debug-only sky preview: long-press the title (no visible control).
                 Box {
-                    IconButton(onClick = { menu = true }) {
-                        Icon(Icons.Filled.TheaterComedy, stringResource(R.string.a11y_sky_preview), tint = Color.White)
-                    }
+                    Box(Modifier.size(48.dp).combinedClickable(onClick = {}, onLongClick = { menu = true },
+                        onLongClickLabel = stringResource(R.string.a11y_sky_preview)))
                     DropdownMenu(expanded = menu, onDismissRequest = { menu = false }) {
                         DropdownMenuItem(text = { Text(stringResource(R.string.live)) }, onClick = { preview = null; menu = false })
                         listOf("Klar (Tag)" to (0 to true), "Klar (Nacht)" to (0 to false),

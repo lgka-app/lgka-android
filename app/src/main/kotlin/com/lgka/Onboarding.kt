@@ -60,6 +60,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
@@ -94,7 +95,7 @@ private fun OnboardingScaffold(button: String, onContinue: () -> Unit, content: 
     Surface(Modifier.fillMaxSize()) {
         Column(Modifier.fillMaxSize().safeDrawingPadding().padding(24.dp)) {
             Column(Modifier.weight(1f), horizontalAlignment = Alignment.CenterHorizontally, content = content)
-            Button(onClick = onContinue, modifier = Modifier.fillMaxWidth().heightIn(min = 52.dp),
+            Button(onClick = onContinue, modifier = Modifier.fillMaxWidth().heightIn(min = 52.dp).testTag("onboarding.continue"),
                    shape = RoundedCornerShape(16.dp)) {
                 Text(button, fontWeight = FontWeight.SemiBold)
             }
@@ -298,7 +299,7 @@ fun AuthScreen() {
                 label = { Text(stringResource(R.string.username)) },
                 leadingIcon = { Icon(Icons.Outlined.Person, null) },
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Text, imeAction = ImeAction.Next, autoCorrectEnabled = false),
-                singleLine = true, modifier = Modifier.fillMaxWidth())
+                singleLine = true, modifier = Modifier.fillMaxWidth().testTag("auth.username"))
             Spacer(Modifier.height(12.dp))
             OutlinedTextField(
                 value = password, onValueChange = { password = it },
@@ -307,7 +308,7 @@ fun AuthScreen() {
                 visualTransformation = PasswordVisualTransformation(),
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password, imeAction = ImeAction.Go),
                 keyboardActions = androidx.compose.foundation.text.KeyboardActions(onGo = { validate() }),
-                singleLine = true, modifier = Modifier.fillMaxWidth())
+                singleLine = true, modifier = Modifier.fillMaxWidth().testTag("auth.password"))
             message?.let {
                 Spacer(Modifier.height(12.dp))
                 Text(it, color = MaterialTheme.colorScheme.error, textAlign = TextAlign.Center,
@@ -318,7 +319,7 @@ fun AuthScreen() {
                 onClick = { validate() },
                 enabled = canLogin || flash != 0,
                 colors = ButtonDefaults.buttonColors(containerColor = buttonColor),
-                modifier = Modifier.fillMaxWidth().heightIn(min = 52.dp),
+                modifier = Modifier.fillMaxWidth().heightIn(min = 52.dp).testTag("auth.login"),
                 shape = RoundedCornerShape(16.dp)) {
                 when {
                     loading -> CircularProgressIndicator(Modifier.size(22.dp), color = MaterialTheme.colorScheme.onPrimary, strokeWidth = 2.5.dp)
