@@ -6,6 +6,16 @@ import android.graphics.pdf.PdfRenderer
 import android.os.ParcelFileDescriptor
 import android.util.LruCache
 import androidx.compose.foundation.Image
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.pager.HorizontalPager
+import androidx.compose.foundation.pager.rememberPagerState
+import androidx.compose.material.icons.outlined.School
+import androidx.compose.material3.Button
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
+import kotlinx.coroutines.delay
 import androidx.compose.foundation.gestures.detectTransformGestures
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -15,13 +25,8 @@ import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.KeyboardArrowDown
-import androidx.compose.material.icons.filled.KeyboardArrowUp
-import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
@@ -37,7 +42,6 @@ import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
-import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
@@ -53,8 +57,6 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.semantics.contentDescription
-import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
@@ -113,6 +115,12 @@ fun PdfViewerDialog(request: PdfRequest, onClose: () -> Unit) {
     }
 }
 
+/**
+ * pdf_viewer_screen.dart parity: one page at a time (swipe for the next), share,
+ * and for schedule PDFs a class selector behind the school icon that validates
+ * against the class index and jumps to the class page (switching to the other
+ * schedule PDF when the class lives there). Substitution plans get no search.
+ */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun PdfViewerContent(request: PdfRequest, onClose: () -> Unit) {
@@ -124,65 +132,68 @@ private fun PdfViewerContent(request: PdfRequest, onClose: () -> Unit) {
     var currentFile by remember { mutableStateOf(request.file) }
     var currentTitle by remember { mutableStateOf(request.title) }
     var currentGrade by remember { mutableStateOf(request.gradeLevel) }
+    var currentIndex by remember { mutableStateOf(request.classIndex) }
     var pages by remember { mutableStateOf<PdfPages?>(null) }
-    var pageTexts by remember { mutableStateOf<List<String>>(emptyList()) }
-    var query by remember { mutableStateOf("") }
-    var showSearch by remember { mutableStateOf(false) }
-    var matches by remember { mutableStateOf<List<Int>>(emptyList()) }
-    var matchIndex by remember { mutableIntStateOf(0) }
+    var classInput by remember { mutableStateOf("") }
+    var showClassBar by remember { mutableStateOf(false) }
     var feedback by remember { mutableStateOf<String?>(null) }
-    var scale by remember { mutableFloatStateOf(1f) }
-    var pan by remember { mutableStateOf(Offset.Zero) }
-    val listState = rememberLazyListState()
+    val pagerState = rememberPagerState { pages?.pageCount ?: 0 }
     val scope = rememberCoroutineScope()
-    val noMatches = stringResource(R.string.no_matches)
+    val focusRequester = remember { FocusRequester() }
     val connectionFailed = stringResource(R.string.server_connection_failed)
+    val isSchedule = currentGrade != null
 
     suspend fun loadPdf(file: File, targetPage: Int?) {
         val opened = withContext(Dispatchers.IO) { PdfPages(file) }
         pages?.close()
         pages = opened
-        pageTexts = withContext(Dispatchers.IO) { runCatching { pageTextsAndroid(file) }.getOrDefault(emptyList()) }
-        targetPage?.let { display -> listState.scrollToItem((display - 2).coerceIn(0, opened.pageCount - 1)) }
+        targetPage?.let { display -> pagerState.scrollToPage((display - 2).coerceIn(0, opened.pageCount - 1)) }
     }
 
     LaunchedEffect(request.file) { loadPdf(request.file, request.targetPage) }
     DisposableEffect(Unit) { onDispose { pages?.close() } }
+    LaunchedEffect(feedback) { if (feedback != null) { delay(2_000); feedback = null } }
+    LaunchedEffect(showClassBar) { if (showClassBar) focusRequester.requestFocus() }
 
-    fun search() {
-        val q = query.trim().lowercase()
-        feedback = null
-        val isClass = q.matches(Regex("^(j1[12]|\\d{1,2}[a-e])$"))
-        if (currentGrade != null && isClass) {
-            prefs.selectedScheduleClass = q
-            val targetGroup = if (q.startsWith("j")) "J11/J12" else "Klassen 5-10"
-            if (targetGroup != currentGrade) {
-                // cross-PDF class switching (_navigateCrossPdf parity)
-                val other = vm.preferredGroup.firstOrNull { it.gradeLevel == targetGroup }
-                if (other != null) {
-                    scope.launch {
-                        try {
-                            val (file, index) = api.schedulePdf(other)
-                            currentFile = file
-                            currentGrade = targetGroup
-                            val name = resources.getString(classNameRes(q), q.replaceFirstChar { it.uppercase() })
-                            currentTitle = name
-                            loadPdf(file, index[q])
-                            feedback = resources.getString(R.string.class_changed, name)
-                        } catch (e: Exception) {
-                            feedback = connectionFailed
-                        }
-                    }
-                    return
+    fun applyClass(cls: String, page: Int) {
+        prefs.selectedScheduleClass = cls
+        val name = resources.getString(classNameRes(cls), cls.replaceFirstChar { it.uppercase() })
+        currentTitle = name
+        classInput = ""
+        showClassBar = false
+        scope.launch { pagerState.scrollToPage((page - 2).coerceIn(0, (pages?.pageCount ?: 1) - 1)) }
+        feedback = resources.getString(R.string.class_changed, name)
+    }
+
+    /** _validateAndSaveClass parity: unknown class → "existiert nicht", known → persist, jump, confirm. */
+    fun submitClass() {
+        val q = classInput.trim().lowercase()
+        if (q.length < 2) return
+        if (!q.matches(Regex("^(j1[12]|\\d{1,2}[a-e])$"))) { feedback = resources.getString(R.string.no_results, q.uppercase()); return }
+        val targetGroup = if (q.startsWith("j")) "J11/J12" else "Klassen 5-10"
+        if (targetGroup != currentGrade) {
+            // cross-PDF class switching (_navigateCrossPdf parity)
+            val other = vm.preferredGroup.firstOrNull { it.gradeLevel == targetGroup }
+            if (other == null) { feedback = resources.getString(R.string.no_results, q.uppercase()); return }
+            scope.launch {
+                try {
+                    val (file, index) = api.schedulePdf(other)
+                    val page = index[q]
+                    if (page == null) { feedback = resources.getString(R.string.no_results, q.uppercase()); return@launch }
+                    currentFile = file
+                    currentGrade = targetGroup
+                    currentIndex = index
+                    loadPdf(file, page)
+                    applyClass(q, page)
+                } catch (e: Exception) {
+                    feedback = connectionFailed
                 }
             }
+            return
         }
-        matches = pageTexts.withIndex().filter { q.isNotEmpty() && it.value.contains(q) }.map { it.index }
-        matchIndex = 0
-        if (matches.isEmpty() && q.isNotEmpty()) {
-            feedback = if (isClass) resources.getString(R.string.no_results, q.uppercase()) else noMatches
-        }
-        matches.firstOrNull()?.let { scope.launch { listState.animateScrollToItem(it) } }
+        val page = currentIndex[q]
+        if (page == null) { feedback = resources.getString(R.string.no_results, q.uppercase()); return }
+        applyClass(q, page)
     }
 
     Scaffold(topBar = {
@@ -192,8 +203,10 @@ private fun PdfViewerContent(request: PdfRequest, onClose: () -> Unit) {
                 IconButton(onClick = onClose) { Icon(Icons.Filled.Close, stringResource(R.string.a11y_close)) }
             },
             actions = {
-                IconButton(onClick = { showSearch = !showSearch }) {
-                    Icon(Icons.Filled.Search, stringResource(R.string.a11y_search))
+                if (isSchedule) {
+                    IconButton(onClick = { showClassBar = !showClassBar }, modifier = Modifier.testTag("pdf.changeClass")) {
+                        Icon(if (showClassBar) Icons.Filled.Close else Icons.Outlined.School, stringResource(R.string.a11y_change_class))
+                    }
                 }
                 IconButton(onClick = {
                     // pdf_share_service parity: friendly filename
@@ -212,30 +225,20 @@ private fun PdfViewerContent(request: PdfRequest, onClose: () -> Unit) {
             })
     }) { padding ->
         Column(Modifier.padding(padding)) {
-            if (showSearch) {
+            AnimatedVisibility(showClassBar) {
+                // pdf_search_bar.dart parity: class entry, submit on ≥ 2 characters
                 Row(Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 6.dp),
                     verticalAlignment = Alignment.CenterVertically) {
                     OutlinedTextField(
-                        value = query, onValueChange = { query = it },
-                        placeholder = { Text(stringResource(R.string.search_in_pdf)) },
-                        keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
-                        keyboardActions = KeyboardActions(onSearch = { search() }),
-                        singleLine = true, modifier = Modifier.weight(1f))
-                    if (matches.isNotEmpty()) {
-                        val position = stringResource(R.string.a11y_match_position, matchIndex + 1, matches.size)
-                        Text("  ${matchIndex + 1}/${matches.size}  ", style = MaterialTheme.typography.labelLarge,
-                             modifier = Modifier.semantics { contentDescription = position })
-                        IconButton(onClick = {
-                            matchIndex = (matchIndex - 1 + matches.size) % matches.size
-                            scope.launch { listState.animateScrollToItem(matches[matchIndex]) }
-                        }) { Icon(Icons.Filled.KeyboardArrowUp, stringResource(R.string.a11y_previous_match)) }
-                        IconButton(onClick = {
-                            matchIndex = (matchIndex + 1) % matches.size
-                            scope.launch { listState.animateScrollToItem(matches[matchIndex]) }
-                        }) { Icon(Icons.Filled.KeyboardArrowDown, stringResource(R.string.a11y_next_match)) }
-                    } else {
-                        IconButton(onClick = { search() }) { Icon(Icons.Filled.Search, stringResource(R.string.a11y_search)) }
-                    }
+                        value = classInput, onValueChange = { classInput = it },
+                        placeholder = { Text(stringResource(R.string.search_hint)) },
+                        keyboardOptions = KeyboardOptions(imeAction = ImeAction.Go),
+                        keyboardActions = KeyboardActions(onGo = { submitClass() }),
+                        singleLine = true,
+                        modifier = Modifier.weight(1f).focusRequester(focusRequester).testTag("pdf.classInput"))
+                    Spacer(Modifier.width(8.dp))
+                    Button(onClick = { submitClass() }, enabled = classInput.trim().length >= 2,
+                           modifier = Modifier.testTag("pdf.classSubmit")) { Text(stringResource(R.string.set_class_button)) }
                 }
             }
             feedback?.let { fb ->
@@ -248,22 +251,30 @@ private fun PdfViewerContent(request: PdfRequest, onClose: () -> Unit) {
             } else {
                 BoxWithConstraints(Modifier.fillMaxSize()) {
                     val widthPx = constraints.maxWidth
-                    LazyColumn(
-                        state = listState,
-                        modifier = Modifier.fillMaxSize()
-                            .pointerInput(Unit) {
-                                detectTransformGestures { _, panDelta, zoom, _ ->
-                                    scale = (scale * zoom).coerceIn(1f, 4f)
-                                    pan = if (scale > 1f) pan + panDelta else Offset.Zero
-                                }
-                            }
-                            .graphicsLayer(scaleX = scale, scaleY = scale, translationX = pan.x, translationY = pan.y)) {
-                        items(p.pageCount, key = { it }) { index -> PdfPage(p, index, widthPx) }
+                    // pdfx PdfView parity: one page at a time, swipe horizontally
+                    HorizontalPager(state = pagerState, modifier = Modifier.fillMaxSize(), key = { it }) { index ->
+                        ZoomablePage { PdfPage(p, index, widthPx) }
                     }
                 }
             }
         }
     }
+}
+
+/** Pinch-to-zoom for a single page; resets when the page leaves the pager. */
+@Composable
+private fun ZoomablePage(content: @Composable () -> Unit) {
+    var scale by remember { mutableFloatStateOf(1f) }
+    var pan by remember { mutableStateOf(Offset.Zero) }
+    Box(Modifier.fillMaxSize()
+            .pointerInput(Unit) {
+                detectTransformGestures { _, panDelta, zoom, _ ->
+                    scale = (scale * zoom).coerceIn(1f, 4f)
+                    pan = if (scale > 1f) pan + panDelta else Offset.Zero
+                }
+            }
+            .graphicsLayer(scaleX = scale, scaleY = scale, translationX = pan.x, translationY = pan.y),
+        contentAlignment = Alignment.TopCenter) { content() }
 }
 
 private fun classNameRes(cls: String): Int = when (cls) {
