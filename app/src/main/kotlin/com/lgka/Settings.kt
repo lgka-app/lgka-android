@@ -98,11 +98,11 @@ fun SettingsSheet(onBugReport: () -> Unit, onOpenWeb: (String, String) -> Unit, 
                     SettingsTile(Icons.Outlined.BugReport, stringResource(R.string.bug_report)) { onDismiss(); onBugReport() }
                     HorizontalDivider(Modifier.padding(start = 16.dp))
                     SettingsTile(Icons.Outlined.PrivacyTip, stringResource(R.string.privacy_label)) {
-                        onDismiss(); onOpenWeb("https://lgka.app/privacy", privacyTitle)
+                        onDismiss(); onOpenWeb("https://privacy.lgka.app", privacyTitle)
                     }
                     HorizontalDivider(Modifier.padding(start = 16.dp))
                     SettingsTile(Icons.Outlined.Info, stringResource(R.string.legal_label)) {
-                        onDismiss(); onOpenWeb("https://lgka.app/impressum", legalTitle)
+                        onDismiss(); onOpenWeb("https://impressum.lgka.app", legalTitle)
                     }
                     HorizontalDivider(Modifier.padding(start = 16.dp))
                     SettingsTile(Icons.AutoMirrored.Filled.Logout, stringResource(R.string.logout), external = false) { confirmLogout = true }
