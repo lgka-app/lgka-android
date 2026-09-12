@@ -69,7 +69,6 @@
     <string name="login_offline">Login not possible – please check your connection.</string>
     <string name="logout">Log out</string>
     <string name="logout_confirm">Really log out? You will need to enter the credentials again.</string>
-    <string name="mehr_erfahren">Learn more</string>
     <string name="news">News</string>
     <string name="no_events_available">No events available</string>
     <string name="no_info_yet">No info yet</string>

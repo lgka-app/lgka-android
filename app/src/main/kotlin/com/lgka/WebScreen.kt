@@ -60,11 +60,12 @@ import androidx.compose.ui.viewinterop.AndroidView
 @Composable
 fun KrankmeldungInfoScreen(onBack: () -> Unit, onContinue: () -> Unit) {
     val prefs = LocalContainer.current.prefs
+    val haptics = rememberHaptics()
     Scaffold(topBar = {
         TopAppBar(
             title = { Text(stringResource(R.string.krankmeldung_info_header)) },
             navigationIcon = {
-                IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Filled.ArrowBack, stringResource(R.string.a11y_back)) }
+                IconButton(onClick = { haptics.light(); onBack() }) { Icon(Icons.AutoMirrored.Filled.ArrowBack, stringResource(R.string.a11y_back)) }
             })
     }) { padding ->
         Column(Modifier.padding(padding).padding(16.dp)) {
@@ -85,7 +86,7 @@ fun KrankmeldungInfoScreen(onBack: () -> Unit, onContinue: () -> Unit) {
                 }
             Spacer(Modifier.weight(1f))
             Button(
-                onClick = { prefs.krankmeldungInfoShown = true; onContinue() },
+                onClick = { haptics.medium(); prefs.krankmeldungInfoShown = true; onContinue() },
                 modifier = Modifier.fillMaxWidth().heightIn(min = 52.dp),
                 shape = RoundedCornerShape(16.dp)) {
                 Icon(Icons.Outlined.MedicalServices, null, Modifier.size(20.dp))
@@ -103,6 +104,7 @@ fun KrankmeldungInfoScreen(onBack: () -> Unit, onContinue: () -> Unit) {
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun WebScreen(url: String, title: String, confineToHost: String? = null, onBack: () -> Unit) {
+    val haptics = rememberHaptics()
     val credentials = LocalContainer.current.credentials
     var progress by remember { mutableIntStateOf(0) }
     var failed by remember { mutableStateOf(false) }
@@ -111,7 +113,7 @@ fun WebScreen(url: String, title: String, confineToHost: String? = null, onBack:
         TopAppBar(
             title = { Text(title) },
             navigationIcon = {
-                IconButton(onClick = onBack) { Icon(Icons.Filled.Close, stringResource(R.string.a11y_close)) }
+                IconButton(onClick = { haptics.light(); onBack() }) { Icon(Icons.Filled.Close, stringResource(R.string.a11y_close)) }
             })
     }) { padding ->
         Box(Modifier.padding(padding)) {
@@ -159,7 +161,7 @@ fun WebScreen(url: String, title: String, confineToHost: String? = null, onBack:
                     Text(stringResource(R.string.form_load_error_hint), style = MaterialTheme.typography.bodySmall,
                          color = MaterialTheme.colorScheme.onSurfaceVariant)
                     Spacer(Modifier.height(20.dp))
-                    Button(onClick = { failed = false; progress = 0; reloadToken++ }) { Text(stringResource(R.string.try_again)) }
+                    Button(onClick = { haptics.light(); failed = false; progress = 0; reloadToken++ }) { Text(stringResource(R.string.try_again)) }
                 }
             } else if (progress < 100) {
                 Box(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.surface), Alignment.Center) {

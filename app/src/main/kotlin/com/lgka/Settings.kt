@@ -62,7 +62,8 @@ fun SettingsSheet(onBugReport: () -> Unit, onDismiss: () -> Unit) {
     val context = LocalContext.current
     val container = LocalContainer.current
     var confirmLogout by remember { mutableStateOf(false) }
-    ModalBottomSheet(onDismissRequest = onDismiss) {
+    val haptics = rememberHaptics()
+    ModalBottomSheet(onDismissRequest = { haptics.light(); onDismiss() }) {
         Column(Modifier.padding(horizontal = 16.dp).padding(bottom = 32.dp)) {
             Text(stringResource(R.string.settings), style = MaterialTheme.typography.headlineSmall,
                  fontWeight = FontWeight.Bold, modifier = Modifier.semantics { heading() })
@@ -122,17 +123,18 @@ fun SettingsSheet(onBugReport: () -> Unit, onDismiss: () -> Unit) {
             title = { Text(stringResource(R.string.logout)) },
             text = { Text(stringResource(R.string.logout_confirm)) },
             confirmButton = {
-                TextButton(onClick = { confirmLogout = false; onDismiss(); container.prefs.signOut(container.credentials) }) {
+                TextButton(onClick = { haptics.medium(); confirmLogout = false; onDismiss(); container.prefs.signOut(container.credentials) }) {
                     Text(stringResource(R.string.logout), color = MaterialTheme.colorScheme.error)
                 }
             },
-            dismissButton = { TextButton(onClick = { confirmLogout = false }) { Text(stringResource(R.string.cancel)) } })
+            dismissButton = { TextButton(onClick = { haptics.light(); confirmLogout = false }) { Text(stringResource(R.string.cancel)) } })
     }
 }
 
 @Composable
 private fun SettingsTile(icon: ImageVector, label: String, external: Boolean = true, onClick: () -> Unit) {
-    Row(Modifier.fillMaxWidth().heightIn(min = 48.dp).clickable(role = Role.Button, onClick = onClick)
+    val haptics = rememberHaptics()
+    Row(Modifier.fillMaxWidth().heightIn(min = 48.dp).clickable(role = Role.Button, onClick = { haptics.light(); onClick() })
             .padding(horizontal = 16.dp, vertical = 12.dp),
         verticalAlignment = Alignment.CenterVertically) {
         Icon(icon, null, Modifier.size(20.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)

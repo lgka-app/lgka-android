@@ -86,27 +86,27 @@ fun HomeScreen(onNavigate: (Route) -> Unit) {
     var showClassDialog by remember { mutableStateOf(false) }
     var pdf by remember { mutableStateOf<PdfRequest?>(null) }
     var refreshing by remember { mutableStateOf(false) }
-    val snackbarState = remember { SnackbarHostState() }
-    val haptic = LocalHapticFeedback.current
+    val toast = rememberToastState()
+    val haptics = rememberHaptics()
 
     androidx.compose.runtime.LaunchedEffect(Unit) { vm.bootstrap() }
 
+    Box(Modifier.fillMaxSize()) {
     Scaffold(
-        snackbarHost = { SnackbarHost(snackbarState) },
         topBar = {
             TopAppBar(
                 title = { Text(stringResource(R.string.app_title), fontWeight = FontWeight.ExtraBold) },
                 actions = {
                     IconButton(onClick = {
-                        haptic.performHapticFeedback(HapticFeedbackType.ContextClick)
+                        haptics.light()
                         onNavigate(NewsRoute)
                     }, modifier = Modifier.testTag("home.news")) { Icon(Icons.Outlined.Newspaper, stringResource(R.string.news)) }
                     IconButton(onClick = {
-                        haptic.performHapticFeedback(HapticFeedbackType.ContextClick)
+                        haptics.light()
                         onNavigate(if (prefs.krankmeldungInfoShown) KrankmeldungFormRoute else KrankmeldungInfoRoute)
                     }, modifier = Modifier.testTag("home.sick")) { Icon(Icons.Outlined.MedicalServices, stringResource(R.string.krankmeldung)) }
                     IconButton(onClick = {
-                        haptic.performHapticFeedback(HapticFeedbackType.ContextClick)
+                        haptics.light()
                         showSettings = true
                     }, modifier = Modifier.testTag("home.settings")) { Icon(Icons.Outlined.Settings, stringResource(R.string.settings)) }
                 })
@@ -114,7 +114,7 @@ fun HomeScreen(onNavigate: (Route) -> Unit) {
         PullToRefreshBox(
             isRefreshing = refreshing,
             onRefresh = {
-                haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                haptics.medium()
                 scope.launch {
                     refreshing = true
                     vm.loadAll(FetchMode.Refresh)
@@ -133,13 +133,15 @@ fun HomeScreen(onNavigate: (Route) -> Unit) {
                     ScheduleCard(
                         onSetClass = { showClassDialog = true },
                         onOpen = { req -> pdf = req },
-                        onUnavailable = { msg -> scope.launch { snackbarState.showSnackbar(msg) } })
+                        onUnavailable = { msg -> haptics.error(); toast.show(msg) })
                 }
                 item { SectionHeader(stringResource(R.string.termine)) }
                 item { EventsColumn() }
                 item { Spacer(Modifier.height(16.dp)) }
             }
         }
+    }
+    ToastHost(toast)
     }
 
     if (showSettings) SettingsSheet(onBugReport = { showSettings = false; onNavigate(BugReportRoute) }) { showSettings = false }
@@ -161,8 +163,9 @@ fun WeatherRow(onOpen: () -> Unit) {
         val description = stringResource(wmoRes(w.code))
         val a11y = stringResource(R.string.a11y_weather_card, description, w.temp.toInt())
         // Card(onClick) makes the entire card the touch target, not just the text.
+        val haptics = rememberHaptics()
         Card(
-            onClick = onOpen,
+            onClick = { haptics.medium(); onOpen() },
             shape = CardShape,
             modifier = Modifier.fillMaxWidth().testTag("home.weather").semantics { contentDescription = a11y; role = Role.Button },
         ) {
@@ -324,8 +327,8 @@ fun ScheduleCard(onSetClass: () -> Unit, onOpen: (PdfRequest) -> Unit, onUnavail
             val title = stringResource(R.string.title_with_semester, className, half)
             HomeCard(
                 enabled = !loading,
+                onLongClick = onSetClass, // the iOS context menu equivalent
                 onClick = {
-                    val isJ = cls.startsWith("j")
                     // the PDF whose discovered grades contain the class (5-10, J11, J12, a future J13, …)
                     val target = scheduleFor(cls, group) ?: return@HomeCard
                     loading = true
@@ -339,7 +342,7 @@ fun ScheduleCard(onSetClass: () -> Unit, onOpen: (PdfRequest) -> Unit, onUnavail
                         loading = false
                     }
                 },
-                modifier = Modifier.semantics { }) {
+                modifier = Modifier.testTag("home.schedule")) {
                 IconTile(Icons.Outlined.TableChart)
                 Spacer(Modifier.width(14.dp))
                 Column(Modifier.weight(1f)) {
@@ -352,9 +355,6 @@ fun ScheduleCard(onSetClass: () -> Unit, onOpen: (PdfRequest) -> Unit, onUnavail
                 }
                 else Icon(Icons.AutoMirrored.Filled.ArrowForwardIos, null, Modifier.size(14.dp),
                           tint = MaterialTheme.colorScheme.onSurfaceVariant)
-            }
-            TextButton(onClick = onSetClass, modifier = Modifier.padding(top = 4.dp)) {
-                Text(stringResource(R.string.set_class_title))
             }
         }
     }
@@ -385,6 +385,7 @@ fun scheduleFor(cls: String, group: List<SchoolApi.Schedule>): SchoolApi.Schedul
 @Composable
 fun ClassDialog(onDismiss: () -> Unit) {
     val prefs = LocalContainer.current.prefs
+    val haptics = rememberHaptics()
     var input by remember { mutableStateOf(prefs.selectedScheduleClass) }
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -395,12 +396,13 @@ fun ClassDialog(onDismiss: () -> Unit) {
         },
         confirmButton = {
             TextButton(onClick = {
+                haptics.medium()
                 val cls = input.trim().lowercase(Locale.ROOT)
                 if (cls.isNotEmpty()) prefs.selectedScheduleClass = cls
                 onDismiss()
             }) { Text(stringResource(R.string.set_class_button)) }
         },
-        dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.cancel)) } })
+        dismissButton = { TextButton(onClick = { haptics.light(); onDismiss() }) { Text(stringResource(R.string.cancel)) } })
 }
 
 // ── Events ──────────────────────────────────────────────────────────────────

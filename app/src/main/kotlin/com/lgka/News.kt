@@ -59,6 +59,8 @@ import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.dp
 import androidx.core.net.toUri
 import coil3.compose.AsyncImage
+import androidx.compose.material.icons.outlined.Newspaper
+import androidx.compose.foundation.border
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.runtime.mutableFloatStateOf
@@ -89,6 +91,7 @@ import lgka.News
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun NewsListScreen(onBack: () -> Unit, onOpen: (String) -> Unit) {
+    val haptics = rememberHaptics()
     val vm = LocalHomeViewModel.current
     val scope = rememberCoroutineScope()
     val list = vm.newsList
@@ -97,7 +100,7 @@ fun NewsListScreen(onBack: () -> Unit, onOpen: (String) -> Unit) {
         TopAppBar(
             title = { Text(stringResource(R.string.news)) },
             navigationIcon = {
-                IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Filled.ArrowBack, stringResource(R.string.a11y_back)) }
+                IconButton(onClick = { haptics.light(); onBack() }) { Icon(Icons.AutoMirrored.Filled.ArrowBack, stringResource(R.string.a11y_back)) }
             })
     }) { padding ->
         when {
@@ -108,7 +111,7 @@ fun NewsListScreen(onBack: () -> Unit, onOpen: (String) -> Unit) {
                 var refreshing by remember { mutableStateOf(false) }
                 PullToRefreshBox(
                     isRefreshing = refreshing,
-                    onRefresh = { scope.launch { refreshing = true; vm.loadNews(FetchMode.Refresh); refreshing = false } },
+                    onRefresh = { haptics.medium(); scope.launch { refreshing = true; vm.loadNews(FetchMode.Refresh); refreshing = false } },
                     modifier = Modifier.padding(padding)) {
                     LazyColumn(Modifier.fillMaxSize().readableWidth().padding(horizontal = 20.dp),
                                verticalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -127,29 +130,50 @@ fun NewsListScreen(onBack: () -> Unit, onOpen: (String) -> Unit) {
 
 @Composable
 private fun NewsCard(md: News.Metadata, modifier: Modifier = Modifier, onClick: () -> Unit) {
-    Card(onClick = onClick, shape = CardShape, modifier = modifier) {
-        Column(Modifier.padding(16.dp)) {
-            Text(md.title, fontWeight = FontWeight.SemiBold)
-            if (md.description.isNotEmpty()) {
-                Spacer(Modifier.height(4.dp))
-                Text(md.description, maxLines = 2, style = MaterialTheme.typography.bodyMedium,
-                     color = MaterialTheme.colorScheme.onSurfaceVariant)
+    val haptics = rememberHaptics()
+    val accent = MaterialTheme.colorScheme.primary
+    // the iOS NewsCard: bold title with the accent newspaper glyph, date · views,
+    // three-line excerpt, tag chips, author
+    Card(onClick = { haptics.light(); onClick() }, shape = CardShape, modifier = modifier) {
+        Column(Modifier.padding(20.dp)) {
+            Row(verticalAlignment = Alignment.Top) {
+                Text(md.title, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold,
+                     maxLines = 2, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f))
+                Spacer(Modifier.width(12.dp))
+                Icon(Icons.Outlined.Newspaper, null, Modifier.padding(top = 4.dp).size(20.dp), tint = accent)
             }
             Spacer(Modifier.height(8.dp))
-            MetaRow(md)
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(md.createdDate, style = MaterialTheme.typography.bodySmall, fontWeight = FontWeight.Medium,
+                     color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Spacer(Modifier.width(12.dp))
+                Icon(Icons.Outlined.Visibility, null, Modifier.size(14.dp), tint = MaterialTheme.colorScheme.outline)
+                Spacer(Modifier.width(4.dp))
+                Text("${md.views}", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.outline)
+            }
+            if (md.description.isNotEmpty()) {
+                Spacer(Modifier.height(12.dp))
+                Text(md.description, maxLines = 3, overflow = TextOverflow.Ellipsis, style = MaterialTheme.typography.bodyMedium,
+                     color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
             if (md.tags.isNotEmpty()) {
-                Spacer(Modifier.height(8.dp))
-                Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                    md.tags.take(3).forEach { tag ->
-                        Text(tag, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.primary,
-                             modifier = Modifier.background(MaterialTheme.colorScheme.primary.copy(alpha = 0.12f), RoundedCornerShape(50))
-                                 .padding(horizontal = 8.dp, vertical = 3.dp))
+                Spacer(Modifier.height(12.dp))
+                FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                    md.tags.forEach { tag ->
+                        Text(tag, style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.SemiBold, color = accent,
+                             modifier = Modifier.background(accent.copy(alpha = 0.15f), RoundedCornerShape(8.dp))
+                                 .border(1.dp, accent.copy(alpha = 0.3f), RoundedCornerShape(8.dp))
+                                 .padding(horizontal = 8.dp, vertical = 4.dp))
                     }
                 }
             }
-            Spacer(Modifier.height(8.dp))
-            Text(stringResource(R.string.mehr_erfahren), style = MaterialTheme.typography.labelMedium,
-                 color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.SemiBold)
+            Spacer(Modifier.height(16.dp))
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(Icons.Outlined.Person, null, Modifier.size(14.dp), tint = MaterialTheme.colorScheme.outline)
+                Spacer(Modifier.width(4.dp))
+                Text(md.author, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.outline,
+                     maxLines = 1, overflow = TextOverflow.Ellipsis)
+            }
         }
     }
 }
@@ -174,6 +198,7 @@ private fun MetaRow(md: News.Metadata) {
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun NewsDetailScreen(url: String, onBack: () -> Unit, onOpen: (String) -> Unit) {
+    val haptics = rememberHaptics()
     val vm = LocalHomeViewModel.current
     val api = LocalContainer.current.api
     val context = LocalContext.current
@@ -191,10 +216,10 @@ fun NewsDetailScreen(url: String, onBack: () -> Unit, onOpen: (String) -> Unit) 
         TopAppBar(
             title = {},
             navigationIcon = {
-                IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Filled.ArrowBack, stringResource(R.string.a11y_back)) }
+                IconButton(onClick = { haptics.light(); onBack() }) { Icon(Icons.AutoMirrored.Filled.ArrowBack, stringResource(R.string.a11y_back)) }
             },
             actions = {
-                IconButton(onClick = { context.startActivity(Intent(Intent.ACTION_VIEW, url.toUri())) }) {
+                IconButton(onClick = { haptics.light(); context.startActivity(Intent(Intent.ACTION_VIEW, url.toUri())) }) {
                     Icon(Icons.AutoMirrored.Filled.OpenInNew, stringResource(R.string.open_in_browser))
                 }
             })
@@ -237,7 +262,7 @@ fun NewsDetailScreen(url: String, onBack: () -> Unit, onOpen: (String) -> Unit) 
                         AsyncImage(model = imageUrl, contentDescription = alt,
                                    modifier = Modifier.fillMaxWidth().heightIn(min = 120.dp).padding(bottom = 12.dp)
                                        .clip(RoundedCornerShape(12.dp))
-                                       .clickable(onClickLabel = stringResource(R.string.a11y_open_photo)) { photo = imageUrl to alt })
+                                       .clickable(onClickLabel = stringResource(R.string.a11y_open_photo)) { haptics.light(); photo = imageUrl to alt })
                     }
                 }
                 item {
@@ -298,7 +323,8 @@ private fun fileTypeIcon(type: String?): androidx.compose.ui.graphics.vector.Ima
 @Composable
 private fun ActionRow(title: String, subtitle: String?, icon: androidx.compose.ui.graphics.vector.ImageVector,
                       favicon: String?, trailing: androidx.compose.ui.graphics.vector.ImageVector, onClick: () -> Unit) {
-    Card(onClick = onClick, shape = CardShape, modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp)) {
+    val haptics = rememberHaptics()
+    Card(onClick = { haptics.light(); onClick() }, shape = CardShape, modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp)) {
         Row(Modifier.padding(14.dp), verticalAlignment = Alignment.CenterVertically) {
             Box(Modifier.size(40.dp).background(MaterialTheme.colorScheme.primary.copy(alpha = 0.12f), RoundedCornerShape(10.dp)),
                 contentAlignment = Alignment.Center) {
