@@ -50,6 +50,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.heading
@@ -203,6 +204,7 @@ private fun MetaRow(md: News.Metadata) {
 @Composable
 fun NewsDetailScreen(url: String, onBack: () -> Unit, onOpen: (String) -> Unit) {
     val haptics = rememberHaptics()
+    val uriHandler = LocalUriHandler.current
     val vm = LocalHomeViewModel.current
     val api = LocalContainer.current.api
     val context = LocalContext.current
@@ -223,7 +225,7 @@ fun NewsDetailScreen(url: String, onBack: () -> Unit, onOpen: (String) -> Unit) 
                 IconButton(onClick = { haptics.light(); onBack() }) { Icon(Icons.AutoMirrored.Filled.ArrowBack, stringResource(R.string.a11y_back)) }
             },
             actions = {
-                IconButton(onClick = { haptics.light(); openInApp(context, url) }) {
+                IconButton(onClick = { haptics.light(); uriHandler.openUri(url) }) {
                     Icon(Icons.AutoMirrored.Filled.OpenInNew, stringResource(R.string.open_in_browser))
                 }
             })
@@ -279,7 +281,7 @@ fun NewsDetailScreen(url: String, onBack: () -> Unit, onOpen: (String) -> Unit) 
                         ActionRow(title = title, subtitle = dl["size"] as? String,
                                   icon = fileTypeIcon(dl["file_type"] as? String), favicon = null,
                                   trailing = Icons.Outlined.Download,
-                                  onClick = { openInApp(context, target) })
+                                  onClick = { runCatching { context.startActivity(Intent(Intent.ACTION_VIEW, target.toUri())) } })
                     }
                     a.standaloneLinks.forEach { link ->
                         val title = link["text"] ?: return@forEach
@@ -288,7 +290,7 @@ fun NewsDetailScreen(url: String, onBack: () -> Unit, onOpen: (String) -> Unit) 
                         ActionRow(title = title, subtitle = host, icon = Icons.Outlined.Link,
                                   favicon = host?.let { "https://www.google.com/s2/favicons?sz=64&domain=$it" },
                                   trailing = Icons.AutoMirrored.Filled.OpenInNew,
-                                  onClick = { openInApp(context, target) })
+                                  onClick = { uriHandler.openUri(target) })
                     }
                     // "Weitere Neuigkeiten" — recommended articles (parity)
                     val others = vm.newsList?.filter { it.url != md.url }?.take(3) ?: emptyList()

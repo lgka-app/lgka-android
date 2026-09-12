@@ -16,6 +16,11 @@ import androidx.navigation3.runtime.NavKey
 import androidx.navigation3.runtime.entryProvider
 import androidx.navigation3.runtime.rememberNavBackStack
 import androidx.navigation3.ui.NavDisplay
+import androidx.core.net.toUri
+import androidx.compose.ui.platform.UriHandler
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.runtime.remember
+import android.content.Intent
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.animation.togetherWith
 import androidx.compose.animation.slideOutHorizontally
@@ -63,11 +68,9 @@ class MainActivity : ComponentActivity() {
                 LocalHomeViewModel provides homeViewModel,
             ) {
                 LgkaTheme(container.prefs) {
-                    CompositionLocalProvider(LocalUriHandler provides InAppUriHandler(this@MainActivity)) {
-                        Box {
-                            RootNav()
-                            FireworksOverlay()
-                        }
+                    Box {
+                        RootNav()
+                        FireworksOverlay()
                     }
                 }
             }
@@ -119,14 +122,32 @@ fun RootNav() {
 @Serializable data object NewsRoute : Route
 @Serializable data class NewsDetailRoute(val url: String) : Route
 @Serializable data object KrankmeldungInfoRoute : Route
-@Serializable data object KrankmeldungFormRoute : Route
 @Serializable data object BugReportRoute : Route
+/** Any web page in the app's own web screen (privacy, legal notice, article links, …). */
+@Serializable data class WebRoute(val url: String, val title: String) : Route
 
 @Composable
 fun MainNav() {
     val backStack = rememberNavBackStack(HomeRoute)
     val haptics = rememberHaptics()
+    val context = LocalContext.current
     val pop: () -> Unit = { haptics.light(); backStack.removeLastOrNull() }
+    // Every http(s) link — Compose text links included — opens the app's own web screen;
+    // anything else (mailto, tel, files) goes to the system. Only the Krankmeldung form
+    // deliberately opens the user's real browser.
+    val openWeb = remember(context) {
+        object : UriHandler {
+            override fun openUri(uri: String) {
+                val parsed = uri.toUri()
+                if (parsed.scheme == "http" || parsed.scheme == "https") {
+                    backStack.add(WebRoute(uri, parsed.host?.removePrefix("www.") ?: ""))
+                } else {
+                    runCatching { context.startActivity(Intent(Intent.ACTION_VIEW, parsed)) }
+                }
+            }
+        }
+    }
+    CompositionLocalProvider(LocalUriHandler provides openWeb) {
     NavDisplay(
         backStack = backStack,
         onBack = { haptics.light(); backStack.removeLastOrNull() },
@@ -145,17 +166,10 @@ fun MainNav() {
             entry<KrankmeldungInfoRoute> {
                 KrankmeldungInfoScreen(onBack = pop, onContinue = {
                     backStack.removeLastOrNull()
-                    backStack.add(KrankmeldungFormRoute)
+                    openKrankmeldungForm(context)
                 })
             }
-            entry<KrankmeldungFormRoute> {
-                WebScreen(
-                    url = "https://drkrankmeldung.lgka-online.de",
-                    title = androidx.compose.ui.res.stringResource(R.string.krankmeldung),
-                    confineToHost = "lgka-online.de",
-                    onBack = pop,
-                )
-            }
+            entry<WebRoute> { key -> WebScreen(url = key.url, title = key.title, onBack = pop) }
             entry<BugReportRoute> {
                 WebScreen(
                     url = "https://docs.google.com/forms/d/e/1FAIpQLSdknGu7-xgFurrghbUYOwoYu-Vsaftar6PGLzMv64UFpwJtRw/viewform?usp=publish-editor",
@@ -165,6 +179,14 @@ fun MainNav() {
             }
         },
     )
+    }
+}
+
+const val KRANKMELDUNG_URL = "https://drkrankmeldung.lgka-online.de"
+
+/** The Krankmeldung form is the one page that opens in the user's real browser. */
+fun openKrankmeldungForm(context: android.content.Context) {
+    runCatching { context.startActivity(Intent(Intent.ACTION_VIEW, KRANKMELDUNG_URL.toUri())) }
 }
 
 // ── iOS navigation transitions: the new screen slides in from the right while the

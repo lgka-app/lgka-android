@@ -2,14 +2,9 @@ package com.lgka
 
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.core.view.WindowCompat
-import androidx.core.net.toUri
-import androidx.compose.ui.platform.UriHandler
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.runtime.SideEffect
-import androidx.browser.customtabs.CustomTabsIntent
 import androidx.core.graphics.drawable.toDrawable
-import android.content.Intent
-import android.content.Context
 import android.app.Activity
 import androidx.compose.material3.ColorScheme
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
@@ -130,22 +125,4 @@ fun weekdayRes(german: String?): Int? = when (german) {
     "Samstag" -> R.string.weekday_samstag
     "Sonntag" -> R.string.weekday_sonntag
     else -> null
-}
-
-/** Every http(s) link opens in an in-app Custom Tab (Chrome Custom Tabs), like SFSafariViewController on iOS. */
-fun openInApp(context: Context, url: String) {
-    val uri = url.toUri()
-    if (uri.scheme != "http" && uri.scheme != "https") {
-        runCatching { context.startActivity(Intent(Intent.ACTION_VIEW, uri)) }
-        return
-    }
-    runCatching {
-        CustomTabsIntent.Builder().setShowTitle(true).setShareState(CustomTabsIntent.SHARE_STATE_ON).build()
-            .launchUrl(context, uri)
-    }.onFailure { runCatching { context.startActivity(Intent(Intent.ACTION_VIEW, uri)) } }
-}
-
-/** UriHandler for Compose text links (LinkAnnotation.Url) so inline article links use the in-app browser too. */
-class InAppUriHandler(private val context: Context) : UriHandler {
-    override fun openUri(uri: String) = openInApp(context, uri)
 }

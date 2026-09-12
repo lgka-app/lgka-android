@@ -60,6 +60,7 @@ import androidx.compose.ui.graphics.ShaderBrush
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.intl.Locale as ComposeLocale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.heading
@@ -301,10 +302,11 @@ fun WeatherScreen(onBack: () -> Unit) {
                 StatsGrid(w)
                 Spacer(Modifier.height(20.dp))
                 val ctx = LocalContext.current
+                val uriHandler = LocalUriHandler.current
                 Text(stringResource(R.string.weather_attribution), color = Color.White.copy(alpha = 0.8f),
                      style = MaterialTheme.typography.labelMedium,
                      modifier = Modifier.align(Alignment.CenterHorizontally).heightIn(min = 48.dp)
-                         .clickable { openInApp(ctx, "https://open-meteo.com/") }
+                         .clickable { uriHandler.openUri("https://open-meteo.com/") }
                          .padding(vertical = 14.dp))
                 Spacer(Modifier.height(24.dp))
             }

@@ -59,6 +59,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalResources
 import lgka.ScheduleGrades
 import androidx.compose.ui.res.pluralStringResource
@@ -91,6 +92,7 @@ fun HomeScreen(onNavigate: (Route) -> Unit) {
     var refreshing by remember { mutableStateOf(false) }
     val toast = rememberToastState()
     val haptics = rememberHaptics()
+    val context = LocalContext.current
 
     androidx.compose.runtime.LaunchedEffect(Unit) { vm.bootstrap() }
 
@@ -106,7 +108,7 @@ fun HomeScreen(onNavigate: (Route) -> Unit) {
                     }, modifier = Modifier.testTag("home.news")) { Icon(Icons.Outlined.Newspaper, stringResource(R.string.news)) }
                     IconButton(onClick = {
                         haptics.light()
-                        onNavigate(if (prefs.krankmeldungInfoShown) KrankmeldungFormRoute else KrankmeldungInfoRoute)
+                        if (prefs.krankmeldungInfoShown) openKrankmeldungForm(context) else onNavigate(KrankmeldungInfoRoute)
                     }, modifier = Modifier.testTag("home.sick")) { Icon(Icons.Outlined.MedicalServices, stringResource(R.string.krankmeldung)) }
                     IconButton(onClick = {
                         haptics.light()
