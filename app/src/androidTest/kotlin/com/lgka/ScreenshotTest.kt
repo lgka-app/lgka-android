@@ -4,6 +4,8 @@ import android.app.LocaleManager
 import android.content.Intent
 import android.graphics.Bitmap
 import android.os.LocaleList
+import androidx.compose.ui.semantics.SemanticsNode
+import androidx.compose.ui.semantics.SemanticsProperties
 import androidx.compose.ui.test.junit4.v2.createEmptyComposeRule
 import androidx.compose.ui.test.onAllNodesWithTag
 import androidx.compose.ui.test.onNodeWithTag
@@ -16,7 +18,6 @@ import androidx.test.uiautomator.By
 import androidx.test.uiautomator.UiDevice
 import androidx.test.uiautomator.Until
 import org.junit.After
-import org.junit.Assume.assumeTrue
 import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
@@ -28,14 +29,19 @@ import java.io.File
  * `screenshot_test.dart`, driven by scripts/screenshots.sh.
  *
  * Instrumentation arguments (`-e key value`):
- *   login  user:pass for the school website (required except welcome)
+ *   login  user:pass for the school website (required)
  *   theme  dark | light | system (default light)
  *   locale de | en (default de)
  *   cls    schedule class to preselect (default 7b)
  *
- * Output: the app's external files dir, `screenshots/<name>.png`, pulled
- * by the script. Every test launches the activity fresh through the DEBUG
- * seed extras (see MainActivity.applyDebugSeed) — no coordinates.
+ * One app session per run: the activity is launched once through the DEBUG
+ * seed extras (see MainActivity.applyDebugSeed — reset, theme, accent, class;
+ * never a login), the welcome screen is captured, onboarding is walked
+ * through, the real credentials are typed into the login form and every
+ * further capture is taken on that same session — no relaunch per screenshot,
+ * no coordinates.
+ *
+ * Output: the app's external files dir, `screenshots/<name>.png`, pulled by the script.
  */
 @RunWith(AndroidJUnit4::class)
 class ScreenshotTest {
@@ -57,16 +63,13 @@ class ScreenshotTest {
     @After
     fun close() { scenario?.close() }
 
-    private fun launch(seeded: Boolean) {
+    private fun launch() {
         val intent = Intent(target, MainActivity::class.java).apply {
             addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
             putExtra("lgka_debug_reset", true)
             putExtra("lgka_debug_theme", args.getString("theme") ?: "light")
             putExtra("lgka_debug_accent", args.getString("accent") ?: "blue")
-            if (seeded) {
-                putExtra("lgka_debug_login", args.getString("login") ?: "")
-                putExtra("lgka_debug_class", args.getString("cls") ?: "7b")
-            }
+            putExtra("lgka_debug_class", args.getString("cls") ?: "7b")
         }
         scenario = ActivityScenario.launch(intent)
         compose.waitForIdle()
@@ -129,79 +132,92 @@ class ScreenshotTest {
         File(outDir, "$name.png").outputStream().use { bitmap.compress(Bitmap.CompressFormat.PNG, 100, it) }
     }
 
-    private fun waitForHome() {
-        compose.waitUntil(45_000) { compose.onAllNodesWithTag("home.weather").fetchSemanticsNodes().isNotEmpty() }
+    private fun nodes(tag: String) = compose.onAllNodesWithTag(tag).fetchSemanticsNodes()
+
+    private fun waitFor(tag: String, timeoutMs: Long = 20_000) {
+        compose.waitUntil(timeoutMs) { nodes(tag).isNotEmpty() }
+    }
+
+    private fun waitForHome(timeoutMs: Long = 45_000) {
+        waitFor("home.weather", timeoutMs)
         // events load last; never capture their skeleton (an empty calendar is legitimate, so no assert)
-        runCatching { compose.waitUntil(25_000) { compose.onAllNodesWithTag("home.event").fetchSemanticsNodes().isNotEmpty() } }
+        runCatching { waitFor("home.event", 25_000) }
         Thread.sleep(1_500)
     }
 
-    private fun tap(tag: String) {
-        compose.waitUntil(20_000) { compose.onAllNodesWithTag(tag).fetchSemanticsNodes().isNotEmpty() }
+    private fun tap(tag: String, timeoutMs: Long = 20_000) {
+        waitFor(tag, timeoutMs)
         compose.onNodeWithTag(tag).performClick()
         compose.waitForIdle()
     }
 
-    @Test fun t01Welcome() {
-        launch(seeded = false)
-        compose.waitUntil(20_000) { compose.onAllNodesWithTag("onboarding.continue").fetchSemanticsNodes().isNotEmpty() }
-        save("01_welcome")
+    /** System back (the same gesture the user makes) → the previous screen, waiting for the hub. */
+    private fun back() {
+        device.pressBack()
+        compose.waitForIdle()
+        waitFor("home.weather", 15_000)
+        Thread.sleep(800) // the iOS-style pop transition
     }
 
-    @Test fun t02Home() { launch(seeded = true); waitForHome(); save("02_home") }
+    private fun enabled(n: SemanticsNode?) = n != null && !n.config.contains(SemanticsProperties.Disabled)
 
-    @Test fun t03Weather() {
-        launch(seeded = true); waitForHome()
-        tap("home.weather"); Thread.sleep(2_500); save("03_weather")
-    }
-
-    @Test fun t04News() {
-        launch(seeded = true); waitForHome()
-        tap("home.news")
-        compose.waitUntil(30_000) { compose.onAllNodesWithTag("news.row").fetchSemanticsNodes().isNotEmpty() }
-        save("04_news")
-    }
-
-    @Test fun t05NewsDetail() {
-        launch(seeded = true); waitForHome()
-        tap("home.news")
-        compose.waitUntil(30_000) { compose.onAllNodesWithTag("news.row").fetchSemanticsNodes().isNotEmpty() }
-        compose.onAllNodesWithTag("news.row")[0].performClick()
-        // the article body must be loaded — never capture the loading indicator
-        compose.waitUntil(30_000) { compose.onAllNodesWithTag("news.detail").fetchSemanticsNodes().isNotEmpty() }
-        Thread.sleep(2_000); save("05_news_detail")
-    }
-
-    @Test fun t06Plan() {
-        launch(seeded = true); waitForHome()
-        compose.waitUntil(20_000) { compose.onAllNodesWithTag("home.plan.today").fetchSemanticsNodes().isNotEmpty() }
-        val today = compose.onAllNodesWithTag("home.plan.today").fetchSemanticsNodes().firstOrNull()
-        val tomorrow = compose.onAllNodesWithTag("home.plan.tomorrow").fetchSemanticsNodes().firstOrNull()
-        fun enabled(n: androidx.compose.ui.semantics.SemanticsNode?) =
-            n != null && !n.config.contains(androidx.compose.ui.semantics.SemanticsProperties.Disabled)
-        val tag = when { enabled(today) -> "home.plan.today"; enabled(tomorrow) -> "home.plan.tomorrow"; else -> null }
-        assumeTrue("no substitution plan available today", tag != null)
-        tap(tag!!)
-        // the first PDF page must be rasterized — never capture an empty viewer
-        compose.waitUntil(30_000) { compose.onAllNodesWithTag("plan.page").fetchSemanticsNodes().isNotEmpty() }
-        Thread.sleep(1_000); save("06_plan")
-    }
-
-    @Test fun t07Settings() {
-        launch(seeded = true); waitForHome()
-        tap("home.settings"); Thread.sleep(800); save("07_settings")
-    }
-
-    /** Regression for the login gate: real credentials must lead to the home hub. */
-    @Test fun t08LoginFlow() {
+    @Test fun screenshots() {
         val login = args.getString("login") ?: ""
-        assumeTrue("login argument not set", login.contains(":"))
-        launch(seeded = false)
+        check(login.contains(":")) { "login argument not set" }
+        launch()
+
+        // 01 — welcome
+        waitFor("onboarding.continue")
+        save("01_welcome")
+
+        // onboarding → login form (real credentials: this is also the login-gate regression)
         repeat(4) { tap("onboarding.continue") }
+        waitFor("auth.username", 10_000)
         compose.onNodeWithTag("auth.username").performTextInput(login.substringBefore(":"))
         compose.onNodeWithTag("auth.password").performTextInput(login.substringAfter(":"))
         tap("auth.login")
-        waitForHome()
-        save("08_after_login")
+
+        // 02 — home hub after the login
+        waitForHome(60_000)
+        save("02_home")
+
+        // 03 — weather
+        tap("home.weather"); Thread.sleep(2_500); save("03_weather")
+        back()
+
+        // 04 / 05 — news list and the first article
+        tap("home.news")
+        waitFor("news.row", 30_000)
+        save("04_news")
+        compose.onAllNodesWithTag("news.row")[0].performClick()
+        // the article body must be loaded — never capture the loading indicator
+        waitFor("news.detail", 30_000)
+        Thread.sleep(2_000); save("05_news_detail")
+        device.pressBack(); compose.waitForIdle(); Thread.sleep(800) // → list
+        back() // → hub
+
+        // 06 — substitution plan (today, else tomorrow; skipped on a day without one)
+        runCatching { waitFor("home.plan.today") }
+        val today = nodes("home.plan.today").firstOrNull()
+        val tomorrow = nodes("home.plan.tomorrow").firstOrNull()
+        val planTag = when { enabled(today) -> "home.plan.today"; enabled(tomorrow) -> "home.plan.tomorrow"; else -> null }
+        if (planTag != null) {
+            tap(planTag)
+            // the first PDF page must be rasterized — never capture an empty viewer
+            waitFor("plan.page", 30_000)
+            Thread.sleep(1_000); save("06_plan")
+            back()
+        } else {
+            println("06_plan skipped: no substitution plan available today")
+        }
+
+        // 07 — timetable, opened on the selected class's page (class index), not on page 1
+        tap("home.schedule")
+        waitFor("plan.page", 40_000)
+        Thread.sleep(1_500); save("07_schedule")
+        back()
+
+        // 08 — settings sheet
+        tap("home.settings"); Thread.sleep(800); save("08_settings")
     }
 }

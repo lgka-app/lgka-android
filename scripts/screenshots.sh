@@ -9,6 +9,12 @@
 #
 # Needs ANDROID_HOME with emulator + a system image (see SYSTEM_IMAGE) and
 # JDK 17+. AVDs lgka-shots-phone / lgka-shots-tablet are created on demand.
+# One app session per theme × locale: the suite launches the app once, walks
+# onboarding + login and captures every screen from there (8 shots per run).
+#
+# Headless Linux box (e.g. atlas, KVM):
+#   ANDROID_HOME=~/android-sdk SYSTEM_IMAGE='system-images;android-37.0;google_apis;x86_64' \
+#   LGKA_LOGIN=user:pass scripts/screenshots.sh
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
@@ -51,7 +57,10 @@ for form in "${FORMS[@]}"; do
   fi
   # Fixed port + ANDROID_SERIAL so a stray emulator can never make adb ambiguous.
   export ANDROID_SERIAL="emulator-${EMU_PORT:-5580}"
-  "$EMU" -avd "$avd" -port "${EMU_PORT:-5580}" -no-snapshot -no-boot-anim -no-audio -gpu swiftshader_indirect >/dev/null 2>&1 &
+  EMU_FLAGS=(-no-snapshot -no-boot-anim -no-audio -gpu swiftshader_indirect)
+  # headless Linux (no X server) → no window
+  if [ "$(uname)" = Linux ] && [ -z "${DISPLAY:-}" ]; then EMU_FLAGS+=(-no-window); fi
+  "$EMU" -avd "$avd" -port "${EMU_PORT:-5580}" "${EMU_FLAGS[@]}" >/dev/null 2>&1 &
   EMU_PID=$!
   "$ADB" wait-for-device
   until [ "$("$ADB" shell getprop sys.boot_completed 2>/dev/null | tr -d '\r')" = "1" ]; do sleep 2; done

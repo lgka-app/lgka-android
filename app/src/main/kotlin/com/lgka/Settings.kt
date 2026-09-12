@@ -27,6 +27,8 @@ import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.SheetValue
+import androidx.compose.material3.rememberBottomSheetState
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -66,7 +68,9 @@ fun SettingsSheet(onBugReport: () -> Unit, onOpenWeb: (String, String) -> Unit, 
     val vm = LocalHomeViewModel.current
     val privacyTitle = stringResource(R.string.privacy_label)
     val legalTitle = stringResource(R.string.legal_label)
-    ModalBottomSheet(onDismissRequest = { haptics.light(); onDismiss() }) {
+    // Opens fully expanded (no half-height stop) — the sheet is short enough to show at once.
+    val sheetState = rememberBottomSheetState(SheetValue.Hidden, setOf(SheetValue.Hidden, SheetValue.Expanded))
+    ModalBottomSheet(onDismissRequest = { haptics.light(); onDismiss() }, sheetState = sheetState) {
         Column(Modifier.padding(horizontal = 16.dp).padding(bottom = 32.dp)) {
             Text(stringResource(R.string.settings), style = MaterialTheme.typography.headlineSmall,
                  fontWeight = FontWeight.Bold, modifier = Modifier.semantics { heading() })
@@ -85,7 +89,7 @@ fun SettingsSheet(onBugReport: () -> Unit, onOpenWeb: (String, String) -> Unit, 
                     Spacer(Modifier.height(12.dp))
                     Text(stringResource(R.string.accent_color))
                     Spacer(Modifier.height(8.dp))
-                    AccentRow(swatchSize = 32)
+                    AccentRow(swatchSize = 30)
                 }
             }
 

@@ -1,5 +1,10 @@
 package com.lgka
 
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -19,9 +24,12 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.BrightnessAuto
 import androidx.compose.material.icons.filled.Check
@@ -39,6 +47,7 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
@@ -57,6 +66,8 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.testTag
@@ -71,15 +82,9 @@ import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.unit.dp
 import androidx.compose.ui.text.style.TextOverflow
-import androidx.compose.animation.core.tween
-import androidx.compose.animation.animateColorAsState
 import androidx.compose.ui.unit.Dp
-import androidx.compose.material3.HorizontalDivider
-import androidx.compose.foundation.verticalScroll
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
@@ -190,32 +195,32 @@ fun AccentStep(onContinue: () -> Unit) {
     }
 }
 
-/** Accent picker; each swatch is a 48dp+ radio-button target with a spoken color name. */
+/** Accent picker — the iOS palette: plain colour circles, the selected one carries a white check
+ *  and a soft ring in its own colour. Every swatch is a 48dp+ radio-button target with a spoken name. */
 @Composable
-fun AccentRow(swatchSize: Int) {
+fun AccentRow(swatchSize: Int, modifier: Modifier = Modifier) {
     val prefs = LocalContainer.current.prefs
     val haptics = rememberHaptics()
     val selectedLabel = stringResource(R.string.a11y_selected)
-    Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+    val target = maxOf(swatchSize + 14, 48)
+    Row(modifier, horizontalArrangement = Arrangement.spacedBy(if (swatchSize >= 44) 12.dp else 4.dp)) {
         Accent.entries.forEach { accent ->
             val selected = prefs.accentColor == accent.key
             val name = stringResource(accent.labelRes)
+            val ring by animateFloatAsState(if (selected) 1f else 0f, tween(200), label = "accentRing")
+            val check by animateFloatAsState(if (selected) 1f else 0f,
+                spring(dampingRatio = Spring.DampingRatioMediumBouncy, stiffness = Spring.StiffnessMedium), label = "accentCheck")
             Box(
-                Modifier.size(maxOf(swatchSize, 48).dp)
+                Modifier.size(target.dp)
+                    .clip(CircleShape)
                     .selectable(selected = selected, role = Role.RadioButton, onClick = {
                         if (!selected) { haptics.light(); prefs.accentColor = accent.key }
                     })
                     .semantics { contentDescription = if (selected) "$name, $selectedLabel" else name },
                 contentAlignment = Alignment.Center) {
-                Box(
-                    Modifier.size(swatchSize.dp)
-                        .background(accent.color, RoundedCornerShape((swatchSize * 0.32f).dp))
-                        .border(if (selected) 3.dp else 0.dp,
-                                if (selected) MaterialTheme.colorScheme.onSurface else Color.Transparent,
-                                RoundedCornerShape((swatchSize * 0.32f).dp)),
-                    contentAlignment = Alignment.Center) {
-                    if (selected) Icon(Icons.Filled.Check, null, tint = accent.onColor)
-                    else Box(Modifier.size((swatchSize * 0.24).dp).background(Color.White.copy(alpha = 0.24f), CircleShape))
+                Box(Modifier.size((swatchSize + 10).dp).border(2.dp, accent.color.copy(alpha = 0.45f * ring), CircleShape))
+                Box(Modifier.size(swatchSize.dp).background(accent.color, CircleShape), contentAlignment = Alignment.Center) {
+                    Icon(Icons.Filled.Check, null, Modifier.size((swatchSize * 0.5f).dp).scale(check), tint = Color.White)
                 }
             }
         }
