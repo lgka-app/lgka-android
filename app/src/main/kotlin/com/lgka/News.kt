@@ -282,8 +282,8 @@ fun NewsDetailScreen(url: String, onBack: () -> Unit, onOpen: (String) -> Unit) 
                         val title = link.text
                         val target = link.url
                         val host = target.toUri().host?.removePrefix("www.")
-                        ActionRow(title = title, subtitle = host, icon = Icons.Outlined.Link,
-                                  favicon = host?.let { "https://www.google.com/s2/favicons?sz=64&domain=$it" },
+                        // no favicon service: that would send the reader's IP to a third party
+                        ActionRow(title = title, subtitle = host, icon = Icons.Outlined.Link, favicon = null,
                                   trailing = Icons.AutoMirrored.Filled.OpenInNew,
                                   onClick = { uriHandler.openUri(target) })
                     }
