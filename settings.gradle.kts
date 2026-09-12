@@ -20,8 +20,8 @@ dependencyResolutionManagement {
 }
 
 rootProject.name = "lgka-android"
-include(":core", ":extractor")
-// :app needs the Android SDK + AGP; the JVM modules (parity CLI, tests) stay
+include(":core")
+// :app needs the Android SDK + AGP; the JVM module (API client + tests) stays
 // buildable on machines without either.
 if (System.getenv("ANDROID_HOME") != null || System.getenv("ANDROID_SDK_ROOT") != null ||
     file("local.properties").exists()

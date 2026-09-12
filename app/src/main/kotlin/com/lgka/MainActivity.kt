@@ -35,7 +35,7 @@ import kotlinx.coroutines.launch
 import kotlinx.serialization.Serializable
 
 class MainActivity : ComponentActivity() {
-    private val homeViewModel: HomeViewModel by viewModels { HomeViewModel.factory(appContainer.api) }
+    private val homeViewModel: HomeViewModel by viewModels { HomeViewModel.factory(appContainer) }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         installSplashScreen()
@@ -44,20 +44,19 @@ class MainActivity : ComponentActivity() {
         val container = appContainer
         applyDebugSeed(container)
 
-        // main.dart parity: subs + weather are invalidated on background, so
-        // every resume refreshes them (debounced in the view model).
+        // Every resume is one cheap /v1/sync (hashes out, changes in; debounced).
         lifecycleScope.launch {
             repeatOnLifecycle(Lifecycle.State.RESUMED) {
                 if (container.prefs.isSignedIn(container.credentials)) homeViewModel.refreshOnForeground()
             }
         }
-        // main.dart parity: 1-minute expired-cache refresh timer — only while
-        // the activity is started, never in the background.
+        // While on screen, poll the sync endpoint once a minute (~0.5 KB when
+        // nothing changed) so a new substitution plan shows up within a minute.
         lifecycleScope.launch {
             repeatOnLifecycle(Lifecycle.State.STARTED) {
                 while (true) {
                     delay(60_000)
-                    if (container.prefs.isSignedIn(container.credentials)) homeViewModel.loadAll()
+                    if (container.prefs.isSignedIn(container.credentials)) homeViewModel.sync()
                 }
             }
         }
@@ -95,7 +94,7 @@ private fun MainActivity.applyDebugSeed(container: AppContainer) {
     }
     intent?.getStringExtra("lgka_debug_login")?.let { pair ->
         val (user, password) = pair.split(":", limit = 2).let { it[0] to it.getOrElse(1) { "" } }
-        container.credentials.save(Credentials.Pair(user, password))
+        container.credentials.save(lgka.api.Login(user, password))
         container.prefs.isAuthenticated = true
         container.prefs.onboardingCompleted = true
     }

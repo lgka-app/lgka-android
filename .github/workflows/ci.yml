@@ -2,7 +2,7 @@ name: CI
 
 on:
   push:
-    branches: [main]
+    branches: [main, feature/**]
   pull_request:
 
 concurrency:
@@ -11,14 +11,10 @@ concurrency:
 
 jobs:
   build:
-    name: Gradle build (core + extractor tests, app debug + release)
+    name: Gradle build (core tests, app debug + release, lint)
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
-      - uses: actions/checkout@v7
-        with:
-          repository: lgka-app/verification
-          path: verification
       - uses: actions/setup-java@v6
         with:
           distribution: temurin
@@ -27,10 +23,8 @@ jobs:
         with:
           packages: platform-tools platforms;android-37.0 build-tools;37.0.0
       - uses: gradle/actions/setup-gradle@v6
-      - name: Build and test
+      - name: Build and test (JVM only — no emulator)
         run: ./gradlew build --no-daemon
-        env:
-          LGKA_VERIFICATION_DIR: ${{ github.workspace }}/verification
       - name: Upload debug APK
         uses: actions/upload-artifact@v7
         with:

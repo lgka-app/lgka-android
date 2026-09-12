@@ -48,6 +48,7 @@ import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -242,7 +243,7 @@ fun ThemeModeRow() {
     }
 }
 
-/// Login gate — the school website's credentials are verified against the
+/// Login gate — the school website's credentials are verified by api.lgka.app (never locally) against the
 /// server and stored privately; the app never compares them locally.
 @Composable
 fun AuthScreen() {
@@ -256,6 +257,10 @@ fun AuthScreen() {
     val haptics = rememberHaptics()
     val failedText = stringResource(R.string.login_failed)
     val offlineText = stringResource(R.string.login_offline)
+    val unavailableText = stringResource(R.string.login_unavailable)
+    val rotatedText = stringResource(R.string.login_password_rotated)
+    // The API confirmed the school changed the password: say so until the next successful login.
+    LaunchedEffect(Unit) { if (container.prefs.passwordRotated) message = rotatedText }
 
     val canLogin = username.isNotBlank() && password.isNotBlank() && !loading
     val buttonColor = when (flash) {
@@ -266,17 +271,18 @@ fun AuthScreen() {
 
     fun validate() {
         if (!canLogin || flash != 0) return
-        val pair = Credentials.Pair(username.trim(), password.trim())
+        val pair = lgka.api.Login(username.trim(), password.trim())
         haptics.medium()
         loading = true
         message = null
         scope.launch {
             try {
-                if (container.api.verify(pair)) {
+                if (container.api.checkCredentials(pair)) {
                     container.credentials.save(pair)
                     flash = 2
                     haptics.success()
                     delay(500)
+                    container.prefs.passwordRotated = false
                     container.prefs.isAuthenticated = true
                     container.prefs.onboardingCompleted = true
                 } else {
@@ -284,6 +290,11 @@ fun AuthScreen() {
                     haptics.error()
                     delay(700); flash = 0
                 }
+            } catch (e: lgka.api.ApiStatusException) {
+                // 403 (WAF / rate limit), 429, 5xx: the service, not the password
+                flash = 1; message = unavailableText
+                haptics.error()
+                delay(700); flash = 0
             } catch (e: Exception) {
                 flash = 1; message = offlineText
                 haptics.error()

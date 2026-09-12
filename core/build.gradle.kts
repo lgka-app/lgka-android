@@ -1,5 +1,6 @@
 plugins {
     alias(libs.plugins.kotlin.jvm)
+    alias(libs.plugins.kotlin.serialization)
 }
 
 kotlin {
@@ -8,19 +9,15 @@ kotlin {
 }
 
 dependencies {
-    implementation(libs.gson)
-    implementation(libs.jsoup)
-    // jsoup 1.23 annotates with JSpecify; Kotlin needs the annotations on the classpath.
-    implementation(libs.jspecify)
+    api(libs.okhttp)
+    api(libs.kotlinx.serialization.json)
+    api(libs.kotlinx.coroutines.core)
 
     testImplementation(libs.kotlin.test)
     testImplementation(libs.junit.jupiter)
+    testImplementation(libs.okhttp.mockwebserver)
+    testImplementation(libs.kotlinx.coroutines.test)
     testRuntimeOnly(libs.junit.platform.launcher)
 }
 
-tasks.test {
-    useJUnitPlatform()
-    // Golden parity tests need the lgka-app/verification checkout; CI clones
-    // it next to the repo, `LGKA_VERIFICATION_DIR` overrides the lookup.
-    environment("LGKA_VERIFICATION_DIR", System.getenv("LGKA_VERIFICATION_DIR") ?: "")
-}
+tasks.test { useJUnitPlatform() }
