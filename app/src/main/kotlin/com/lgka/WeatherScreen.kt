@@ -298,6 +298,7 @@ private fun BoxScope.Precip(rain: Boolean) {
 @Composable
 fun WeatherScreen(onBack: () -> Unit) {
     val haptics = rememberHaptics()
+    val context = LocalContext.current
     val vm = LocalHomeViewModel.current
     val scope = rememberCoroutineScope()
     var preview by remember { mutableStateOf<Pair<Int, Boolean>?>(null) }
@@ -319,7 +320,7 @@ fun WeatherScreen(onBack: () -> Unit) {
                 // Attribution comes from the payload: the school's rooftop station when it is
                 // healthy (current values), Open-Meteo for the forecast / as fallback.
                 Column(Modifier.align(Alignment.CenterHorizontally).heightIn(min = 48.dp)
-                           .clickable { haptics.light(); runCatching { ctx.startActivity(Intent(Intent.ACTION_VIEW, "https://open-meteo.com/".toUri())) } } // the user's own browser, like the Krankmeldung form
+                           .clickable { haptics.light(); openExternally(context, "https://open-meteo.com/") } // the user's own browser, like the Krankmeldung form
                            .padding(vertical = 14.dp),
                        horizontalAlignment = Alignment.CenterHorizontally) {
                     if (w.fromSchoolStation) {
@@ -487,4 +488,9 @@ private fun dayLabel(iso: String): String {
     if (date == today) return stringResource(R.string.today)
     val locale = ComposeLocale.current.platformLocale
     return date.format(DateTimeFormatter.ofPattern("EEE", locale))
+}
+
+/** Opens a page in the user's own browser (Open-Meteo attribution, Krankmeldung form). */
+fun openExternally(context: android.content.Context, url: String) {
+    runCatching { context.startActivity(Intent(Intent.ACTION_VIEW, url.toUri())) }
 }
