@@ -72,6 +72,9 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.animateColorAsState
 import androidx.compose.ui.unit.Dp
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.foundation.verticalScroll
@@ -93,18 +96,27 @@ fun OnboardingFlow() {
     }
 }
 
+/** The one primary button of the onboarding flow (welcome, features, accent, appearance, login). */
+@Composable
+fun PrimaryButton(text: String, onClick: () -> Unit, modifier: Modifier = Modifier, enabled: Boolean = true,
+                  containerColor: Color = MaterialTheme.colorScheme.primary, content: (@Composable () -> Unit)? = null) {
+    Button(onClick = onClick, enabled = enabled,
+           colors = ButtonDefaults.buttonColors(containerColor = containerColor, disabledContainerColor = containerColor),
+           modifier = modifier.fillMaxWidth().height(56.dp), shape = RoundedCornerShape(16.dp)) {
+        if (content != null) content() else Text(text, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+    }
+}
+
 @Composable
 private fun OnboardingScaffold(button: String, onContinue: () -> Unit, horizontalPadding: Dp = 32.dp,
                                content: @Composable ColumnScope.() -> Unit) {
     val haptics = rememberHaptics()
     Surface(Modifier.fillMaxSize()) {
         Column(Modifier.fillMaxSize().safeDrawingPadding().readableWidth(560.dp).padding(horizontal = horizontalPadding)) {
-            Column(Modifier.weight(1f), horizontalAlignment = Alignment.CenterHorizontally, content = content)
-            Button(onClick = { haptics.medium(); onContinue() },
-                   modifier = Modifier.fillMaxWidth().heightIn(min = 52.dp).padding(bottom = 16.dp).testTag("onboarding.continue"),
-                   shape = RoundedCornerShape(16.dp)) {
-                Text(button, fontWeight = FontWeight.SemiBold)
-            }
+            Column(Modifier.weight(1f).fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally, content = content)
+            // padding BEFORE the height: the old order shrank the button to 36 dp
+            PrimaryButton(button, onClick = { haptics.medium(); onContinue() },
+                          modifier = Modifier.padding(top = 16.dp, bottom = 16.dp).testTag("onboarding.continue"))
         }
     }
 }
@@ -134,31 +146,31 @@ fun FeaturesStep(onContinue: () -> Unit) {
         Triple(Icons.Outlined.Newspaper, R.string.feature_news_title, R.string.feature_news_desc),
         Triple(Icons.Outlined.MedicalServices, R.string.feature_sick_title, R.string.feature_sick_desc),
         Triple(Icons.Outlined.Event, R.string.feature_events_title, R.string.feature_events_desc))
-    // FeaturesScreen (iOS): one grouped card, uniform rows with a divider, not six differently sized cards
+    // what_you_can_do_screen.dart: one card per feature (radius 16, 48 dp icon tile), uniform height
     OnboardingScaffold(stringResource(R.string.continue_label), onContinue, horizontalPadding = 20.dp) {
         Column(Modifier.fillMaxWidth().verticalScroll(rememberScrollState())) {
             Spacer(Modifier.height(16.dp))
             Text(stringResource(R.string.info_header), style = MaterialTheme.typography.headlineMedium,
                  fontWeight = FontWeight.Bold, modifier = Modifier.padding(horizontal = 4.dp).semantics { heading() })
             Spacer(Modifier.height(16.dp))
-            Card(shape = CardShape, modifier = Modifier.fillMaxWidth()) {
-                Column {
-                    features.forEachIndexed { index, (icon, title, desc) ->
-                        Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp).semantics(mergeDescendants = true) {},
-                            verticalAlignment = Alignment.CenterVertically) {
-                            IconTile(icon)
-                            Spacer(Modifier.width(14.dp))
-                            Column(Modifier.weight(1f)) {
-                                Text(stringResource(title), style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.Medium)
-                                Text(stringResource(desc), style = MaterialTheme.typography.bodyMedium,
-                                     color = MaterialTheme.colorScheme.onSurfaceVariant)
-                            }
+            features.forEach { (icon, title, desc) ->
+                Card(shape = CardShape, modifier = Modifier.fillMaxWidth().padding(bottom = 12.dp).semantics(mergeDescendants = true) {}) {
+                    Row(Modifier.fillMaxWidth().heightIn(min = 84.dp).padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
+                        Box(Modifier.size(48.dp).background(MaterialTheme.colorScheme.primary.copy(alpha = 0.12f), RoundedCornerShape(12.dp)),
+                            contentAlignment = Alignment.Center) {
+                            Icon(icon, null, tint = MaterialTheme.colorScheme.primary)
                         }
-                        if (index < features.lastIndex) HorizontalDivider(Modifier.padding(start = 74.dp))
+                        Spacer(Modifier.width(16.dp))
+                        Column(Modifier.weight(1f)) {
+                            Text(stringResource(title), style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.SemiBold)
+                            Spacer(Modifier.height(2.dp))
+                            Text(stringResource(desc), style = MaterialTheme.typography.bodyMedium, maxLines = 2,
+                                 overflow = TextOverflow.Ellipsis, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        }
                     }
                 }
             }
-            Spacer(Modifier.height(16.dp))
+            Spacer(Modifier.height(4.dp))
         }
     }
 }
@@ -215,9 +227,9 @@ fun AppearanceStep(onContinue: () -> Unit) {
     OnboardingScaffold(stringResource(R.string.lets_go), onContinue) {
         Spacer(Modifier.weight(1f))
         Text(stringResource(R.string.appearance_title), style = MaterialTheme.typography.headlineMedium,
-             fontWeight = FontWeight.Bold, modifier = Modifier.semantics { heading() })
+             fontWeight = FontWeight.Bold, textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth().semantics { heading() })
         Spacer(Modifier.height(32.dp))
-        ThemeModeRow()
+        Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) { ThemeModeRow() }
         Spacer(Modifier.weight(1f))
     }
 }
@@ -255,19 +267,21 @@ fun AuthScreen() {
     var message by remember { mutableStateOf<String?>(null) }
     val scope = rememberCoroutineScope()
     val haptics = rememberHaptics()
-    val failedText = stringResource(R.string.login_failed)
-    val offlineText = stringResource(R.string.login_offline)
-    val unavailableText = stringResource(R.string.login_unavailable)
     val rotatedText = stringResource(R.string.login_password_rotated)
     // The API confirmed the school changed the password: say so until the next successful login.
     LaunchedEffect(Unit) { if (container.prefs.passwordRotated) message = rotatedText }
 
     val canLogin = username.isNotBlank() && password.isNotBlank() && !loading
-    val buttonColor = when (flash) {
-        1 -> MaterialTheme.colorScheme.error
-        2 -> Color(0xFF2E7D32)
-        else -> MaterialTheme.colorScheme.primary
-    }
+    // auth_screen.dart: 300 ms to red / green, 600 ms hold, 300 ms back; half-opacity accent while empty
+    val accent = MaterialTheme.colorScheme.primary
+    val buttonColor by animateColorAsState(
+        targetValue = when {
+            flash == 1 -> Color(0xFFF44336)
+            flash == 2 -> Color(0xFF4CAF50)
+            canLogin || loading -> accent
+            else -> accent.copy(alpha = 0.5f)
+        },
+        animationSpec = tween(300), label = "loginButton")
 
     fun validate() {
         if (!canLogin || flash != 0) return
@@ -279,26 +293,23 @@ fun AuthScreen() {
             try {
                 if (container.api.checkCredentials(pair)) {
                     container.credentials.save(pair)
+                    loading = false
                     flash = 2
                     haptics.success()
-                    delay(500)
+                    delay(900)
                     container.prefs.passwordRotated = false
                     container.prefs.isAuthenticated = true
                     container.prefs.onboardingCompleted = true
                 } else {
-                    flash = 1; message = failedText
-                    haptics.error()
-                    delay(700); flash = 0
+                    loading = false
+                    flash = 1; haptics.error()
+                    delay(900); flash = 0
                 }
-            } catch (e: lgka.api.ApiStatusException) {
-                // 403 (WAF / rate limit), 429, 5xx: the service, not the password
-                flash = 1; message = unavailableText
-                haptics.error()
-                delay(700); flash = 0
             } catch (e: Exception) {
-                flash = 1; message = offlineText
-                haptics.error()
-                delay(700); flash = 0
+                // offline, 403/429/5xx: the same calm red, no text
+                loading = false
+                flash = 1; haptics.error()
+                delay(900); flash = 0
             } finally {
                 loading = false
             }
@@ -333,20 +344,17 @@ fun AuthScreen() {
                 singleLine = true, modifier = Modifier.fillMaxWidth().testTag("auth.password"))
             message?.let {
                 Spacer(Modifier.height(12.dp))
-                Text(it, color = MaterialTheme.colorScheme.error, textAlign = TextAlign.Center,
+                Text(it, color = MaterialTheme.colorScheme.onSurfaceVariant, textAlign = TextAlign.Center,
                      style = MaterialTheme.typography.bodyMedium)
             }
             Spacer(Modifier.height(32.dp))
-            Button(
-                onClick = { validate() },
-                enabled = canLogin || flash != 0,
-                colors = ButtonDefaults.buttonColors(containerColor = buttonColor),
-                modifier = Modifier.fillMaxWidth().heightIn(min = 52.dp).testTag("auth.login"),
-                shape = RoundedCornerShape(16.dp)) {
+            PrimaryButton(stringResource(R.string.login), onClick = { validate() }, enabled = canLogin || flash != 0,
+                          containerColor = buttonColor, modifier = Modifier.testTag("auth.login")) {
                 when {
-                    loading -> CircularProgressIndicator(Modifier.size(22.dp), color = MaterialTheme.colorScheme.onPrimary, strokeWidth = 2.5.dp)
-                    flash == 2 -> Icon(Icons.Filled.Check, null)
-                    else -> Text(stringResource(R.string.login), fontWeight = FontWeight.SemiBold)
+                    loading -> CircularProgressIndicator(Modifier.size(22.dp), color = Color.White, strokeWidth = 2.5.dp)
+                    flash == 2 -> Icon(Icons.Filled.Check, null, tint = Color.White)
+                    else -> Text(stringResource(R.string.login), style = MaterialTheme.typography.titleMedium,
+                                 fontWeight = FontWeight.SemiBold, color = Color.White)
                 }
             }
         }

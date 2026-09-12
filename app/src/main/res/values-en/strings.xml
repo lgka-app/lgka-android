@@ -65,9 +65,6 @@
     <string name="loading">Loading…</string>
     <string name="loading_schedule">Loading timetable…</string>
     <string name="login">Log in</string>
-    <string name="login_failed">The credentials are incorrect.</string>
-    <string name="login_offline">Login not possible – please check your connection.</string>
-    <string name="login_unavailable">Service temporarily unavailable – please try again later.</string>
     <string name="login_password_rotated">The school changed the password – please sign in again.</string>
     <string name="logout">Log out</string>
     <string name="logout_confirm">Really log out? You will need to enter the credentials again.</string>

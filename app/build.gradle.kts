@@ -14,7 +14,7 @@ android {
         applicationId = "com.lgka" // same as the shipping Flutter app
         minSdk = 29
         targetSdk = 37
-        versionCode = 301
+        versionCode = 310
         versionName = "3.0.0"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
