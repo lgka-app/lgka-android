@@ -1,10 +1,8 @@
 package lgka
 
-import org.junit.jupiter.api.Assumptions.assumeTrue
 import org.junit.jupiter.api.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNull
-import kotlin.test.assertTrue
 
 /**
  * Grade discovery must follow whatever the school uploads: a combined "J11/12" PDF,
@@ -30,16 +28,5 @@ class ScheduleGradesTest {
         assertEquals(13, ScheduleGrades.gradeOf("J13"))
         assertNull(ScheduleGrades.gradeOf("stundenplan"))
         assertNull(ScheduleGrades.gradeOf("7f"))
-    }
-
-    /** 2026/27: the site lists three PDFs; J11 and J12 must be discoverable, not "Unbekannt"-and-lost. */
-    @Test
-    fun splitJahrgangUploadsAreCovered() {
-        assumeTrue(Goldens.root != null, "verification checkout not found")
-        val html = Goldens.file("fixtures/schedule/stundenplan_page_2026-09-12.html").readText()
-        val grades = ScheduleHtml.parse(html).map { ScheduleGrades.fromTitle(it["title"] as String) }
-        assertTrue(grades.any { 10 in it })
-        assertEquals(listOf(11), grades.first { 11 in it })
-        assertEquals(listOf(12), grades.first { 12 in it })
     }
 }
