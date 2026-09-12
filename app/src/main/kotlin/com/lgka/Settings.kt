@@ -95,11 +95,11 @@ fun SettingsSheet(onBugReport: () -> Unit, onDismiss: () -> Unit) {
                     SettingsTile(Icons.Outlined.BugReport, stringResource(R.string.bug_report)) { onDismiss(); onBugReport() }
                     HorizontalDivider(Modifier.padding(start = 16.dp))
                     SettingsTile(Icons.Outlined.PrivacyTip, stringResource(R.string.privacy_label)) {
-                        context.startActivity(Intent(Intent.ACTION_VIEW, "https://luka-loehr.github.io/LGKA/privacy.html".toUri()))
+                        openInApp(context, "https://luka-loehr.github.io/LGKA/privacy.html")
                     }
                     HorizontalDivider(Modifier.padding(start = 16.dp))
                     SettingsTile(Icons.Outlined.Info, stringResource(R.string.legal_label)) {
-                        context.startActivity(Intent(Intent.ACTION_VIEW, "https://luka-loehr.github.io/LGKA/impressum.html".toUri()))
+                        openInApp(context, "https://luka-loehr.github.io/LGKA/impressum.html")
                     }
                     HorizontalDivider(Modifier.padding(start = 16.dp))
                     SettingsTile(Icons.AutoMirrored.Filled.Logout, stringResource(R.string.logout), external = false) { confirmLogout = true }

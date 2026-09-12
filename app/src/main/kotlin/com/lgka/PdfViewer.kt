@@ -229,7 +229,7 @@ private fun PdfViewerContent(request: PdfRequest, onClose: () -> Unit) {
                 }) { Icon(Icons.Filled.Share, stringResource(R.string.a11y_share)) }
             })
     }) { padding ->
-        Column(Modifier.padding(padding)) {
+        Column(Modifier.padding(top = padding.calculateTopPadding())) {
             AnimatedVisibility(showClassBar) {
                 // pdf_search_bar.dart parity: class entry, submit on ≥ 2 characters
                 Row(Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 6.dp),
@@ -277,7 +277,7 @@ private fun ZoomablePage(content: @Composable () -> Unit) {
                 }
             }
             .graphicsLayer(scaleX = scale, scaleY = scale, translationX = pan.x, translationY = pan.y),
-        contentAlignment = Alignment.TopCenter) { content() }
+        contentAlignment = Alignment.Center) { content() }
 }
 
 

@@ -21,6 +21,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -68,7 +69,7 @@ fun KrankmeldungInfoScreen(onBack: () -> Unit, onContinue: () -> Unit) {
                 IconButton(onClick = { haptics.light(); onBack() }) { Icon(Icons.AutoMirrored.Filled.ArrowBack, stringResource(R.string.a11y_back)) }
             })
     }) { padding ->
-        Column(Modifier.padding(padding).padding(16.dp)) {
+        Column(Modifier.padding(top = padding.calculateTopPadding()).navigationBarsPadding().padding(16.dp)) {
             listOf(Icons.Outlined.WarningAmber to R.string.krankmeldung_disclaimer,
                    Icons.Outlined.SupportAgent to R.string.krankmeldung_contact)
                 .forEach { (icon, text) ->
@@ -116,7 +117,7 @@ fun WebScreen(url: String, title: String, confineToHost: String? = null, onBack:
                 IconButton(onClick = { haptics.light(); onBack() }) { Icon(Icons.Filled.Close, stringResource(R.string.a11y_close)) }
             })
     }) { padding ->
-        Box(Modifier.padding(padding)) {
+        Box(Modifier.padding(top = padding.calculateTopPadding())) {
             // A new WebView per reload token: no reload storms on recomposition.
             key(reloadToken) {
                 AndroidView(factory = { context ->

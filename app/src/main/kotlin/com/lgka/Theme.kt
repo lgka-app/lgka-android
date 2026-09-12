@@ -1,6 +1,16 @@
 package com.lgka
 
 import androidx.compose.foundation.isSystemInDarkTheme
+import androidx.core.view.WindowCompat
+import androidx.core.net.toUri
+import androidx.compose.ui.platform.UriHandler
+import androidx.compose.ui.platform.LocalView
+import androidx.compose.runtime.SideEffect
+import androidx.browser.customtabs.CustomTabsIntent
+import androidx.core.graphics.drawable.toDrawable
+import android.content.Intent
+import android.content.Context
+import android.app.Activity
 import androidx.compose.material3.ColorScheme
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.MaterialExpressiveTheme
@@ -28,6 +38,20 @@ fun LgkaTheme(prefs: Prefs, content: @Composable () -> Unit) {
         "dark" -> true
         "light" -> false
         else -> isSystemInDarkTheme()
+    }
+    // The window itself must match the in-app theme (an in-app dark override on a light
+    // system otherwise shows the light window background behind the navigation bar), and
+    // the status/navigation bar icons must contrast with it.
+    val view = LocalView.current
+    if (!view.isInEditMode) {
+        SideEffect {
+            val window = (view.context as? Activity)?.window ?: return@SideEffect
+            window.setBackgroundDrawable((if (dark) 0xFF000000.toInt() else 0xFFF2F2F7.toInt()).toDrawable())
+            WindowCompat.getInsetsController(window, view).apply {
+                isAppearanceLightStatusBars = !dark
+                isAppearanceLightNavigationBars = !dark
+            }
+        }
     }
     val accent = prefs.accent
     val scheme: ColorScheme = if (dark) {
@@ -106,4 +130,22 @@ fun weekdayRes(german: String?): Int? = when (german) {
     "Samstag" -> R.string.weekday_samstag
     "Sonntag" -> R.string.weekday_sonntag
     else -> null
+}
+
+/** Every http(s) link opens in an in-app Custom Tab (Chrome Custom Tabs), like SFSafariViewController on iOS. */
+fun openInApp(context: Context, url: String) {
+    val uri = url.toUri()
+    if (uri.scheme != "http" && uri.scheme != "https") {
+        runCatching { context.startActivity(Intent(Intent.ACTION_VIEW, uri)) }
+        return
+    }
+    runCatching {
+        CustomTabsIntent.Builder().setShowTitle(true).setShareState(CustomTabsIntent.SHARE_STATE_ON).build()
+            .launchUrl(context, uri)
+    }.onFailure { runCatching { context.startActivity(Intent(Intent.ACTION_VIEW, uri)) } }
+}
+
+/** UriHandler for Compose text links (LinkAnnotation.Url) so inline article links use the in-app browser too. */
+class InAppUriHandler(private val context: Context) : UriHandler {
+    override fun openUri(uri: String) = openInApp(context, uri)
 }
