@@ -62,6 +62,11 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalResources
 import lgka.ScheduleGrades
+import lgka.api.DayPlan
+import lgka.api.Resource
+import lgka.api.ScheduleItem
+import lgka.api.SchoolEvent
+import lgka.api.scheduleFor
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
@@ -122,7 +127,7 @@ fun HomeScreen(onNavigate: (Route) -> Unit) {
                 haptics.medium()
                 scope.launch {
                     refreshing = true
-                    vm.loadAll(FetchMode.Refresh)
+                    vm.refresh()
                     refreshing = false
                 }
             },
@@ -133,7 +138,7 @@ fun HomeScreen(onNavigate: (Route) -> Unit) {
                 verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 item { WeatherRow { onNavigate(WeatherRoute) } }
                 item { SectionHeader(stringResource(R.string.substitution_plan)) }
-                item { SubstitutionCards { req -> pdf = req } }
+                item { SubstitutionCards(onOpen = { req -> pdf = req }, onUnavailable = { msg -> haptics.error(); toast.show(msg) }) }
                 item { SectionHeader(stringResource(R.string.schedule)) }
                 item {
                     ScheduleCard(
@@ -155,7 +160,8 @@ fun HomeScreen(onNavigate: (Route) -> Unit) {
     pdf?.let { request -> PdfViewerDialog(request) { pdf = null } }
 }
 
-data class PdfRequest(val file: File, val title: String, val targetPage: Int?, val schedule: SchoolApi.Schedule? = null,
+/** [targetPage] is a real 1-based PDF page (the API's class index). */
+data class PdfRequest(val file: File, val title: String, val targetPage: Int?, val schedule: ScheduleItem? = null,
                       val classIndex: Map<String, Int> = emptyMap())
 
 // ── Weather row ─────────────────────────────────────────────────────────────
@@ -210,7 +216,7 @@ fun WeatherRow(onOpen: () -> Unit) {
             Text(stringResource(R.string.weather_data_not_available),
                  style = MaterialTheme.typography.bodySmall,
                  color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.weight(1f))
-            RetryButton { scope.launch { vm.loadWeather(FetchMode.Refresh) } }
+            RetryButton { scope.launch { vm.refresh(setOf(Resource.Weather)) } }
         }
     } else {
         SkeletonRow()
@@ -220,7 +226,7 @@ fun WeatherRow(onOpen: () -> Unit) {
 // ── Substitution ────────────────────────────────────────────────────────────
 
 @Composable
-fun SubstitutionCards(onOpen: (PdfRequest) -> Unit) {
+fun SubstitutionCards(onOpen: (PdfRequest) -> Unit, onUnavailable: (String) -> Unit) {
     val vm = LocalHomeViewModel.current
     val scope = rememberCoroutineScope()
     if (vm.subLoading) {
@@ -237,7 +243,7 @@ fun SubstitutionCards(onOpen: (PdfRequest) -> Unit) {
                      style = MaterialTheme.typography.bodySmall,
                      color = MaterialTheme.colorScheme.onSurfaceVariant)
                 Spacer(Modifier.height(16.dp))
-                OutlinedButton(onClick = { scope.launch { vm.loadSubstitution(FetchMode.Refresh) } }) {
+                OutlinedButton(onClick = { scope.launch { vm.refresh(setOf(Resource.Substitutions)) } }) {
                     Icon(Icons.Filled.Refresh, null, Modifier.size(18.dp))
                     Spacer(Modifier.width(6.dp))
                     Text(stringResource(R.string.try_again))
@@ -246,19 +252,20 @@ fun SubstitutionCards(onOpen: (PdfRequest) -> Unit) {
         }
     } else {
         Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-            SubCard(vm.today, onOpen, "home.plan.today")
-            SubCard(vm.tomorrow, onOpen, "home.plan.tomorrow")
+            SubCard(vm.today, onOpen, onUnavailable, "home.plan.today")
+            SubCard(vm.tomorrow, onOpen, onUnavailable, "home.plan.tomorrow")
         }
     }
 }
 
 @Composable
-private fun SubCard(plan: SchoolApi.SubPlan?, onOpen: (PdfRequest) -> Unit, tag: String) {
+private fun SubCard(plan: DayPlan?, onOpen: (PdfRequest) -> Unit, onUnavailable: (String) -> Unit, tag: String) {
     val vm = LocalHomeViewModel.current
     val scope = rememberCoroutineScope()
+    val connectionFailed = stringResource(R.string.server_connection_failed)
     if (plan == null) {
-        // per-card failure (home_screen per-day retry parity)
-        HomeCard(onClick = { scope.launch { vm.loadSubstitution(FetchMode.Refresh) } }) {
+        // the server has no plan for this day (never published) — tap to re-check
+        HomeCard(onClick = { scope.launch { vm.refresh(setOf(Resource.Substitutions)) } }) {
             IconTile(Icons.Filled.Refresh)
             Spacer(Modifier.width(14.dp))
             Text(stringResource(R.string.error_loading), fontWeight = FontWeight.SemiBold, modifier = Modifier.weight(1f))
@@ -267,14 +274,22 @@ private fun SubCard(plan: SchoolApi.SubPlan?, onOpen: (PdfRequest) -> Unit, tag:
         return
     }
     val canOpen = plan.canDisplay
-    val weekday = weekdayRes(plan.weekday)?.let { stringResource(it) } ?: stringResource(R.string.no_info_yet)
-    val subtitle = if (canOpen && plan.planDate != null) {
-        stringResource(R.string.plan_with_date, plan.planDate,
-                       if (plan.entries.isEmpty()) stringResource(R.string.no_substitutions)
-                       else pluralStringResource(R.plurals.substitutions_count, plan.entries.size, plan.entries.size))
+    val weekday = weekdayRes(plan.meta.weekday)?.let { stringResource(it) } ?: stringResource(R.string.no_info_yet)
+    val entries = plan.plan.entries
+    val subtitle = if (canOpen) {
+        stringResource(R.string.plan_with_date, plan.meta.date,
+                       if (entries.isEmpty()) stringResource(R.string.no_substitutions)
+                       else pluralStringResource(R.plurals.substitutions_count, entries.size, entries.size))
     } else null
-    HomeCard(onClick = { plan.file?.let { onOpen(PdfRequest(it, weekday, null)) } }, enabled = canOpen,
-             modifier = Modifier.testTag(tag)) {
+    HomeCard(onClick = {
+        scope.launch {
+            try {
+                onOpen(PdfRequest(vm.pdfFile(plan.pdf.sha256, plan.pdf.url), weekday, null))
+            } catch (e: Exception) {
+                onUnavailable(connectionFailed)
+            }
+        }
+    }, enabled = canOpen, modifier = Modifier.testTag(tag)) {
         IconTile(Icons.Outlined.CalendarToday, if (canOpen) 0.12f else 0.06f)
         Spacer(Modifier.width(14.dp))
         Column(Modifier.weight(1f)) {
@@ -296,20 +311,19 @@ private fun SubCard(plan: SchoolApi.SubPlan?, onOpen: (PdfRequest) -> Unit, tag:
 @Composable
 fun ScheduleCard(onSetClass: () -> Unit, onOpen: (PdfRequest) -> Unit, onUnavailable: (String) -> Unit) {
     val vm = LocalHomeViewModel.current
-    val api = LocalContainer.current.api
     val prefs = LocalContainer.current.prefs
     val scope = rememberCoroutineScope()
     var loading by remember { mutableStateOf(false) }
 
     if (vm.scheduleLoading) {
         SkeletonRow()
-    } else if (vm.schedules.isEmpty()) {
+    } else if (vm.preferredGroup.isEmpty()) {
         HomeCard {
             Icon(Icons.Outlined.Schedule, null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
             Spacer(Modifier.width(12.dp))
             Text(stringResource(if (vm.scheduleError) R.string.server_connection_failed else R.string.no_schedules_available),
                  color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.weight(1f))
-            if (vm.scheduleError) RetryButton { scope.launch { vm.loadSchedules(FetchMode.Refresh) } }
+            if (vm.scheduleError) RetryButton { scope.launch { vm.refresh(setOf(Resource.Schedules)) } }
         }
     } else {
         val cls = prefs.selectedScheduleClass
@@ -335,13 +349,15 @@ fun ScheduleCard(onSetClass: () -> Unit, onOpen: (PdfRequest) -> Unit, onUnavail
                 enabled = !loading,
                 onLongClick = onSetClass, // the iOS context menu equivalent
                 onClick = {
-                    // the PDF whose discovered grades contain the class (5-10, J11, J12, a future J13, …)
+                    // the PDF whose class index / grades contain the class (5-10, J11, J12, a future J13, …)
                     val target = scheduleFor(cls, group) ?: return@HomeCard
+                    val pdf = target.pdf
+                    if (pdf == null || !target.available) { onUnavailable(unavailable); return@HomeCard }
                     loading = true
                     scope.launch {
                         try {
-                            val (file, index) = api.schedulePdf(target)
-                            onOpen(PdfRequest(file, className, index[cls], target, index)) // pdf_viewer header: class only
+                            val file = vm.pdfFile(pdf.sha256, pdf.url)
+                            onOpen(PdfRequest(file, className, target.classIndex[cls], target, target.classIndex)) // header: class only
                         } catch (e: Exception) {
                             onUnavailable(unavailable) // home_screen SnackBar parity
                         }
@@ -376,18 +392,6 @@ fun classDisplayName(resources: android.content.res.Resources, cls: String): Str
     else resources.getString(R.string.class_name, cls.replaceFirstChar { it.uppercase() })
 }
 
-/**
- * The schedule PDF for a class: by discovered grades first, then by the legacy
- * gradeLevel label, then the first available PDF.
- */
-fun scheduleFor(cls: String, group: List<SchoolApi.Schedule>): SchoolApi.Schedule? {
-    group.firstOrNull { it.covers(cls) }?.let { return it }
-    val jahrgang = (ScheduleGrades.gradeOf(cls) ?: 0) >= 11
-    return group.firstOrNull { s -> if (jahrgang) s.grades.any { it >= 11 } else s.grades.any { it <= 10 } }
-        ?: group.firstOrNull { if (jahrgang) it.gradeLevel == "J11/J12" else it.gradeLevel == "Klassen 5-10" }
-        ?: group.firstOrNull()
-}
-
 @Composable
 fun ClassDialog(onDismiss: () -> Unit) {
     val prefs = LocalContainer.current.prefs
@@ -419,17 +423,17 @@ fun EventsColumn() {
     val scope = rememberCoroutineScope()
     if (vm.eventsLoading) {
         Column(verticalArrangement = Arrangement.spacedBy(12.dp)) { repeat(4) { SkeletonRow() } }
-    } else if (vm.events.isEmpty()) {
+    } else if (vm.eventList.isEmpty()) {
         HomeCard {
             Icon(Icons.Outlined.Event, null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
             Spacer(Modifier.width(12.dp))
             Text(stringResource(if (vm.eventsError) R.string.server_connection_failed else R.string.no_events_available),
                  color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.weight(1f))
-            if (vm.eventsError) RetryButton { scope.launch { vm.loadEvents(FetchMode.Refresh) } }
+            if (vm.eventsError) RetryButton { scope.launch { vm.refresh(setOf(Resource.Events)) } }
         }
     } else {
         Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-            vm.events.take(4).forEach { event ->
+            vm.eventList.take(4).forEach { event ->
                 val subtitle = eventSubtitle(event)
                 HomeCard(modifier = Modifier.testTag("home.event").semantics(mergeDescendants = true) {
                     contentDescription = "$subtitle: ${event.title}"
@@ -464,7 +468,7 @@ private fun DateTile(iso: String) {
 }
 
 @Composable
-private fun eventSubtitle(event: SchoolApi.Event): String {
+private fun eventSubtitle(event: SchoolEvent): String {
     val locale = ComposeLocale.current.platformLocale
     val date = runCatching { LocalDate.parse(event.date) }.getOrNull() ?: return event.time ?: ""
     val base = date.format(DateTimeFormatter.ofPattern("EEE, d. MMMM", locale))

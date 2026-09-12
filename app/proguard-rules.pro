@@ -1,10 +1,10 @@
-# PdfBox-Android resolves filters and fonts reflectively.
--keep class com.tom_roush.pdfbox.** { *; }
--keep class com.tom_roush.fontbox.** { *; }
--dontwarn com.tom_roush.**
--dontwarn org.bouncycastle.**
--dontwarn org.slf4j.**
--dontwarn javax.**
--dontwarn java.awt.**
-# Jsoup has no reflection; keep its select package warnings quiet under R8 full mode.
--dontwarn org.jsoup.**
+# kotlinx.serialization: keep the generated serializers of our API models.
+-keepattributes *Annotation*, InnerClasses
+-dontnote kotlinx.serialization.**
+-keepclassmembers @kotlinx.serialization.Serializable class lgka.api.** {
+    *** Companion;
+    *** INSTANCE;
+    kotlinx.serialization.KSerializer serializer(...);
+}
+-keep,includedescriptorclasses class lgka.api.**$$serializer { *; }
+# OkHttp ships its own consumer rules; nothing else here uses reflection.

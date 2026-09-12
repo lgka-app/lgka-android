@@ -3,7 +3,6 @@ package com.lgka
 import android.annotation.SuppressLint
 import android.content.Intent
 import android.webkit.CookieManager
-import android.webkit.HttpAuthHandler
 import android.webkit.WebChromeClient
 import android.webkit.WebResourceError
 import android.webkit.WebResourceRequest
@@ -99,14 +98,13 @@ fun KrankmeldungInfoScreen(onBack: () -> Unit, onContinue: () -> Unit) {
 }
 
 /// In-app browser — mirrors webview_screen.dart (progress, error, retry;
-/// no cache/cookies like the Flutter incognito settings). Basic-auth is
-/// answered only for the school's own host with the user's stored login.
+/// no cache/cookies like the Flutter incognito settings). It never answers
+/// HTTP auth challenges: the school credentials stay inside the API client.
 @SuppressLint("SetJavaScriptEnabled")
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun WebScreen(url: String, title: String, confineToHost: String? = null, onBack: () -> Unit) {
     val haptics = rememberHaptics()
-    val credentials = LocalContainer.current.credentials
     var progress by remember { mutableIntStateOf(0) }
     var failed by remember { mutableStateOf(false) }
     var reloadToken by remember { mutableIntStateOf(0) }
@@ -124,14 +122,9 @@ fun WebScreen(url: String, title: String, confineToHost: String? = null, onBack:
                     WebView(context).apply {
                         settings.javaScriptEnabled = true
                         settings.cacheMode = WebSettings.LOAD_NO_CACHE
-                        settings.userAgentString = SchoolApi.userAgent
+                        settings.userAgentString = AppInfo.userAgent
                         CookieManager.getInstance().removeAllCookies(null)
                         webViewClient = object : WebViewClient() {
-                            override fun onReceivedHttpAuthRequest(view: WebView?, handler: HttpAuthHandler, host: String?, realm: String?) {
-                                val creds = credentials.load()
-                                if (SchoolApi.isSchoolHost(host) && creds != null) handler.proceed(creds.user, creds.password)
-                                else handler.cancel()
-                            }
                             // webview_screen parity: external links -> browser
                             override fun shouldOverrideUrlLoading(view: WebView?, request: WebResourceRequest?): Boolean {
                                 val target = request?.url ?: return false

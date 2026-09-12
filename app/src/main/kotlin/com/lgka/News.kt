@@ -90,7 +90,8 @@ import androidx.compose.material.icons.outlined.Headphones
 import androidx.compose.material.icons.outlined.Link
 import androidx.compose.material.icons.outlined.Download
 import kotlinx.coroutines.launch
-import lgka.News
+import lgka.api.NewsArticle
+import lgka.api.Resource
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -99,7 +100,7 @@ fun NewsListScreen(onBack: () -> Unit, onOpen: (String) -> Unit) {
     val vm = LocalHomeViewModel.current
     val scope = rememberCoroutineScope()
     val list = vm.newsList
-    LaunchedEffect(Unit) { if (list == null) vm.loadNews() }
+    LaunchedEffect(Unit) { if (list == null) vm.refresh(setOf(Resource.News)) }
     Scaffold(topBar = {
         TopAppBar(
             title = { Text(stringResource(R.string.news)) },
@@ -115,7 +116,7 @@ fun NewsListScreen(onBack: () -> Unit, onOpen: (String) -> Unit) {
                 var refreshing by remember { mutableStateOf(false) }
                 PullToRefreshBox(
                     isRefreshing = refreshing,
-                    onRefresh = { haptics.medium(); scope.launch { refreshing = true; vm.loadNews(FetchMode.Refresh); refreshing = false } },
+                    onRefresh = { haptics.medium(); scope.launch { refreshing = true; vm.refresh(setOf(Resource.News)); refreshing = false } },
                     modifier = Modifier.padding(top = padding.calculateTopPadding())) {
                     LazyColumn(Modifier.fillMaxSize().readableWidth().padding(horizontal = 20.dp),
                                contentPadding = WindowInsets.navigationBars.asPaddingValues(),
@@ -126,7 +127,7 @@ fun NewsListScreen(onBack: () -> Unit, onOpen: (String) -> Unit) {
                 }
             }
             vm.newsFailed -> ErrorState(stringResource(R.string.server_connection_failed),
-                onRetry = { scope.launch { vm.loadNews(FetchMode.Refresh) } },
+                onRetry = { scope.launch { vm.refresh(setOf(Resource.News)) } },
                 modifier = Modifier.fillMaxSize().padding(padding).padding(32.dp))
             else -> Box(Modifier.fillMaxSize().padding(padding), Alignment.Center) { Loading() }
         }
@@ -134,7 +135,7 @@ fun NewsListScreen(onBack: () -> Unit, onOpen: (String) -> Unit) {
 }
 
 @Composable
-private fun NewsCard(md: News.Metadata, modifier: Modifier = Modifier, onClick: () -> Unit) {
+private fun NewsCard(md: NewsArticle, modifier: Modifier = Modifier, onClick: () -> Unit) {
     val haptics = rememberHaptics()
     val accent = MaterialTheme.colorScheme.primary
     // the iOS NewsCard: bold title with the accent newspaper glyph, date · views,
@@ -184,7 +185,7 @@ private fun NewsCard(md: News.Metadata, modifier: Modifier = Modifier, onClick: 
 }
 
 @Composable
-private fun MetaRow(md: News.Metadata) {
+private fun MetaRow(md: NewsArticle) {
     val color = MaterialTheme.colorScheme.onSurfaceVariant
     // Each icon+text pair wraps as a unit — a view count must never break mid-word.
     @Composable fun Item(icon: androidx.compose.ui.graphics.vector.ImageVector, text: String) {
@@ -206,17 +207,11 @@ fun NewsDetailScreen(url: String, onBack: () -> Unit, onOpen: (String) -> Unit) 
     val haptics = rememberHaptics()
     val uriHandler = LocalUriHandler.current
     val vm = LocalHomeViewModel.current
-    val api = LocalContainer.current.api
     val context = LocalContext.current
-    val md = vm.newsList?.firstOrNull { it.url == url }
-    var article by remember { mutableStateOf<News.Article?>(null) }
-    var failed by remember { mutableStateOf(false) }
+    // Articles arrive fully parsed with the news resource; nothing to fetch per article.
+    val md = vm.article(url)
     var photo by remember { mutableStateOf<Pair<String, String>?>(null) }
     photo?.let { (url, alt) -> PhotoViewerDialog(url, alt) { photo = null } }
-    LaunchedEffect(url) {
-        failed = false
-        try { article = api.article(url) } catch (e: Exception) { failed = true }
-    }
 
     Scaffold(topBar = {
         TopAppBar(
@@ -230,12 +225,12 @@ fun NewsDetailScreen(url: String, onBack: () -> Unit, onOpen: (String) -> Unit) 
                 }
             })
     }) { padding ->
-        val a = article
+        val a = md
         when {
-            md == null -> Box(Modifier.fillMaxSize().padding(padding), Alignment.Center) {
+            a == null -> Box(Modifier.fillMaxSize().padding(padding), Alignment.Center) {
                 Text(stringResource(R.string.no_news_available))
             }
-            a != null -> LazyColumn(Modifier.padding(top = padding.calculateTopPadding()).readableWidth().padding(horizontal = 20.dp).testTag("news.detail"),
+            else -> LazyColumn(Modifier.padding(top = padding.calculateTopPadding()).readableWidth().padding(horizontal = 20.dp).testTag("news.detail"),
                                     contentPadding = WindowInsets.navigationBars.asPaddingValues()) {
                 item {
                     Text(md.title, style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold,
@@ -249,8 +244,8 @@ fun NewsDetailScreen(url: String, onBack: () -> Unit, onOpen: (String) -> Unit) 
                         val annotated = buildAnnotatedString {
                             append(text)
                             a.links.forEach { link ->
-                                val lt = link["text"] ?: return@forEach
-                                val target = link["url"] ?: return@forEach
+                                val lt = link.text
+                                val target = link.url
                                 val start = text.indexOf(lt)
                                 if (start >= 0) {
                                     addLink(LinkAnnotation.Url(target), start, start + lt.length)
@@ -263,8 +258,8 @@ fun NewsDetailScreen(url: String, onBack: () -> Unit, onOpen: (String) -> Unit) 
                     Spacer(Modifier.height(16.dp))
                 }
                 items(a.images) { image ->
-                    (image["url"] as? String)?.let { imageUrl ->
-                        val alt = (image["alt"] as? String)?.takeIf { it.isNotBlank() } ?: md.title
+                    image.url.let { imageUrl ->
+                        val alt = image.alt?.takeIf { it.isNotBlank() } ?: md.title
                         // tap → full-screen, zoomable photo viewer
                         AsyncImage(model = imageUrl, contentDescription = alt,
                                    modifier = Modifier.fillMaxWidth().heightIn(min = 120.dp).padding(bottom = 12.dp)
@@ -276,16 +271,16 @@ fun NewsDetailScreen(url: String, onBack: () -> Unit, onOpen: (String) -> Unit) 
                     // news_detail_screen parity: downloads with a file-type glyph and size,
                     // websites with their favicon and domain
                     a.downloads.forEach { dl ->
-                        val title = dl["title"] as? String ?: return@forEach
-                        val target = dl["url"] as? String ?: return@forEach
-                        ActionRow(title = title, subtitle = dl["size"] as? String,
-                                  icon = fileTypeIcon(dl["file_type"] as? String), favicon = null,
+                        val title = dl.title
+                        val target = dl.url
+                        ActionRow(title = title, subtitle = dl.size,
+                                  icon = fileTypeIcon(dl.fileType), favicon = null,
                                   trailing = Icons.Outlined.Download,
                                   onClick = { runCatching { context.startActivity(Intent(Intent.ACTION_VIEW, target.toUri())) } })
                     }
                     a.standaloneLinks.forEach { link ->
-                        val title = link["text"] ?: return@forEach
-                        val target = link["url"] ?: return@forEach
+                        val title = link.text
+                        val target = link.url
                         val host = target.toUri().host?.removePrefix("www.")
                         ActionRow(title = title, subtitle = host, icon = Icons.Outlined.Link,
                                   favicon = host?.let { "https://www.google.com/s2/favicons?sz=64&domain=$it" },
@@ -305,10 +300,6 @@ fun NewsDetailScreen(url: String, onBack: () -> Unit, onOpen: (String) -> Unit) 
                     Spacer(Modifier.height(24.dp))
                 }
             }
-            failed -> ErrorState(stringResource(R.string.server_connection_failed),
-                onRetry = { failed = false; vm.launch { try { article = api.article(url) } catch (e: Exception) { failed = true } } },
-                modifier = Modifier.fillMaxSize().padding(padding).padding(32.dp))
-            else -> Box(Modifier.fillMaxSize().padding(padding), Alignment.Center) { Loading() }
         }
     }
 }

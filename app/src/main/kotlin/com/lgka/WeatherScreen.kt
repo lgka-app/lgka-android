@@ -316,13 +316,21 @@ fun WeatherScreen(onBack: () -> Unit) {
                 if (w.daily.isNotEmpty()) { DailyCard(w); Spacer(Modifier.height(14.dp)) }
                 StatsGrid(w)
                 Spacer(Modifier.height(20.dp))
-                val ctx = LocalContext.current
                 val uriHandler = LocalUriHandler.current
-                Text(stringResource(R.string.weather_attribution), color = Color.White.copy(alpha = 0.8f),
-                     style = MaterialTheme.typography.labelMedium,
-                     modifier = Modifier.align(Alignment.CenterHorizontally).heightIn(min = 48.dp)
-                         .clickable { uriHandler.openUri("https://open-meteo.com/") }
-                         .padding(vertical = 14.dp))
+                // Attribution comes from the payload: the school's rooftop station when it is
+                // healthy (current values), Open-Meteo for the forecast / as fallback.
+                Column(Modifier.align(Alignment.CenterHorizontally).heightIn(min = 48.dp)
+                           .clickable { uriHandler.openUri("https://open-meteo.com/") }
+                           .padding(vertical = 14.dp),
+                       horizontalAlignment = Alignment.CenterHorizontally) {
+                    if (w.fromSchoolStation) {
+                        Text(stringResource(R.string.weather_source_school), color = Color.White.copy(alpha = 0.9f),
+                             style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.SemiBold)
+                    }
+                    w.attribution.forEach { line ->
+                        Text(line, color = Color.White.copy(alpha = 0.8f), style = MaterialTheme.typography.labelMedium)
+                    }
+                }
                 Spacer(Modifier.height(24.dp))
             }
         } else {
@@ -334,7 +342,7 @@ fun WeatherScreen(onBack: () -> Unit) {
                         Text(stringResource(R.string.check_internet_connection), color = Color.White.copy(alpha = 0.8f),
                              style = MaterialTheme.typography.bodyMedium)
                         Spacer(Modifier.height(12.dp))
-                        Button(onClick = { haptics.light(); scope.launch { vm.loadWeather(FetchMode.Refresh) } }) { Text(stringResource(R.string.try_again)) }
+                        Button(onClick = { haptics.light(); scope.launch { vm.refresh(setOf(lgka.api.Resource.Weather)) } }) { Text(stringResource(R.string.try_again)) }
                     }
                 } else Loading()
             }
@@ -369,7 +377,7 @@ fun WeatherScreen(onBack: () -> Unit) {
 }
 
 @Composable
-private fun Hero(w: SchoolApi.WeatherData) {
+private fun Hero(w: WeatherUi) {
     Column(Modifier.fillMaxWidth().semantics(mergeDescendants = true) {}, horizontalAlignment = Alignment.CenterHorizontally) {
         Text(stringResource(R.string.city), color = Color.White, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Medium)
         Text("${w.temp.toInt()}°", color = Color.White, style = MaterialTheme.typography.displayLarge.copy(fontSize = 92.sp), fontWeight = FontWeight.Thin)
@@ -386,7 +394,7 @@ private fun GlassCard(content: @Composable androidx.compose.foundation.layout.Co
 }
 
 @Composable
-private fun HourlyCard(w: SchoolApi.WeatherData) {
+private fun HourlyCard(w: WeatherUi) {
     GlassCard {
         Text(stringResource(R.string.hourly_forecast_label), color = Color.White.copy(alpha = 0.75f),
              style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.SemiBold, modifier = Modifier.semantics { heading() })
@@ -409,7 +417,7 @@ private fun HourlyCard(w: SchoolApi.WeatherData) {
 }
 
 @Composable
-private fun DailyCard(w: SchoolApi.WeatherData) {
+private fun DailyCard(w: WeatherUi) {
     val weekMin = w.daily.minOf { it.tempMin }
     val weekMax = w.daily.maxOf { it.tempMax }
     val span = (weekMax - weekMin).coerceAtLeast(1.0)
@@ -445,7 +453,7 @@ private fun DailyCard(w: SchoolApi.WeatherData) {
 }
 
 @Composable
-private fun StatsGrid(w: SchoolApi.WeatherData) {
+private fun StatsGrid(w: WeatherUi) {
     val uviLabel = stringResource(when {
         w.uvi < 3 -> R.string.uvi_low; w.uvi < 6 -> R.string.uvi_medium
         w.uvi < 8 -> R.string.uvi_high; w.uvi < 11 -> R.string.uvi_very_high
@@ -475,7 +483,7 @@ private fun StatTile(label: String, value: String, modifier: Modifier = Modifier
 
 @Composable
 private fun dayLabel(iso: String): String {
-    val today = LocalDate.now(SchoolApi.berlin)
+    val today = LocalDate.now(HomeViewModel.berlin)
     val date = runCatching { LocalDate.parse(iso) }.getOrNull() ?: return iso
     if (date == today) return stringResource(R.string.today)
     val locale = ComposeLocale.current.platformLocale

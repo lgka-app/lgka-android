@@ -50,6 +50,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
 import lgka.ScheduleGrades
+import lgka.api.covers
+import lgka.api.pagerIndex
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.graphicsLayer
@@ -126,7 +128,6 @@ fun PdfViewerDialog(request: PdfRequest, onClose: () -> Unit) {
 private fun PdfViewerContent(request: PdfRequest, onClose: () -> Unit) {
     val context = LocalContext.current
     val resources = LocalResources.current
-    val api = LocalContainer.current.api
     val prefs = LocalContainer.current.prefs
     val vm = LocalHomeViewModel.current
     var currentFile by remember { mutableStateOf(request.file) }
@@ -148,7 +149,7 @@ private fun PdfViewerContent(request: PdfRequest, onClose: () -> Unit) {
         val opened = withContext(Dispatchers.IO) { PdfPages(file) }
         pages?.close()
         pages = opened
-        targetPage?.let { display -> pagerState.scrollToPage((display - 2).coerceIn(0, opened.pageCount - 1)) }
+        targetPage?.let { page -> pagerState.scrollToPage(pagerIndex(page, opened.pageCount)) }
     }
 
     LaunchedEffect(request.file) { loadPdf(request.file, request.targetPage) }
@@ -161,7 +162,7 @@ private fun PdfViewerContent(request: PdfRequest, onClose: () -> Unit) {
         currentTitle = name
         classInput = ""
         showClassBar = false
-        scope.launch { pagerState.scrollToPage((page - 2).coerceIn(0, (pages?.pageCount ?: 1) - 1)) }
+        scope.launch { pagerState.scrollToPage(pagerIndex(page, pages?.pageCount ?: 1)) }
         haptics.success()
         toast.show(resources.getString(R.string.class_changed, name))
     }
@@ -175,12 +176,14 @@ private fun PdfViewerContent(request: PdfRequest, onClose: () -> Unit) {
         if (!ScheduleGrades.isClassToken(q)) { notFound(q); return }
         val current = currentSchedule
         if (current != null && !current.covers(q)) {
-            // cross-PDF class switching (_navigateCrossPdf parity): the PDF whose grades contain the class
+            // cross-PDF class switching (_navigateCrossPdf parity): the PDF whose class index / grades contain the class
             val other = vm.preferredGroup.firstOrNull { it.covers(q) }
-            if (other == null) { notFound(q); return }
+            val pdf = other?.pdf
+            if (other == null || pdf == null) { notFound(q); return }
             scope.launch {
                 try {
-                    val (file, index) = api.schedulePdf(other)
+                    val file = vm.pdfFile(pdf.sha256, pdf.url)
+                    val index = other.classIndex
                     val page = index[q]
                     if (page == null) { notFound(q); return@launch }
                     currentFile = file

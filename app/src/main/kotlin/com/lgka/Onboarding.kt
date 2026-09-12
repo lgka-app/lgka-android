@@ -242,7 +242,7 @@ fun ThemeModeRow() {
     }
 }
 
-/// Login gate — the school website's credentials are verified against the
+/// Login gate — the school website's credentials are verified by api.lgka.app (never locally) against the
 /// server and stored privately; the app never compares them locally.
 @Composable
 fun AuthScreen() {
@@ -266,13 +266,13 @@ fun AuthScreen() {
 
     fun validate() {
         if (!canLogin || flash != 0) return
-        val pair = Credentials.Pair(username.trim(), password.trim())
+        val pair = lgka.api.Login(username.trim(), password.trim())
         haptics.medium()
         loading = true
         message = null
         scope.launch {
             try {
-                if (container.api.verify(pair)) {
+                if (container.api.checkCredentials(pair)) {
                     container.credentials.save(pair)
                     flash = 2
                     haptics.success()

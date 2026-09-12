@@ -2,19 +2,22 @@ package com.lgka
 
 import android.app.Application
 import android.content.Context
-import com.tom_roush.pdfbox.android.PDFBoxResourceLoader
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.SupervisorJob
-import kotlinx.coroutines.launch
+import lgka.api.LgkaApi
+import lgka.api.SyncStore
+import java.io.File
 
 /** Process-wide dependencies, created once; no globals, no service locator. */
 class AppContainer(context: Context) {
     val prefs = Prefs(context)
     val credentials = Credentials(context)
-    val cache = DiskCache(context)
-    val appScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
-    val api = SchoolApi(credentials, cache, Downloader(appScope))
+    /** Synced resources + mirrored PDFs live in the private files dir (survives cache trims). */
+    val store = SyncStore(File(context.filesDir, "lgka-data"))
+    val api = LgkaApi(userAgent = AppInfo.userAgent)
+}
+
+object AppInfo {
+    /** `LGKA+/<version> (android)` — identifies the app to api.lgka.app. */
+    val userAgent: String = "LGKA+/" + BuildConfig.VERSION_NAME + " (android)"
 }
 
 class LgkaApplication : Application() {
@@ -23,9 +26,7 @@ class LgkaApplication : Application() {
 
     override fun onCreate() {
         super.onCreate()
-        PDFBoxResourceLoader.init(applicationContext)
         container = AppContainer(applicationContext)
-        container.appScope.launch { container.cache.evictStale() }
     }
 }
 
