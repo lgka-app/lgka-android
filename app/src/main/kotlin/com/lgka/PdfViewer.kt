@@ -50,6 +50,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
+import lgka.ScheduleGrades
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.graphicsLayer
@@ -131,7 +132,7 @@ private fun PdfViewerContent(request: PdfRequest, onClose: () -> Unit) {
     val vm = LocalHomeViewModel.current
     var currentFile by remember { mutableStateOf(request.file) }
     var currentTitle by remember { mutableStateOf(request.title) }
-    var currentGrade by remember { mutableStateOf(request.gradeLevel) }
+    var currentSchedule by remember { mutableStateOf(request.schedule) }
     var currentIndex by remember { mutableStateOf(request.classIndex) }
     var pages by remember { mutableStateOf<PdfPages?>(null) }
     var classInput by remember { mutableStateOf("") }
@@ -141,7 +142,7 @@ private fun PdfViewerContent(request: PdfRequest, onClose: () -> Unit) {
     val scope = rememberCoroutineScope()
     val focusRequester = remember { FocusRequester() }
     val connectionFailed = stringResource(R.string.server_connection_failed)
-    val isSchedule = currentGrade != null
+    val isSchedule = currentSchedule != null
 
     suspend fun loadPdf(file: File, targetPage: Int?) {
         val opened = withContext(Dispatchers.IO) { PdfPages(file) }
@@ -157,7 +158,7 @@ private fun PdfViewerContent(request: PdfRequest, onClose: () -> Unit) {
 
     fun applyClass(cls: String, page: Int) {
         prefs.selectedScheduleClass = cls
-        val name = resources.getString(classNameRes(cls), cls.replaceFirstChar { it.uppercase() })
+        val name = classDisplayName(resources, cls)
         currentTitle = name
         classInput = ""
         showClassBar = false
@@ -169,11 +170,11 @@ private fun PdfViewerContent(request: PdfRequest, onClose: () -> Unit) {
     fun submitClass() {
         val q = classInput.trim().lowercase()
         if (q.length < 2) return
-        if (!q.matches(Regex("^(j1[12]|\\d{1,2}[a-e])$"))) { feedback = resources.getString(R.string.no_results, q.uppercase()); return }
-        val targetGroup = if (q.startsWith("j")) "J11/J12" else "Klassen 5-10"
-        if (targetGroup != currentGrade) {
-            // cross-PDF class switching (_navigateCrossPdf parity)
-            val other = vm.preferredGroup.firstOrNull { it.gradeLevel == targetGroup }
+        if (!ScheduleGrades.isClassToken(q)) { feedback = resources.getString(R.string.no_results, q.uppercase()); return }
+        val current = currentSchedule
+        if (current != null && !current.covers(q)) {
+            // cross-PDF class switching (_navigateCrossPdf parity): the PDF whose grades contain the class
+            val other = vm.preferredGroup.firstOrNull { it.covers(q) }
             if (other == null) { feedback = resources.getString(R.string.no_results, q.uppercase()); return }
             scope.launch {
                 try {
@@ -181,7 +182,7 @@ private fun PdfViewerContent(request: PdfRequest, onClose: () -> Unit) {
                     val page = index[q]
                     if (page == null) { feedback = resources.getString(R.string.no_results, q.uppercase()); return@launch }
                     currentFile = file
-                    currentGrade = targetGroup
+                    currentSchedule = other
                     currentIndex = index
                     loadPdf(file, page)
                     applyClass(q, page)
@@ -210,7 +211,7 @@ private fun PdfViewerContent(request: PdfRequest, onClose: () -> Unit) {
                 }
                 IconButton(onClick = {
                     // pdf_share_service parity: friendly filename
-                    val prefix = if (currentGrade != null) "LGKA_Stundenplan_" else "LGKA_Vertretungsplan_"
+                    val prefix = if (currentSchedule != null) "LGKA_Stundenplan_" else "LGKA_Vertretungsplan_"
                     val safe = currentTitle.replace(Regex("[^A-Za-z0-9]+"), "_").trim('_')
                     val shareFile = File(context.cacheDir, prefix + safe.ifEmpty { "Plan" } + ".pdf")
                     currentFile.copyTo(shareFile, overwrite = true)
@@ -277,11 +278,6 @@ private fun ZoomablePage(content: @Composable () -> Unit) {
         contentAlignment = Alignment.TopCenter) { content() }
 }
 
-private fun classNameRes(cls: String): Int = when (cls) {
-    "j11" -> R.string.jahrgang11
-    "j12" -> R.string.jahrgang12
-    else -> R.string.class_name
-}
 
 @Composable
 private fun PdfPage(pages: PdfPages, index: Int, widthPx: Int) {

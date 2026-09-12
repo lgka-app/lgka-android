@@ -31,6 +31,7 @@
     <string name="check_internet_connection">Bitte prüfe deine Internetverbindung.</string>
     <string name="city">Karlsruhe</string>
     <string name="class_changed">Deine Klasse wurde auf %1$s geändert.</string>
+    <string name="jahrgang_named">Jahrgang %1$s</string>
     <string name="class_name">Klasse %1$s</string>
     <string name="continue_label">Weiter</string>
     <string name="error_loading">Fehler beim Laden</string>
@@ -53,8 +54,6 @@
     <string name="high_low">H: %1$d°  T: %2$d°</string>
     <string name="hourly_forecast_label">STÜNDLICH</string>
     <string name="info_header">Alle Funktionen im Überblick</string>
-    <string name="jahrgang11">Jahrgang 11</string>
-    <string name="jahrgang12">Jahrgang 12</string>
     <string name="krankmeldung">Krankmeldung</string>
     <string name="krankmeldung_button">Zur Krankmeldung</string>
     <string name="krankmeldung_contact">Bei technischen Fragen oder Problemen wende dich bitte direkt an das Lessing-Gymnasium Karlsruhe.</string>
