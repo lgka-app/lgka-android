@@ -67,6 +67,8 @@
     <string name="login">Anmelden</string>
     <string name="login_failed">Zugangsdaten sind falsch.</string>
     <string name="login_offline">Anmeldung nicht möglich – bitte Internetverbindung prüfen.</string>
+    <string name="login_unavailable">Dienst vorübergehend nicht erreichbar – bitte später erneut versuchen.</string>
+    <string name="login_password_rotated">Die Schule hat das Passwort geändert – bitte neu anmelden.</string>
     <string name="logout">Abmelden</string>
     <string name="logout_confirm">Wirklich abmelden? Du musst die Zugangsdaten danach erneut eingeben.</string>
     <string name="news">Neuigkeiten</string>

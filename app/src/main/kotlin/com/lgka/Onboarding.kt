@@ -48,6 +48,7 @@ import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -256,6 +257,10 @@ fun AuthScreen() {
     val haptics = rememberHaptics()
     val failedText = stringResource(R.string.login_failed)
     val offlineText = stringResource(R.string.login_offline)
+    val unavailableText = stringResource(R.string.login_unavailable)
+    val rotatedText = stringResource(R.string.login_password_rotated)
+    // The API confirmed the school changed the password: say so until the next successful login.
+    LaunchedEffect(Unit) { if (container.prefs.passwordRotated) message = rotatedText }
 
     val canLogin = username.isNotBlank() && password.isNotBlank() && !loading
     val buttonColor = when (flash) {
@@ -277,6 +282,7 @@ fun AuthScreen() {
                     flash = 2
                     haptics.success()
                     delay(500)
+                    container.prefs.passwordRotated = false
                     container.prefs.isAuthenticated = true
                     container.prefs.onboardingCompleted = true
                 } else {
@@ -284,6 +290,11 @@ fun AuthScreen() {
                     haptics.error()
                     delay(700); flash = 0
                 }
+            } catch (e: lgka.api.ApiStatusException) {
+                // 403 (WAF / rate limit), 429, 5xx: the service, not the password
+                flash = 1; message = unavailableText
+                haptics.error()
+                delay(700); flash = 0
             } catch (e: Exception) {
                 flash = 1; message = offlineText
                 haptics.error()

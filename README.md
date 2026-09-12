@@ -71,7 +71,7 @@ Needs JDK 17+ (the foojay toolchain resolver provisions it) and the Android SDK 
 ## Test
 
 ```bash
-./gradlew :core:test              # models against recorded API responses, sync merge, 401 handling (MockWebServer), hourly window, page mapping
+./gradlew :core:test              # models against recorded API responses, sync merge, 401/403 handling and the auth-check confirmation (MockWebServer), hourly window, page mapping
 ```
 
 No emulator is needed for CI. Refresh the recorded responses with

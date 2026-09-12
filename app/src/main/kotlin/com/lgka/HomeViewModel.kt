@@ -15,6 +15,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
+import lgka.api.Embed
 import lgka.api.Events
 import lgka.api.LgkaApi
 import lgka.api.News
@@ -128,23 +129,35 @@ class HomeViewModel(private val container: AppContainer) : ViewModel() {
     }
 
     /**
-     * The one network call: hashes out, changes in. A 401 means the school
-     * rotated the password → sign out, the root navigation shows the login.
+     * The one network call: hashes out, changes in, every mirrored PDF inline
+     * ([pdfFile] only fetches one if a payload ever arrives without bytes).
+     *
+     * A 401 is confirmed with one `/v1/auth/check` before it counts: if that
+     * also says 401 the school rotated the password → the credentials go, the
+     * root navigation shows the login with a hint, and the on-disk snapshot
+     * stays (public school data; it is back after re-login).
      */
     suspend fun sync(only: Set<Resource>? = null) {
         val login = container.credentials.load() ?: return
         syncMutex.withLock {
             syncing = substitutions == null && schedules == null && news == null && events == null && weatherData == null
             try {
-                val response = api.sync(login, store.hashes(), only = only, embedPdf = true)
+                val hashes = withContext(Dispatchers.IO) { store.hashes() }
+                val response = api.sync(login, hashes, only = only, embed = Embed.AllPdf)
                 val statuses = withContext(Dispatchers.IO) { store.apply(response) }
                 if (statuses.values.any { it == SyncStatus.Updated }) loadFromDisk()
                 unavailable = statuses.filterValues { it == SyncStatus.Unavailable }.keys
                 syncFailed = false
                 lastSyncAt = System.currentTimeMillis()
             } catch (e: UnauthorizedException) {
-                Log.w(TAG, "credentials rejected by the API; signing out")
-                container.prefs.signOut(container.credentials)
+                if (api.confirmUnauthorized(login)) {
+                    Log.w(TAG, "school credentials rotated; back to login (snapshot kept)")
+                    container.prefs.passwordRotated = true
+                    container.prefs.signOut(container.credentials)
+                } else {
+                    Log.w(TAG, "transient 401 on sync; keeping the session")
+                    syncFailed = true
+                }
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {

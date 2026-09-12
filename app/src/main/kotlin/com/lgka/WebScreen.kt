@@ -3,6 +3,7 @@ package com.lgka
 import android.annotation.SuppressLint
 import android.content.Intent
 import android.webkit.CookieManager
+import android.webkit.HttpAuthHandler
 import android.webkit.WebChromeClient
 import android.webkit.WebResourceError
 import android.webkit.WebResourceRequest
@@ -54,6 +55,7 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
+import lgka.api.isSchoolHost
 
 /// Krankmeldung pre-info — mirrors krankmeldung_info_screen.dart.
 @OptIn(ExperimentalMaterial3Api::class)
@@ -98,13 +100,16 @@ fun KrankmeldungInfoScreen(onBack: () -> Unit, onContinue: () -> Unit) {
 }
 
 /// In-app browser — mirrors webview_screen.dart (progress, error, retry;
-/// no cache/cookies like the Flutter incognito settings). It never answers
-/// HTTP auth challenges: the school credentials stay inside the API client.
+/// no cache/cookies like the Flutter incognito settings). It answers a Basic
+/// Auth challenge with the stored school credentials for the school's own host
+/// only ([isSchoolHost]); every other host is cancelled, so the credentials
+/// never leave the school domain.
 @SuppressLint("SetJavaScriptEnabled")
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun WebScreen(url: String, title: String, confineToHost: String? = null, onBack: () -> Unit) {
     val haptics = rememberHaptics()
+    val credentials = LocalContainer.current.credentials
     var progress by remember { mutableIntStateOf(0) }
     var failed by remember { mutableStateOf(false) }
     var reloadToken by remember { mutableIntStateOf(0) }
@@ -136,6 +141,10 @@ fun WebScreen(url: String, title: String, confineToHost: String? = null, onBack:
                             }
                             override fun onReceivedError(view: WebView?, request: WebResourceRequest?, error: WebResourceError?) {
                                 if (request?.isForMainFrame == true) failed = true
+                            }
+                            override fun onReceivedHttpAuthRequest(view: WebView?, handler: HttpAuthHandler, host: String?, realm: String?) {
+                                val login = if (isSchoolHost(host)) credentials.load() else null
+                                if (login != null) handler.proceed(login.user, login.password) else handler.cancel()
                             }
                         }
                         webChromeClient = object : WebChromeClient() {
