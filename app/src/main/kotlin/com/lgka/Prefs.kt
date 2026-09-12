@@ -45,6 +45,8 @@ class Prefs(context: Context) {
     var themeMode by pref("themeMode", "system")
     var krankmeldungInfoShown by pref("krankmeldungInfoShown", false)
     var selectedScheduleClass by pref("selectedScheduleClass", "")
+    /** Set when the API confirmed a 401: the school changed the password; the login screen explains why. */
+    var passwordRotated by pref("passwordRotated", false)
 
     val accent: Accent get() = Accent.of(accentColor)
 
