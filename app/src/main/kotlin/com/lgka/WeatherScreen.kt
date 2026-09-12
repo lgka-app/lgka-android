@@ -1,6 +1,9 @@
 package com.lgka
 
 import android.graphics.RuntimeShader
+import android.graphics.Shader
+import android.graphics.BitmapShader
+import android.graphics.Bitmap
 import android.os.Build
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
@@ -97,18 +100,17 @@ uniform float2 iRes;
 uniform float iTime;
 uniform float uCloud;
 uniform float uDay;
+// 256x256 tiling random texture (red: lattice values, green: per-cell hash). Sampling it
+// with hardware bilinear filtering is exact at any shader precision; the arithmetic
+// fract() hashes collapsed into flat cells on mobile GPUs.
+uniform shader noise;
 
-float hash21(float2 p) {
-    p = fract(p * float2(123.34, 456.21));
-    p += dot(p, p + 45.32);
-    return fract(p.x * p.y);
-}
+float2 wrap(float2 p) { return p - floor(p * (1.0 / 256.0)) * 256.0; }
+float hash21(float2 p) { return noise.eval(wrap(floor(p)) + 0.5).g; }
 float vnoise(float2 p) {
     float2 i = floor(p); float2 f = fract(p);
-    float2 u = f * f * (3.0 - 2.0 * f);
-    float a = hash21(i); float b = hash21(i + float2(1.0, 0.0));
-    float c = hash21(i + float2(0.0, 1.0)); float d = hash21(i + float2(1.0, 1.0));
-    return mix(mix(a, b, u.x), mix(c, d, u.x), u.y);
+    float2 u = f * f * (3.0 - 2.0 * f);           // Hermite curve, as in Sky.metal
+    return noise.eval(wrap(i) + u + 0.5).r;       // bilinear lattice lookup
 }
 float fbm(float2 p) {
     float v = 0.0; float amp = 0.5;
@@ -196,6 +198,14 @@ half4 main(float2 fragCoord) {
 }
 """
 
+/** Deterministic 256x256 random texture for the sky shader (red: noise lattice, green: hash). */
+private fun noiseBitmap(): Bitmap {
+    val size = 256
+    val rnd = java.util.Random(20260912L)
+    val pixels = IntArray(size * size) { (0xFF shl 24) or (rnd.nextInt(256) shl 16) or (rnd.nextInt(256) shl 8) or rnd.nextInt(256) }
+    return Bitmap.createBitmap(pixels, size, size, Bitmap.Config.ARGB_8888)
+}
+
 fun cloudiness(code: Int): Float = when (code) {
     0, 1 -> 0.12f
     2 -> 0.5f
@@ -223,7 +233,12 @@ fun SkyBox(code: Int, isDay: Boolean, particles: Boolean, modifier: Modifier = M
 
     Box(modifier) {
         if (Build.VERSION.SDK_INT >= 33) {
-            val shader = remember { RuntimeShader(SKY_AGSL) }
+            val shader = remember {
+                RuntimeShader(SKY_AGSL).apply {
+                    setInputShader("noise", BitmapShader(noiseBitmap(), Shader.TileMode.REPEAT, Shader.TileMode.REPEAT)
+                        .apply { filterMode = BitmapShader.FILTER_MODE_LINEAR })
+                }
+            }
             Canvas(Modifier.matchParentSize()) {
                 shader.setFloatUniform("iRes", size.width, size.height)
                 shader.setFloatUniform("iTime", t)
