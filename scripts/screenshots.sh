@@ -57,30 +57,45 @@ for form in "${FORMS[@]}"; do
   fi
   # Fixed port + ANDROID_SERIAL so a stray emulator can never make adb ambiguous.
   export ANDROID_SERIAL="emulator-${EMU_PORT:-5580}"
-  EMU_FLAGS=(-no-snapshot -no-boot-anim -no-audio -gpu swiftshader_indirect)
+  # EMU_GPU: swiftshader_indirect works on the Mac; on atlas the Android 37 x86_64 image aborts
+  # SurfaceFlinger with it (GoldfishMapper hasReadColorBufferDma assertion) — use a GPU mode there.
+  EMU_FLAGS=(-no-snapshot -no-boot-anim -no-audio -gpu "${EMU_GPU:-swiftshader_indirect}")
   # headless Linux (no X server) → no window
   if [ "$(uname)" = Linux ] && [ -z "${DISPLAY:-}" ]; then EMU_FLAGS+=(-no-window); fi
-  "$EMU" -avd "$avd" -port "${EMU_PORT:-5580}" "${EMU_FLAGS[@]}" >/dev/null 2>&1 &
+  # EMU_MEMORY / EMU_CORES (MB / count) override the AVD profile, e.g. on a big CI box.
+  [ -n "${EMU_MEMORY:-}" ] && EMU_FLAGS+=(-memory "$EMU_MEMORY")
+  [ -n "${EMU_CORES:-}" ] && EMU_FLAGS+=(-cores "$EMU_CORES")
+  mkdir -p build
+  echo "emulator log → build/emulator-$form.log"
+  "$EMU" -avd "$avd" -port "${EMU_PORT:-5580}" "${EMU_FLAGS[@]}" > "build/emulator-$form.log" 2>&1 &
   EMU_PID=$!
   "$ADB" wait-for-device
   until [ "$("$ADB" shell getprop sys.boot_completed 2>/dev/null | tr -d '\r')" = "1" ]; do sleep 2; done
-  "$ADB" shell settings put global animator_duration_scale 0 >/dev/null
+  # Right after boot the system server can still restart once (low-memory kills, SurfaceFlinger
+  # settling on the software GPU): wait until the settings service answers twice, 10 s apart.
+  settled=0
+  until [ "$settled" -ge 2 ]; do
+    if "$ADB" shell settings get global animator_duration_scale >/dev/null 2>&1; then settled=$((settled + 1)); else settled=0; fi
+    sleep 10
+  done
+  # Every setup command must succeed — a failure here aborts the run loudly (set -e).
+  "$ADB" shell settings put global animator_duration_scale 0
   # The display must never blank mid-run (a blank frame fails the flat-frame guard).
-  "$ADB" shell svc power stayon true >/dev/null
-  "$ADB" shell settings put system screen_off_timeout 1800000 >/dev/null
+  "$ADB" shell svc power stayon true
+  "$ADB" shell settings put system screen_off_timeout 1800000
   # Never let emulator ANR/crash dialogs (e.g. Pixel Launcher) appear in captures.
-  "$ADB" shell settings put global hide_error_dialogs 1 >/dev/null
-  "$ADB" shell settings put secure show_ime_with_hard_keyboard 0 >/dev/null 2>&1 || true
-  "$ADB" shell settings put global sysui_demo_allowed 1 >/dev/null
-  "$ADB" install -r app/build/outputs/apk/debug/app-debug.apk >/dev/null
-  "$ADB" install -r app/build/outputs/apk/androidTest/debug/app-debug-androidTest.apk >/dev/null
+  "$ADB" shell settings put global hide_error_dialogs 1
+  "$ADB" shell settings put secure show_ime_with_hard_keyboard 0 || true
+  "$ADB" shell settings put global sysui_demo_allowed 1
+  "$ADB" install -r app/build/outputs/apk/debug/app-debug.apk
+  "$ADB" install -r app/build/outputs/apk/androidTest/debug/app-debug-androidTest.apk
   # Warm-up launch: the first Compose frames after a cold boot on the software GPU can take
   # many seconds and would otherwise be captured as an empty window.
   "$ADB" shell am start -W -n com.lgka/.MainActivity >/dev/null 2>&1 || true
   sleep 10
   "$ADB" shell am force-stop com.lgka
   for mode in "${MODES[@]}"; do
-    "$ADB" shell cmd uimode night "$([ "$mode" = dark ] && echo yes || echo no)" >/dev/null
+    "$ADB" shell cmd uimode night "$([ "$mode" = dark ] && echo yes || echo no)"
     sleep 3 # SystemUI re-inflates on the uimode change
     for locale in "${LOCALES[@]}"; do
       out="$ROOT/$locale/android/$form/$mode"
