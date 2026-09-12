@@ -45,7 +45,7 @@
     <string name="feature_sick_title">Krankmeldung</string>
     <string name="feature_substitution_desc">Aktueller Vertretungsplan für heute/morgen</string>
     <string name="feature_substitution_title">Vertretungsplan</string>
-    <string name="feature_weather_desc">Aktuelle Wetterdaten via Open-Meteo</string>
+    <string name="feature_weather_desc">Wetterstation der Schule, Vorhersage von Open-Meteo</string>
     <string name="feature_weather_title">Wetterdaten</string>
     <string name="feels_like">Gefühlt %1$d°</string>
     <string name="first_semester">1. Halbjahr</string>
@@ -111,7 +111,7 @@
     <string name="uvi_medium">Mittel</string>
     <string name="uvi_very_high">Sehr hoch</string>
     <string name="views">Zugriffe</string>
-    <string name="weather_attribution">Wetterdaten von Open-Meteo.com</string>
+    <string name="weather_source_school">Aktuelle Werte von der Wetterstation auf dem Schuldach</string>
     <string name="weather_data_not_available">Wetterdaten nicht verfügbar</string>
     <string name="weather_humidity_short">Luftfeuchte</string>
     <string name="weather_page_title">Wetter Karlsruhe</string>
@@ -160,4 +160,5 @@
         <item quantity="one">1 Vertretung</item>
         <item quantity="other">%d Vertretungen</item>
     </plurals>
+    <string name="data_source_note">Alle Daten kommen über api.lgka.app (Cloudflare, Speicherung in der EU). Die App sendet nur die Schulzugangsdaten – keine Kennungen, keine Analyse.</string>
 </resources>

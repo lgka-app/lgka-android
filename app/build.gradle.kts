@@ -16,7 +16,6 @@ android {
         targetSdk = 37
         versionCode = 301
         versionName = "3.0.0"
-        resourceConfigurations += listOf("de", "en")
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
@@ -31,6 +30,10 @@ android {
     buildFeatures {
         compose = true
         buildConfig = true
+    }
+
+    androidResources {
+        localeFilters += listOf("de", "en")
     }
 
     compileOptions {
@@ -59,12 +62,8 @@ kotlin {
 }
 
 dependencies {
-    implementation(project(":core"))
-    implementation(libs.pdfbox.android) {
-        // Only needed for encrypted/signed PDFs, which the school never serves;
-        // dropping it removes a permissive TrustManager and ~3 MB from the APK.
-        exclude(group = "org.bouncycastle")
-    }
+    implementation(project(":core")) // api.lgka.app client, models, on-disk sync store
+    implementation(libs.okhttp)
 
     val composeBom = platform(libs.compose.bom)
     implementation(composeBom)

@@ -3,4 +3,5 @@
 <full-backup-content>
     <include domain="sharedpref" path="." />
     <exclude domain="sharedpref" path="lgka-auth.xml" />
+    <exclude domain="sharedpref" path="lgka-auth-v2.xml" />
 </full-backup-content>

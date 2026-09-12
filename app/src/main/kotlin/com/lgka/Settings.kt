@@ -108,6 +108,10 @@ fun SettingsSheet(onBugReport: () -> Unit, onDismiss: () -> Unit) {
                 }
             }
 
+            Spacer(Modifier.height(12.dp))
+            Text(stringResource(R.string.data_source_note), style = MaterialTheme.typography.bodySmall,
+                 color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(horizontal = 4.dp))
+
             Spacer(Modifier.height(24.dp))
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.Center) {
                 Text("© ${java.time.Year.now().value} ", style = MaterialTheme.typography.bodySmall,
@@ -125,7 +129,11 @@ fun SettingsSheet(onBugReport: () -> Unit, onDismiss: () -> Unit) {
             title = { Text(stringResource(R.string.logout)) },
             text = { Text(stringResource(R.string.logout_confirm)) },
             confirmButton = {
-                TextButton(onClick = { haptics.medium(); confirmLogout = false; onDismiss(); container.prefs.signOut(container.credentials) }) {
+                TextButton(onClick = {
+                    haptics.medium(); confirmLogout = false; onDismiss()
+                    container.prefs.signOut(container.credentials)
+                    Thread { container.store.clear() }.start() // synced data belongs to the login
+                }) {
                     Text(stringResource(R.string.logout), color = MaterialTheme.colorScheme.error)
                 }
             },
