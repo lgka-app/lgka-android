@@ -63,7 +63,7 @@ import androidx.compose.ui.graphics.ShaderBrush
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.intl.Locale as ComposeLocale
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.platform.LocalUriHandler
+import android.content.Intent
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.heading
@@ -316,11 +316,10 @@ fun WeatherScreen(onBack: () -> Unit) {
                 if (w.daily.isNotEmpty()) { DailyCard(w); Spacer(Modifier.height(14.dp)) }
                 StatsGrid(w)
                 Spacer(Modifier.height(20.dp))
-                val uriHandler = LocalUriHandler.current
                 // Attribution comes from the payload: the school's rooftop station when it is
                 // healthy (current values), Open-Meteo for the forecast / as fallback.
                 Column(Modifier.align(Alignment.CenterHorizontally).heightIn(min = 48.dp)
-                           .clickable { uriHandler.openUri("https://open-meteo.com/") }
+                           .clickable { haptics.light(); runCatching { ctx.startActivity(Intent(Intent.ACTION_VIEW, "https://open-meteo.com/".toUri())) } } // the user's own browser, like the Krankmeldung form
                            .padding(vertical = 14.dp),
                        horizontalAlignment = Alignment.CenterHorizontally) {
                     if (w.fromSchoolStation) {
