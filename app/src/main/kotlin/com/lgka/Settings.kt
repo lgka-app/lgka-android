@@ -43,6 +43,7 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.heading
@@ -63,6 +64,7 @@ fun SettingsSheet(onBugReport: () -> Unit, onDismiss: () -> Unit) {
     val container = LocalContainer.current
     var confirmLogout by remember { mutableStateOf(false) }
     val haptics = rememberHaptics()
+    val uriHandler = LocalUriHandler.current
     ModalBottomSheet(onDismissRequest = { haptics.light(); onDismiss() }) {
         Column(Modifier.padding(horizontal = 16.dp).padding(bottom = 32.dp)) {
             Text(stringResource(R.string.settings), style = MaterialTheme.typography.headlineSmall,
@@ -95,11 +97,11 @@ fun SettingsSheet(onBugReport: () -> Unit, onDismiss: () -> Unit) {
                     SettingsTile(Icons.Outlined.BugReport, stringResource(R.string.bug_report)) { onDismiss(); onBugReport() }
                     HorizontalDivider(Modifier.padding(start = 16.dp))
                     SettingsTile(Icons.Outlined.PrivacyTip, stringResource(R.string.privacy_label)) {
-                        openInApp(context, "https://luka-loehr.github.io/LGKA/privacy.html")
+                        onDismiss(); uriHandler.openUri("https://luka-loehr.github.io/LGKA/privacy.html")
                     }
                     HorizontalDivider(Modifier.padding(start = 16.dp))
                     SettingsTile(Icons.Outlined.Info, stringResource(R.string.legal_label)) {
-                        openInApp(context, "https://luka-loehr.github.io/LGKA/impressum.html")
+                        onDismiss(); uriHandler.openUri("https://luka-loehr.github.io/LGKA/impressum.html")
                     }
                     HorizontalDivider(Modifier.padding(start = 16.dp))
                     SettingsTile(Icons.AutoMirrored.Filled.Logout, stringResource(R.string.logout), external = false) { confirmLogout = true }
