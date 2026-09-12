@@ -59,6 +59,30 @@ import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.dp
 import androidx.core.net.toUri
 import coil3.compose.AsyncImage
+import androidx.compose.material.icons.filled.Close
+import androidx.compose.foundation.layout.safeDrawingPadding
+import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.ui.window.DialogProperties
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.draw.clip
+import androidx.compose.foundation.gestures.detectTransformGestures
+import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.graphics.vector.rememberVectorPainter
+import androidx.compose.material.icons.outlined.Slideshow
+import androidx.compose.material.icons.outlined.TableChart
+import androidx.compose.material.icons.automirrored.outlined.TextSnippet
+import androidx.compose.material.icons.outlined.Archive
+import androidx.compose.material.icons.outlined.PictureAsPdf
+import androidx.compose.material.icons.outlined.Image
+import androidx.compose.material.icons.outlined.Videocam
+import androidx.compose.material.icons.outlined.Headphones
+import androidx.compose.material.icons.outlined.Link
+import androidx.compose.material.icons.outlined.Download
 import kotlinx.coroutines.launch
 import lgka.News
 
@@ -156,6 +180,8 @@ fun NewsDetailScreen(url: String, onBack: () -> Unit, onOpen: (String) -> Unit) 
     val md = vm.newsList?.firstOrNull { it.url == url }
     var article by remember { mutableStateOf<News.Article?>(null) }
     var failed by remember { mutableStateOf(false) }
+    var photo by remember { mutableStateOf<Pair<String, String>?>(null) }
+    photo?.let { (url, alt) -> PhotoViewerDialog(url, alt) { photo = null } }
     LaunchedEffect(url) {
         failed = false
         try { article = api.article(url) } catch (e: Exception) { failed = true }
@@ -207,29 +233,32 @@ fun NewsDetailScreen(url: String, onBack: () -> Unit, onOpen: (String) -> Unit) 
                 items(a.images) { image ->
                     (image["url"] as? String)?.let { imageUrl ->
                         val alt = (image["alt"] as? String)?.takeIf { it.isNotBlank() } ?: md.title
-                        Box(Modifier.fillMaxWidth().padding(bottom = 12.dp)
-                                .clickable(onClickLabel = stringResource(R.string.a11y_open_in_browser)) {
-                                    context.startActivity(Intent(Intent.ACTION_VIEW, imageUrl.toUri()))
-                                }) {
-                            AsyncImage(model = imageUrl, contentDescription = alt,
-                                       modifier = Modifier.fillMaxWidth().heightIn(min = 120.dp))
-                            Icon(Icons.AutoMirrored.Filled.OpenInNew, null,
-                                 Modifier.align(Alignment.TopEnd).padding(8.dp).size(16.dp),
-                                 tint = Color.White.copy(alpha = 0.8f))
-                        }
+                        // tap → full-screen, zoomable photo viewer
+                        AsyncImage(model = imageUrl, contentDescription = alt,
+                                   modifier = Modifier.fillMaxWidth().heightIn(min = 120.dp).padding(bottom = 12.dp)
+                                       .clip(RoundedCornerShape(12.dp))
+                                       .clickable(onClickLabel = stringResource(R.string.a11y_open_photo)) { photo = imageUrl to alt })
                     }
                 }
                 item {
-                    val links = a.standaloneLinks.map { it["text"] to it["url"] } +
-                        a.downloads.map { (it["title"] as? String) to (it["url"] as? String) }
-                    links.forEach { (text, target) ->
-                        if (text != null && target != null) {
-                            OutlinedButton(
-                                onClick = { context.startActivity(Intent(Intent.ACTION_VIEW, target.toUri())) },
-                                modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp)) {
-                                Text(text, maxLines = 1)
-                            }
-                        }
+                    // news_detail_screen parity: downloads with a file-type glyph and size,
+                    // websites with their favicon and domain
+                    a.downloads.forEach { dl ->
+                        val title = dl["title"] as? String ?: return@forEach
+                        val target = dl["url"] as? String ?: return@forEach
+                        ActionRow(title = title, subtitle = dl["size"] as? String,
+                                  icon = fileTypeIcon(dl["file_type"] as? String), favicon = null,
+                                  trailing = Icons.Outlined.Download,
+                                  onClick = { context.startActivity(Intent(Intent.ACTION_VIEW, target.toUri())) })
+                    }
+                    a.standaloneLinks.forEach { link ->
+                        val title = link["text"] ?: return@forEach
+                        val target = link["url"] ?: return@forEach
+                        val host = target.toUri().host?.removePrefix("www.")
+                        ActionRow(title = title, subtitle = host, icon = Icons.Outlined.Link,
+                                  favicon = host?.let { "https://www.google.com/s2/favicons?sz=64&domain=$it" },
+                                  trailing = Icons.AutoMirrored.Filled.OpenInNew,
+                                  onClick = { context.startActivity(Intent(Intent.ACTION_VIEW, target.toUri())) })
                     }
                     // "Weitere Neuigkeiten" — recommended articles (parity)
                     val others = vm.newsList?.filter { it.url != md.url }?.take(3) ?: emptyList()
@@ -238,17 +267,8 @@ fun NewsDetailScreen(url: String, onBack: () -> Unit, onOpen: (String) -> Unit) 
                         Text(stringResource(R.string.weitere_neuigkeiten), style = MaterialTheme.typography.titleLarge,
                              fontWeight = FontWeight.Bold, modifier = Modifier.semantics { heading() })
                         Spacer(Modifier.height(12.dp))
-                        others.forEach { other ->
-                            Card(onClick = { onOpen(other.url) }, shape = CardShape,
-                                 modifier = Modifier.fillMaxWidth().padding(bottom = 12.dp)) {
-                                Column(Modifier.padding(16.dp)) {
-                                    Text(other.title, fontWeight = FontWeight.SemiBold)
-                                    Spacer(Modifier.height(4.dp))
-                                    Text("${other.author} · ${other.createdDate}", style = MaterialTheme.typography.bodySmall,
-                                         color = MaterialTheme.colorScheme.onSurfaceVariant)
-                                }
-                            }
-                        }
+                        // the same cards as the news list, not bare titles
+                        others.forEach { other -> NewsCard(other, Modifier.padding(bottom = 12.dp)) { onOpen(other.url) } }
                     }
                     Spacer(Modifier.height(24.dp))
                 }
@@ -257,6 +277,74 @@ fun NewsDetailScreen(url: String, onBack: () -> Unit, onOpen: (String) -> Unit) 
                 onRetry = { failed = false; vm.launch { try { article = api.article(url) } catch (e: Exception) { failed = true } } },
                 modifier = Modifier.fillMaxSize().padding(padding).padding(32.dp))
             else -> Box(Modifier.fillMaxSize().padding(padding), Alignment.Center) { Loading() }
+        }
+    }
+}
+
+/** Flutter `_getFileTypeIcon` mapping onto Material Symbols. */
+private fun fileTypeIcon(type: String?): androidx.compose.ui.graphics.vector.ImageVector = when (type?.lowercase()) {
+    "audio", "sound" -> Icons.Outlined.Headphones
+    "video", "movie" -> Icons.Outlined.Videocam
+    "image", "picture", "photo" -> Icons.Outlined.Image
+    "pdf", "document" -> Icons.Outlined.PictureAsPdf
+    "archive", "zip", "rar" -> Icons.Outlined.Archive
+    "text" -> Icons.AutoMirrored.Outlined.TextSnippet
+    "spreadsheet", "excel" -> Icons.Outlined.TableChart
+    "presentation", "powerpoint" -> Icons.Outlined.Slideshow
+    else -> Icons.Outlined.Download
+}
+
+/** A download or website row in an article (news_detail_screen `_buildDownloadButton` / link button). */
+@Composable
+private fun ActionRow(title: String, subtitle: String?, icon: androidx.compose.ui.graphics.vector.ImageVector,
+                      favicon: String?, trailing: androidx.compose.ui.graphics.vector.ImageVector, onClick: () -> Unit) {
+    Card(onClick = onClick, shape = CardShape, modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp)) {
+        Row(Modifier.padding(14.dp), verticalAlignment = Alignment.CenterVertically) {
+            Box(Modifier.size(40.dp).background(MaterialTheme.colorScheme.primary.copy(alpha = 0.12f), RoundedCornerShape(10.dp)),
+                contentAlignment = Alignment.Center) {
+                if (favicon != null) {
+                    AsyncImage(model = favicon, contentDescription = null, modifier = Modifier.size(22.dp),
+                               error = rememberVectorPainter(icon), placeholder = rememberVectorPainter(icon))
+                } else {
+                    Icon(icon, null, tint = MaterialTheme.colorScheme.primary)
+                }
+            }
+            Spacer(Modifier.width(14.dp))
+            Column(Modifier.weight(1f)) {
+                Text(title, fontWeight = FontWeight.SemiBold, maxLines = 2, overflow = TextOverflow.Ellipsis)
+                if (!subtitle.isNullOrEmpty()) {
+                    Text(subtitle, style = MaterialTheme.typography.bodySmall,
+                         color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1)
+                }
+            }
+            Spacer(Modifier.width(8.dp))
+            Icon(trailing, null, tint = MaterialTheme.colorScheme.primary)
+        }
+    }
+}
+
+/** Full-screen photo viewer: pinch and double-tap zoom on a black stage. */
+@Composable
+private fun PhotoViewerDialog(url: String, alt: String, onClose: () -> Unit) {
+    Dialog(onDismissRequest = onClose, properties = DialogProperties(usePlatformDefaultWidth = false, decorFitsSystemWindows = false)) {
+        var scale by remember { mutableFloatStateOf(1f) }
+        var pan by remember { mutableStateOf(Offset.Zero) }
+        Box(Modifier.fillMaxSize().background(Color.Black)
+                .pointerInput(Unit) {
+                    detectTransformGestures { _, panDelta, zoom, _ ->
+                        scale = (scale * zoom).coerceIn(1f, 5f)
+                        pan = if (scale > 1f) pan + panDelta else Offset.Zero
+                    }
+                }
+                .pointerInput(Unit) {
+                    detectTapGestures(onDoubleTap = { scale = if (scale > 1f) 1f else 2.5f; if (scale == 1f) pan = Offset.Zero })
+                }) {
+            AsyncImage(model = url, contentDescription = alt, contentScale = ContentScale.Fit,
+                       modifier = Modifier.fillMaxSize()
+                           .graphicsLayer(scaleX = scale, scaleY = scale, translationX = pan.x, translationY = pan.y))
+            IconButton(onClick = onClose, modifier = Modifier.safeDrawingPadding().padding(8.dp).align(Alignment.TopStart)) {
+                Icon(Icons.Filled.Close, stringResource(R.string.a11y_close), tint = Color.White)
+            }
         }
     }
 }

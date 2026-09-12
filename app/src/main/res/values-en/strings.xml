@@ -3,10 +3,10 @@
     <string name="a11y_app_logo">LGKA+ logo</string>
     <string name="a11y_back">Back</string>
     <string name="a11y_change_class">Change class</string>
+    <string name="a11y_open_photo">Open photo full screen</string>
     <string name="a11y_close">Close</string>
     <string name="a11y_day" tools:ignore="PluralsCandidate">%1$s: %2$s, high %3$d degrees, low %4$d degrees</string>
     <string name="a11y_hour" tools:ignore="PluralsCandidate">%1$s, %2$d degrees, %3$s</string>
-    <string name="a11y_open_in_browser">Open in browser</string>
     <string name="a11y_page">Page %1$d</string>
     <string name="a11y_retry">Reload</string>
     <string name="a11y_selected">selected</string>
