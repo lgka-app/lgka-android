@@ -12,7 +12,7 @@ object ScheduleHtml {
     fun parse(html: String): List<LinkedHashMap<String, Any?>> {
         val doc = Jsoup.parse(html)
         val module = doc.selectFirst("#mod-custom213")
-            ?: throw IllegalStateException("Serververbindung fehlgeschlagen")
+            ?: throw LgkaParseException("schedule module #mod-custom213 not found")
         val schedules = mutableListOf<LinkedHashMap<String, Any?>>()
         val seenUrls = mutableSetOf<String>()
 
@@ -54,7 +54,7 @@ object ScheduleHtml {
             ))
         }
 
-        if (schedules.isEmpty()) throw IllegalStateException("Serververbindung fehlgeschlagen")
+        if (schedules.isEmpty()) throw LgkaParseException("no schedule links found")
         return schedules
     }
 }

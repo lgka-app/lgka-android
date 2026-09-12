@@ -184,10 +184,10 @@ object News {
             }
             var size: String? = null
             Regex("\\(([^)]+)\\)").find(rawText(dl))?.let { m ->
-                size = m.groupValues[1].trim()
-                if (size != null && !Regex("\\d+\\s*(MB|KB|GB|B|bytes?)", RegexOption.IGNORE_CASE)
-                        .containsMatchIn(size!!)) {
-                    size = null
+                val candidate = m.groupValues[1].trim()
+                if (Regex("\\d+\\s*(MB|KB|GB|B|bytes?)", RegexOption.IGNORE_CASE)
+                        .containsMatchIn(candidate)) {
+                    size = candidate
                 }
             }
             val entry = linkedMapOf<String, Any?>(

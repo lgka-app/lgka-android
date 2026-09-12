@@ -1,14 +1,27 @@
 plugins {
-    kotlin("jvm") version "2.1.20"
+    alias(libs.plugins.kotlin.jvm)
     application
+}
+
+kotlin {
+    jvmToolchain(17)
+    compilerOptions { allWarningsAsErrors.set(true) }
 }
 
 dependencies {
     api(project(":core"))
     // JVM-only; the Android app swaps in com.tom-roush:pdfbox-android
-    implementation("org.apache.pdfbox:pdfbox:3.0.4")
-    implementation("com.google.code.gson:gson:2.11.0")
+    implementation(libs.pdfbox)
+    implementation(libs.gson)
+
+    testImplementation(libs.kotlin.test)
+    testImplementation(libs.junit.jupiter)
+    testRuntimeOnly(libs.junit.platform.launcher)
 }
 
 application { mainClass.set("lgka.MainKt") }
-kotlin { jvmToolchain(17) }
+
+tasks.test {
+    useJUnitPlatform()
+    environment("LGKA_VERIFICATION_DIR", System.getenv("LGKA_VERIFICATION_DIR") ?: "")
+}

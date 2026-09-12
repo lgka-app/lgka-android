@@ -6,28 +6,70 @@ import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxScope
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.safeDrawingPadding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.TheaterComedy
-import androidx.compose.material.icons.outlined.*
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.material.icons.outlined.AcUnit
+import androidx.compose.material.icons.outlined.Cloud
+import androidx.compose.material.icons.outlined.Dehaze
+import androidx.compose.material.icons.outlined.NightsStay
+import androidx.compose.material.icons.outlined.Thunderstorm
+import androidx.compose.material.icons.outlined.WaterDrop
+import androidx.compose.material.icons.outlined.WbCloudy
+import androidx.compose.material.icons.outlined.WbSunny
+import androidx.compose.material3.Button
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ShaderBrush
-import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.text.intl.Locale as ComposeLocale
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.heading
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.navigation.NavController
+import androidx.core.net.toUri
 import kotlinx.coroutines.launch
+import java.time.LocalDate
+import java.time.format.DateTimeFormatter
 import java.util.Locale
 import kotlin.math.sin
 import kotlin.random.Random
@@ -163,8 +205,14 @@ fun cloudiness(code: Int): Float = when (code) {
 /// Canvas rain/snow particles.
 @Composable
 fun SkyBox(code: Int, isDay: Boolean, particles: Boolean, modifier: Modifier = Modifier) {
-    var t by remember { mutableStateOf(0f) }
-    LaunchedEffect(Unit) {
+    val context = LocalContext.current
+    val animate = remember {
+        android.provider.Settings.Global.getFloat(context.contentResolver,
+            android.provider.Settings.Global.ANIMATOR_DURATION_SCALE, 1f) != 0f
+    }
+    var t by remember { mutableFloatStateOf(0f) }
+    LaunchedEffect(animate) {
+        if (!animate) return@LaunchedEffect
         val start = System.nanoTime()
         while (true) {
             withFrameNanos { now -> t = (now - start) / 1e9f }
@@ -186,7 +234,7 @@ fun SkyBox(code: Int, isDay: Boolean, particles: Boolean, modifier: Modifier = M
                 if (isDay) listOf(Color(0xFF2A6BD1), Color(0xFF85B8F0))
                 else listOf(Color(0xFF04081A), Color(0xFF141F42)))))
         }
-        if (particles) {
+        if (particles && animate) {
             when (code) {
                 in 51..67, in 80..82, 95, 96, 99 -> Precip(rain = true)
                 in 71..77, 85, 86 -> Precip(rain = false)
@@ -197,7 +245,7 @@ fun SkyBox(code: Int, isDay: Boolean, particles: Boolean, modifier: Modifier = M
 
 @Composable
 private fun BoxScope.Precip(rain: Boolean) {
-    var t by remember { mutableStateOf(0f) }
+    var t by remember { mutableFloatStateOf(0f) }
     LaunchedEffect(Unit) {
         val start = System.nanoTime()
         while (true) { withFrameNanos { now -> t = (now - start) / 1e9f } }
@@ -224,24 +272,24 @@ private fun BoxScope.Precip(rain: Boolean) {
     }
 }
 
-// ── Weather screen ──────────────────────────────────────────────────────────
 
-@OptIn(ExperimentalMaterial3Api::class)
+// ── Weather screen ──────────────────────────────────────────────────────────
+// Apple-Weather-style full-bleed sky with translucent cards. The cards are
+// content, so they are plain scrims (DESIGN_GUIDELINES.md §1.3).
+
 @Composable
-fun WeatherScreen(nav: NavController) {
+fun WeatherScreen(onBack: () -> Unit) {
+    val vm = LocalHomeViewModel.current
     val scope = rememberCoroutineScope()
     var preview by remember { mutableStateOf<Pair<Int, Boolean>?>(null) }
     var menu by remember { mutableStateOf(false) }
-    val w = HomeModel.weather
+    val w = vm.weather
 
-    Box(Modifier.fillMaxSize()) {
+    Box(Modifier.fillMaxSize().background(Color.Black)) {
         if (w != null) {
-            SkyBox(code = preview?.first ?: w.code,
-                   isDay = preview?.second ?: w.isDay,
-                   particles = true,
-                   modifier = Modifier.matchParentSize())
-            Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState())
-                       .systemBarsPadding().padding(horizontal = 16.dp)) {
+            SkyBox(code = preview?.first ?: w.code, isDay = preview?.second ?: w.isDay,
+                   particles = true, modifier = Modifier.matchParentSize())
+            Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).safeDrawingPadding().padding(horizontal = 16.dp)) {
                 Spacer(Modifier.height(56.dp))
                 Hero(w)
                 Spacer(Modifier.height(20.dp))
@@ -249,56 +297,51 @@ fun WeatherScreen(nav: NavController) {
                 if (w.daily.isNotEmpty()) { DailyCard(w); Spacer(Modifier.height(14.dp)) }
                 StatsGrid(w)
                 Spacer(Modifier.height(20.dp))
-                val ctx = androidx.compose.ui.platform.LocalContext.current
-                Text(L.s("weatherAttribution"),
-                     color = Color.White.copy(alpha = 0.6f), fontSize = 12.sp,
-                     modifier = Modifier.align(Alignment.CenterHorizontally)
-                         .clickable {
-                             ctx.startActivity(android.content.Intent(
-                                 android.content.Intent.ACTION_VIEW,
-                                 android.net.Uri.parse("https://open-meteo.com/")))
-                         })
+                val ctx = LocalContext.current
+                Text(stringResource(R.string.weather_attribution), color = Color.White.copy(alpha = 0.8f),
+                     style = MaterialTheme.typography.labelMedium,
+                     modifier = Modifier.align(Alignment.CenterHorizontally).heightIn(min = 48.dp)
+                         .clickable { ctx.startActivity(android.content.Intent(android.content.Intent.ACTION_VIEW, "https://open-meteo.com/".toUri())) }
+                         .padding(vertical = 14.dp))
                 Spacer(Modifier.height(24.dp))
             }
         } else {
             Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                if (HomeModel.weatherError) {
+                if (vm.weatherError) {
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        Text(L.s("weatherDataNotAvailable"), fontWeight = FontWeight.SemiBold)
+                        Text(stringResource(R.string.weather_data_not_available), color = Color.White, fontWeight = FontWeight.SemiBold)
                         Spacer(Modifier.height(8.dp))
-                        Button(onClick = { scope.launch { HomeModel.loadWeather(FetchMode.Refresh) } }) {
-                            Text(L.s("tryAgain"))
-                        }
+                        Text(stringResource(R.string.check_internet_connection), color = Color.White.copy(alpha = 0.8f),
+                             style = MaterialTheme.typography.bodyMedium)
+                        Spacer(Modifier.height(12.dp))
+                        Button(onClick = { scope.launch { vm.loadWeather(FetchMode.Refresh) } }) { Text(stringResource(R.string.try_again)) }
                     }
-                } else CircularProgressIndicator()
+                } else Loading()
             }
         }
 
         // top bar overlay
-        Row(Modifier.fillMaxWidth().systemBarsPadding().padding(4.dp),
-            verticalAlignment = Alignment.CenterVertically) {
-            IconButton(onClick = { nav.popBackStack() }) {
-                Icon(Icons.AutoMirrored.Filled.ArrowBack, null, tint = Color.White)
-            }
-            Text(L.s("weatherPageTitle"), color = Color.White,
-                 fontWeight = FontWeight.SemiBold)
+        Row(Modifier.fillMaxWidth().safeDrawingPadding().padding(4.dp), verticalAlignment = Alignment.CenterVertically) {
+            IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Filled.ArrowBack, stringResource(R.string.a11y_back), tint = Color.White) }
+            Text(stringResource(R.string.weather_page_title), color = Color.White, fontWeight = FontWeight.SemiBold,
+                 modifier = Modifier.semantics { heading() })
             Spacer(Modifier.weight(1f))
-            Box {
-                IconButton(onClick = { menu = true }) {
-                    Icon(Icons.Filled.TheaterComedy, null, tint = Color.White)
-                }
-                DropdownMenu(expanded = menu, onDismissRequest = { menu = false }) {
-                    DropdownMenuItem(text = { Text("Live") },
-                                     onClick = { preview = null; menu = false })
-                    listOf("Klar (Tag)" to (0 to true), "Klar (Nacht)" to (0 to false),
-                           "Teilweise bewölkt" to (2 to true), "Bedeckt" to (3 to true),
-                           "Nebel" to (45 to true), "Regen (Tag)" to (63 to true),
-                           "Regen (Nacht)" to (63 to false), "Gewitter" to (95 to true),
-                           "Schnee (Tag)" to (73 to true), "Schnee (Nacht)" to (73 to false))
-                        .forEach { (label, value) ->
-                            DropdownMenuItem(text = { Text(label) },
-                                             onClick = { preview = value; menu = false })
-                        }
+            if (BuildConfig.DEBUG) {
+                Box {
+                    IconButton(onClick = { menu = true }) {
+                        Icon(Icons.Filled.TheaterComedy, stringResource(R.string.a11y_sky_preview), tint = Color.White)
+                    }
+                    DropdownMenu(expanded = menu, onDismissRequest = { menu = false }) {
+                        DropdownMenuItem(text = { Text(stringResource(R.string.live)) }, onClick = { preview = null; menu = false })
+                        listOf("Klar (Tag)" to (0 to true), "Klar (Nacht)" to (0 to false),
+                               "Teilweise bewölkt" to (2 to true), "Bedeckt" to (3 to true),
+                               "Nebel" to (45 to true), "Regen (Tag)" to (63 to true),
+                               "Regen (Nacht)" to (63 to false), "Gewitter" to (95 to true),
+                               "Schnee (Tag)" to (73 to true), "Schnee (Nacht)" to (73 to false))
+                            .forEach { (label, value) ->
+                                DropdownMenuItem(text = { Text(label) }, onClick = { preview = value; menu = false })
+                            }
+                    }
                 }
             }
         }
@@ -307,46 +350,38 @@ fun WeatherScreen(nav: NavController) {
 
 @Composable
 private fun Hero(w: SchoolApi.WeatherData) {
-    Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally) {
-        Text("Karlsruhe", color = Color.White, fontSize = 22.sp, fontWeight = FontWeight.Medium)
-        Text("${w.temp.toInt()}°", color = Color.White, fontSize = 92.sp,
-             fontWeight = FontWeight.Thin)
-        Text(L.wmoDescription(w.code), color = Color.White.copy(alpha = 0.95f),
-             fontWeight = FontWeight.Medium)
+    Column(Modifier.fillMaxWidth().semantics(mergeDescendants = true) {}, horizontalAlignment = Alignment.CenterHorizontally) {
+        Text(stringResource(R.string.city), color = Color.White, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Medium)
+        Text("${w.temp.toInt()}°", color = Color.White, style = MaterialTheme.typography.displayLarge.copy(fontSize = 92.sp), fontWeight = FontWeight.Thin)
+        Text(stringResource(wmoRes(w.code)), color = Color.White.copy(alpha = 0.95f), fontWeight = FontWeight.Medium)
         w.daily.firstOrNull()?.let { today ->
-            Text("H: ${today.tempMax.toInt()}°  T: ${today.tempMin.toInt()}°",
-                 color = Color.White, fontWeight = FontWeight.Medium)
+            Text(stringResource(R.string.high_low, today.tempMax.toInt(), today.tempMin.toInt()), color = Color.White, fontWeight = FontWeight.Medium)
         }
     }
 }
 
 @Composable
-private fun GlassCard(content: @Composable ColumnScope.() -> Unit) {
-    Column(Modifier.fillMaxWidth()
-               .background(Color.Black.copy(alpha = 0.25f), RoundedCornerShape(18.dp))
-               .padding(14.dp), content = content)
+private fun GlassCard(content: @Composable androidx.compose.foundation.layout.ColumnScope.() -> Unit) {
+    Column(Modifier.fillMaxWidth().background(Color.Black.copy(alpha = 0.32f), RoundedCornerShape(18.dp)).padding(14.dp), content = content)
 }
 
 @Composable
 private fun HourlyCard(w: SchoolApi.WeatherData) {
     GlassCard {
-        Text(L.s("hourlyForecastLabel"), color = Color.White.copy(alpha = 0.65f),
-             fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
+        Text(stringResource(R.string.hourly_forecast_label), color = Color.White.copy(alpha = 0.75f),
+             style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.SemiBold, modifier = Modifier.semantics { heading() })
         Spacer(Modifier.height(8.dp))
-        Row(Modifier.horizontalScroll(rememberScrollState()),
-            horizontalArrangement = Arrangement.spacedBy(22.dp)) {
+        Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(22.dp)) {
             w.hourly.forEach { h ->
-                Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Text(h.time, color = Color.White, fontSize = 12.sp,
-                         fontWeight = FontWeight.SemiBold)
+                val desc = stringResource(wmoRes(h.code))
+                val label = stringResource(R.string.a11y_hour, h.time, h.temp.toInt(), desc)
+                Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.semantics(mergeDescendants = true) { contentDescription = label }) {
+                    Text(h.time, color = Color.White, style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.SemiBold)
                     Spacer(Modifier.height(6.dp))
-                    Icon(WmoIcons.icon(h.code, h.isDay), null, tint = Color.White,
-                         modifier = Modifier.size(20.dp))
-                    if (h.pop >= 0.1) Text("${(h.pop * 100).toInt()}%",
-                                           color = Color(0xFF7FDBFF), fontSize = 10.sp)
+                    Icon(WmoIcons.icon(h.code, h.isDay), null, tint = Color.White, modifier = Modifier.size(20.dp))
+                    if (h.pop >= 0.1) Text("${(h.pop * 100).toInt()}%", color = Color(0xFF9FE8FF), style = MaterialTheme.typography.labelSmall)
                     Spacer(Modifier.height(4.dp))
-                    Text("${h.temp.toInt()}°", color = Color.White,
-                         fontWeight = FontWeight.SemiBold)
+                    Text("${h.temp.toInt()}°", color = Color.White, fontWeight = FontWeight.SemiBold)
                 }
             }
         }
@@ -359,34 +394,31 @@ private fun DailyCard(w: SchoolApi.WeatherData) {
     val weekMax = w.daily.maxOf { it.tempMax }
     val span = (weekMax - weekMin).coerceAtLeast(1.0)
     GlassCard {
-        Text(L.s("threeDayForecastLabel"), color = Color.White.copy(alpha = 0.65f),
-             fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
+        Text(stringResource(R.string.three_day_forecast_label), color = Color.White.copy(alpha = 0.75f),
+             style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.SemiBold, modifier = Modifier.semantics { heading() })
         w.daily.forEach { d ->
-            Row(Modifier.padding(vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
-                Text(dayLabel(d.date), color = Color.White, fontWeight = FontWeight.Medium,
-                     modifier = Modifier.width(52.dp))
-                Icon(WmoIcons.icon(d.code, true), null, tint = Color.White,
-                     modifier = Modifier.size(20.dp))
+            val day = dayLabel(d.date)
+            val desc = stringResource(wmoRes(d.code))
+            val label = stringResource(R.string.a11y_day, day, desc, d.tempMax.toInt(), d.tempMin.toInt())
+            Row(Modifier.padding(vertical = 8.dp).semantics(mergeDescendants = true) { contentDescription = label },
+                verticalAlignment = Alignment.CenterVertically) {
+                Text(day, color = Color.White, fontWeight = FontWeight.Medium, modifier = Modifier.width(52.dp))
+                Icon(WmoIcons.icon(d.code, true), null, tint = Color.White, modifier = Modifier.size(20.dp))
                 Spacer(Modifier.width(8.dp))
-                Text(if (d.pop >= 0.1) "${(d.pop * 100).toInt()}%" else "",
-                     color = Color(0xFF7FDBFF), fontSize = 12.sp,
-                     modifier = Modifier.width(36.dp))
-                Text("${d.tempMin.toInt()}°", color = Color.White.copy(alpha = 0.7f))
+                Text(if (d.pop >= 0.1) "${(d.pop * 100).toInt()}%" else "", color = Color(0xFF9FE8FF),
+                     style = MaterialTheme.typography.labelMedium, modifier = Modifier.width(36.dp))
+                Text("${d.tempMin.toInt()}°", color = Color.White.copy(alpha = 0.75f))
                 Spacer(Modifier.width(8.dp))
                 val startF = ((d.tempMin - weekMin) / span).toFloat().coerceIn(0f, 1f)
                 val endF = ((d.tempMax - weekMin) / span).toFloat().coerceIn(0f, 1f)
-                Row(Modifier.weight(1f).height(5.dp)
-                        .background(Color.Black.copy(alpha = 0.3f), RoundedCornerShape(3.dp))) {
+                Row(Modifier.weight(1f).height(5.dp).background(Color.Black.copy(alpha = 0.3f), RoundedCornerShape(3.dp))) {
                     if (startF > 0f) Spacer(Modifier.weight(startF.coerceAtLeast(0.001f)))
                     Box(Modifier.weight((endF - startF).coerceAtLeast(0.05f)).fillMaxHeight()
-                        .background(Brush.horizontalGradient(
-                            listOf(Color(0xFF7FDBFF), Color(0xFFFFDC00))),
-                            RoundedCornerShape(3.dp)))
+                        .background(Brush.horizontalGradient(listOf(Color(0xFF7FDBFF), Color(0xFFFFDC00))), RoundedCornerShape(3.dp)))
                     if (endF < 1f) Spacer(Modifier.weight((1f - endF).coerceAtLeast(0.001f)))
                 }
                 Spacer(Modifier.width(8.dp))
-                Text("${d.tempMax.toInt()}°", color = Color.White,
-                     fontWeight = FontWeight.SemiBold)
+                Text("${d.tempMax.toInt()}°", color = Color.White, fontWeight = FontWeight.SemiBold)
             }
         }
     }
@@ -394,39 +426,38 @@ private fun DailyCard(w: SchoolApi.WeatherData) {
 
 @Composable
 private fun StatsGrid(w: SchoolApi.WeatherData) {
-    val uviLabel = when {
-        w.uvi < 3 -> L.s("uviLow"); w.uvi < 6 -> L.s("uviMedium")
-        w.uvi < 8 -> L.s("uviHigh"); w.uvi < 11 -> L.s("uviVeryHigh")
-        else -> L.s("uviExtreme")
-    }
+    val uviLabel = stringResource(when {
+        w.uvi < 3 -> R.string.uvi_low; w.uvi < 6 -> R.string.uvi_medium
+        w.uvi < 8 -> R.string.uvi_high; w.uvi < 11 -> R.string.uvi_very_high
+        else -> R.string.uvi_extreme
+    })
     Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
         Row(horizontalArrangement = Arrangement.spacedBy(14.dp)) {
-            StatTile(L.s("weatherHumidityShort"), "${w.humidity} %", Modifier.weight(1f))
-            StatTile(L.s("weatherWindShort"), "${w.windSpeed.toInt()} km/h", Modifier.weight(1f))
+            StatTile(stringResource(R.string.weather_humidity_short), "${w.humidity} %", Modifier.weight(1f))
+            StatTile(stringResource(R.string.weather_wind_short), "${w.windSpeed.toInt()} km/h", Modifier.weight(1f))
         }
         Row(horizontalArrangement = Arrangement.spacedBy(14.dp)) {
-            StatTile("hPa", "${w.pressure}", Modifier.weight(1f))
-            StatTile("UV-Index", "%.1f · %s".format(w.uvi, uviLabel), Modifier.weight(1f))
+            StatTile(stringResource(R.string.pressure), "${w.pressure} hPa", Modifier.weight(1f))
+            StatTile(stringResource(R.string.uv_index), "%.1f · %s".format(Locale.ROOT, w.uvi, uviLabel), Modifier.weight(1f))
         }
     }
 }
 
 @Composable
 private fun StatTile(label: String, value: String, modifier: Modifier = Modifier) {
-    Column(modifier.background(Color.Black.copy(alpha = 0.25f), RoundedCornerShape(18.dp))
-               .padding(14.dp).height(64.dp)) {
-        Text(label.uppercase(), color = Color.White.copy(alpha = 0.65f), fontSize = 11.sp,
-             fontWeight = FontWeight.SemiBold)
+    Column(modifier.background(Color.Black.copy(alpha = 0.32f), RoundedCornerShape(18.dp)).padding(14.dp).heightIn(min = 64.dp)
+               .semantics(mergeDescendants = true) { contentDescription = "$label: $value" }) {
+        Text(label.uppercase(), color = Color.White.copy(alpha = 0.75f), style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.SemiBold)
         Spacer(Modifier.height(6.dp))
-        Text(value, color = Color.White, fontSize = 18.sp, fontWeight = FontWeight.Medium)
+        Text(value, color = Color.White, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Medium)
     }
 }
 
+@Composable
 private fun dayLabel(iso: String): String {
-    val today = java.time.LocalDate.now()
-    val date = runCatching { java.time.LocalDate.parse(iso) }.getOrNull() ?: return iso
-    if (date == today) return L.s("today")
-    return date.format(java.time.format.DateTimeFormatter.ofPattern("EEE",
-        if (L.isGerman) Locale.GERMAN else Locale.ENGLISH))
+    val today = LocalDate.now(SchoolApi.berlin)
+    val date = runCatching { LocalDate.parse(iso) }.getOrNull() ?: return iso
+    if (date == today) return stringResource(R.string.today)
+    val locale = ComposeLocale.current.platformLocale
+    return date.format(DateTimeFormatter.ofPattern("EEE", locale))
 }
-

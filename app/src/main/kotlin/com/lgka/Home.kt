@@ -1,28 +1,72 @@
 package com.lgka
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.ExperimentalFoundationApi
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.combinedClickable
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowForwardIos
 import androidx.compose.material.icons.filled.Refresh
-import androidx.compose.material.icons.outlined.*
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.material.icons.outlined.CalendarToday
+import androidx.compose.material.icons.outlined.CloudOff
+import androidx.compose.material.icons.outlined.Event
+import androidx.compose.material.icons.outlined.MedicalServices
+import androidx.compose.material.icons.outlined.Newspaper
+import androidx.compose.material.icons.outlined.Schedule
+import androidx.compose.material.icons.outlined.School
+import androidx.compose.material.icons.outlined.Settings
+import androidx.compose.material.icons.outlined.TableChart
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Card
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.pulltorefresh.PullToRefreshBox
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.res.pluralStringResource
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.role
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.navigation.NavController
+import androidx.compose.ui.text.intl.Locale as ComposeLocale
 import kotlinx.coroutines.launch
+import java.io.File
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 import java.util.Locale
@@ -31,194 +75,131 @@ import java.util.Locale
 /// schedule class card, events; toolbar: news / sick note / settings.
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun HomeScreen(nav: NavController) {
+fun HomeScreen(onNavigate: (Route) -> Unit) {
+    val vm = LocalHomeViewModel.current
+    val prefs = LocalContainer.current.prefs
     val scope = rememberCoroutineScope()
     var showSettings by remember { mutableStateOf(false) }
     var showClassDialog by remember { mutableStateOf(false) }
     var pdf by remember { mutableStateOf<PdfRequest?>(null) }
-    val pull = rememberPullToRefreshState()
     var refreshing by remember { mutableStateOf(false) }
     val snackbarState = remember { SnackbarHostState() }
-    val haptic = androidx.compose.ui.platform.LocalHapticFeedback.current
+    val haptic = LocalHapticFeedback.current
+
+    androidx.compose.runtime.LaunchedEffect(Unit) { vm.bootstrap() }
 
     Scaffold(
         snackbarHost = { SnackbarHost(snackbarState) },
         topBar = {
             TopAppBar(
-                title = { Text(L.s("appTitle"), fontWeight = FontWeight.ExtraBold) },
+                title = { Text(stringResource(R.string.app_title), fontWeight = FontWeight.ExtraBold) },
                 actions = {
                     IconButton(onClick = {
-                        haptic.performHapticFeedback(
-                            androidx.compose.ui.hapticfeedback.HapticFeedbackType.TextHandleMove)
-                        nav.navigate("news")
-                    }) {
-                        Icon(Icons.Outlined.Newspaper, L.s("news"))
-                    }
+                        haptic.performHapticFeedback(HapticFeedbackType.ContextClick)
+                        onNavigate(NewsRoute)
+                    }) { Icon(Icons.Outlined.Newspaper, stringResource(R.string.news)) }
                     IconButton(onClick = {
-                        haptic.performHapticFeedback(
-                            androidx.compose.ui.hapticfeedback.HapticFeedbackType.TextHandleMove)
-                        if (prefs.krankmeldungInfoShown) nav.navigate("krankmeldungForm")
-                        else nav.navigate("krankmeldungInfo")
-                    }) {
-                        Icon(Icons.Outlined.MedicalServices, L.s("krankmeldung"))
-                    }
+                        haptic.performHapticFeedback(HapticFeedbackType.ContextClick)
+                        onNavigate(if (prefs.krankmeldungInfoShown) KrankmeldungFormRoute else KrankmeldungInfoRoute)
+                    }) { Icon(Icons.Outlined.MedicalServices, stringResource(R.string.krankmeldung)) }
                     IconButton(onClick = {
-                        haptic.performHapticFeedback(
-                            androidx.compose.ui.hapticfeedback.HapticFeedbackType.TextHandleMove)
+                        haptic.performHapticFeedback(HapticFeedbackType.ContextClick)
                         showSettings = true
-                    }) {
-                        Icon(Icons.Outlined.Settings, L.s("settings"))
-                    }
+                    }) { Icon(Icons.Outlined.Settings, stringResource(R.string.settings)) }
                 })
         }) { padding ->
         PullToRefreshBox(
             isRefreshing = refreshing,
-            state = pull,
             onRefresh = {
-                haptic.performHapticFeedback(
-                    androidx.compose.ui.hapticfeedback.HapticFeedbackType.LongPress)
+                haptic.performHapticFeedback(HapticFeedbackType.LongPress)
                 scope.launch {
                     refreshing = true
-                    HomeModel.loadAll(FetchMode.Refresh)
+                    vm.loadAll(FetchMode.Refresh)
                     refreshing = false
                 }
             },
             modifier = Modifier.padding(padding)) {
-            CompositionLocalProvider(LocalSnackbar provides snackbarState) {
             LazyColumn(
                 Modifier.fillMaxSize().padding(horizontal = 20.dp),
                 verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                item { WeatherRow { nav.navigate("weather") } }
-                item { SectionHeader(L.s("substitutionPlan")) }
+                item { WeatherRow { onNavigate(WeatherRoute) } }
+                item { SectionHeader(stringResource(R.string.substitution_plan)) }
                 item { SubstitutionCards { req -> pdf = req } }
-                item { SectionHeader(L.s("schedule")) }
-                item { ScheduleCard(onSetClass = { showClassDialog = true },
-                                    onOpen = { req -> pdf = req }) }
-                item { SectionHeader(L.s("termine")) }
+                item { SectionHeader(stringResource(R.string.schedule)) }
+                item {
+                    ScheduleCard(
+                        onSetClass = { showClassDialog = true },
+                        onOpen = { req -> pdf = req },
+                        onUnavailable = { msg -> scope.launch { snackbarState.showSnackbar(msg) } })
+                }
+                item { SectionHeader(stringResource(R.string.termine)) }
                 item { EventsColumn() }
                 item { Spacer(Modifier.height(16.dp)) }
-            }
             }
         }
     }
 
-    if (showSettings) SettingsSheet(nav) { showSettings = false }
+    if (showSettings) SettingsSheet(onBugReport = { showSettings = false; onNavigate(BugReportRoute) }) { showSettings = false }
     if (showClassDialog) ClassDialog { showClassDialog = false }
-    pdf?.let { request ->
-        PdfViewerDialog(request) { pdf = null }
-    }
+    pdf?.let { request -> PdfViewerDialog(request) { pdf = null } }
 }
 
-data class PdfRequest(val file: java.io.File, val title: String,
-                      val targetPage: Int?, val gradeLevel: String? = null)
-
-/// Snackbar host handle for schedule download failures.
-val LocalSnackbar =
-    androidx.compose.runtime.staticCompositionLocalOf<SnackbarHostState?> { null }
-
-@Composable
-fun SectionHeader(title: String) {
-    Text(title, fontWeight = FontWeight.Bold,
-         style = MaterialTheme.typography.titleMedium,
-         modifier = Modifier.padding(top = 12.dp))
-}
-
-@Composable
-private fun HomeCard(content: @Composable RowScope.() -> Unit) {
-    Card(shape = RoundedCornerShape(16.dp)) {
-        Row(Modifier.fillMaxWidth().height(76.dp).padding(horizontal = 18.dp),
-            verticalAlignment = Alignment.CenterVertically, content = content)
-    }
-}
-
-@Composable
-fun IconTile(icon: ImageVector, alpha: Float = 0.12f) {
-    Box(Modifier.size(44.dp).background(
-            MaterialTheme.colorScheme.primary.copy(alpha = alpha),
-            RoundedCornerShape(12.dp)),
-        contentAlignment = Alignment.Center) {
-        Icon(icon, null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(20.dp))
-    }
-}
+data class PdfRequest(val file: File, val title: String, val targetPage: Int?, val gradeLevel: String? = null)
 
 // ── Weather row ─────────────────────────────────────────────────────────────
 
 @Composable
 fun WeatherRow(onOpen: () -> Unit) {
-    val w = HomeModel.weather
+    val vm = LocalHomeViewModel.current
+    val w = vm.weather
+    val scope = rememberCoroutineScope()
     if (w != null) {
-        Box(Modifier.fillMaxWidth().height(112.dp).clip(RoundedCornerShape(16.dp))
-                .clickable(onClick = onOpen)) {
-            SkyBox(code = w.code, isDay = w.isDay, particles = false,
-                   modifier = Modifier.matchParentSize())
-            Row(Modifier.matchParentSize().padding(horizontal = 18.dp, vertical = 12.dp),
-                verticalAlignment = Alignment.CenterVertically) {
-                Column {
-                    Text("Karlsruhe", color = Color.White, fontSize = 13.sp,
-                         fontWeight = FontWeight.SemiBold)
-                    Text("${w.temp.toInt()}°", color = Color.White, fontSize = 40.sp,
-                         fontWeight = FontWeight.Medium)
-                    Text(L.wmoDescription(w.code), color = Color.White.copy(alpha = 0.9f),
-                         fontSize = 13.sp, fontWeight = FontWeight.Medium)
-                    Text((if (L.isGerman) "Gefühlt " else "Feels like ") +
-                             "${w.feelsLike.toInt()}°",
-                         color = Color.White.copy(alpha = 0.8f), fontSize = 11.sp,
-                         fontWeight = FontWeight.SemiBold)
-                }
-                Spacer(Modifier.weight(1f))
-                Column(horizontalAlignment = Alignment.End) {
-                    Icon(WmoIcons.icon(w.code, w.isDay), null,
-                         tint = Color.White, modifier = Modifier.size(30.dp))
-                    w.daily.firstOrNull()?.let { today ->
-                        Spacer(Modifier.height(4.dp))
-                        Text("H: ${today.tempMax.toInt()}°  T: ${today.tempMin.toInt()}°",
-                             color = Color.White.copy(alpha = 0.9f), fontSize = 12.sp)
+        val description = stringResource(wmoRes(w.code))
+        val a11y = stringResource(R.string.a11y_weather_card, description, w.temp.toInt())
+        // Card(onClick) makes the entire card the touch target, not just the text.
+        Card(
+            onClick = onOpen,
+            shape = CardShape,
+            modifier = Modifier.fillMaxWidth().semantics { contentDescription = a11y; role = Role.Button },
+        ) {
+            Box(Modifier.fillMaxWidth().heightIn(min = 112.dp).clip(CardShape)) {
+                SkyBox(code = w.code, isDay = w.isDay, particles = false, modifier = Modifier.matchParentSize())
+                Row(Modifier.matchParentSize().padding(horizontal = 18.dp, vertical = 12.dp),
+                    verticalAlignment = Alignment.CenterVertically) {
+                    Column {
+                        Text(stringResource(R.string.city), color = Color.White,
+                             style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.SemiBold)
+                        Text("${w.temp.toInt()}°", color = Color.White,
+                             style = MaterialTheme.typography.displaySmall, fontWeight = FontWeight.Medium)
+                        Text(description, color = Color.White.copy(alpha = 0.9f),
+                             style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.Medium)
+                        Text(stringResource(R.string.feels_like, w.feelsLike.toInt()),
+                             color = Color.White.copy(alpha = 0.85f),
+                             style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.SemiBold)
+                    }
+                    Spacer(Modifier.weight(1f))
+                    Column(horizontalAlignment = Alignment.End) {
+                        Icon(WmoIcons.icon(w.code, w.isDay), null, tint = Color.White, modifier = Modifier.size(30.dp))
+                        w.daily.firstOrNull()?.let { today ->
+                            Spacer(Modifier.height(4.dp))
+                            Text(stringResource(R.string.high_low, today.tempMax.toInt(), today.tempMin.toInt()),
+                                 color = Color.White.copy(alpha = 0.9f), style = MaterialTheme.typography.labelMedium)
+                        }
                     }
                 }
             }
         }
-    } else if (HomeModel.weatherError) {
-        val scope = rememberCoroutineScope()
+    } else if (vm.weatherError) {
         HomeCard {
-            Icon(Icons.Outlined.CloudOff, null,
-                 tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.4f))
+            Icon(Icons.Outlined.CloudOff, null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
             Spacer(Modifier.width(14.dp))
-            Text(L.s("weatherDataNotAvailable"),
+            Text(stringResource(R.string.weather_data_not_available),
                  style = MaterialTheme.typography.bodySmall,
-                 color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
-                 modifier = Modifier.weight(1f))
-            IconButton(onClick = {
-                scope.launch { HomeModel.loadWeather(FetchMode.Refresh) }
-            }) {
-                Icon(Icons.Filled.Refresh, null,
-                     tint = MaterialTheme.colorScheme.primary,
-                     modifier = Modifier.size(18.dp))
-            }
+                 color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.weight(1f))
+            RetryButton { scope.launch { vm.loadWeather(FetchMode.Refresh) } }
         }
     } else {
         SkeletonRow()
-    }
-}
-
-@Composable
-fun SkeletonRow() {
-    Card(shape = RoundedCornerShape(16.dp)) {
-        Row(Modifier.fillMaxWidth().height(76.dp).padding(horizontal = 18.dp),
-            verticalAlignment = Alignment.CenterVertically) {
-            Box(Modifier.size(44.dp).background(
-                MaterialTheme.colorScheme.onSurface.copy(alpha = 0.08f),
-                RoundedCornerShape(12.dp)))
-            Spacer(Modifier.width(14.dp))
-            Column {
-                Box(Modifier.size(140.dp, 14.dp).background(
-                    MaterialTheme.colorScheme.onSurface.copy(alpha = 0.08f),
-                    RoundedCornerShape(4.dp)))
-                Spacer(Modifier.height(6.dp))
-                Box(Modifier.size(90.dp, 11.dp).background(
-                    MaterialTheme.colorScheme.onSurface.copy(alpha = 0.06f),
-                    RoundedCornerShape(4.dp)))
-            }
-        }
     }
 }
 
@@ -226,271 +207,211 @@ fun SkeletonRow() {
 
 @Composable
 fun SubstitutionCards(onOpen: (PdfRequest) -> Unit) {
-    if (HomeModel.subLoading) {
-        Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-            SkeletonRow(); SkeletonRow()
-        }
-    } else if (HomeModel.subError) {
-        val scope = rememberCoroutineScope()
-        Card(shape = RoundedCornerShape(16.dp)) {
-            Column(Modifier.fillMaxWidth().padding(24.dp),
-                   horizontalAlignment = Alignment.CenterHorizontally) {
+    val vm = LocalHomeViewModel.current
+    val scope = rememberCoroutineScope()
+    if (vm.subLoading) {
+        Column(verticalArrangement = Arrangement.spacedBy(12.dp)) { SkeletonRow(); SkeletonRow() }
+    } else if (vm.subError) {
+        Card(shape = CardShape) {
+            Column(Modifier.fillMaxWidth().padding(24.dp), horizontalAlignment = Alignment.CenterHorizontally) {
                 Icon(Icons.Outlined.CloudOff, null, modifier = Modifier.size(40.dp),
-                     tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f))
+                     tint = MaterialTheme.colorScheme.onSurfaceVariant)
                 Spacer(Modifier.height(12.dp))
-                Text(L.s("serverConnectionFailed"), fontWeight = FontWeight.SemiBold)
+                Text(stringResource(R.string.server_connection_failed), fontWeight = FontWeight.SemiBold)
                 Spacer(Modifier.height(4.dp))
-                Text(L.s("serverConnectionHint"),
+                Text(stringResource(R.string.server_connection_hint),
                      style = MaterialTheme.typography.bodySmall,
-                     color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f))
+                     color = MaterialTheme.colorScheme.onSurfaceVariant)
                 Spacer(Modifier.height(16.dp))
-                OutlinedButton(onClick = {
-                    scope.launch { HomeModel.loadSubstitution(FetchMode.Refresh) }
-                }) {
+                OutlinedButton(onClick = { scope.launch { vm.loadSubstitution(FetchMode.Refresh) } }) {
                     Icon(Icons.Filled.Refresh, null, Modifier.size(18.dp))
                     Spacer(Modifier.width(6.dp))
-                    Text(L.s("tryAgain"))
+                    Text(stringResource(R.string.try_again))
                 }
             }
         }
     } else {
         Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-            SubCard(HomeModel.today, onOpen)
-            SubCard(HomeModel.tomorrow, onOpen)
-        }
-    }
-}
-
-/// Per-card failure row (home_screen per-day retry parity).
-@Composable
-private fun SubErrorCard() {
-    val scope = rememberCoroutineScope()
-    Card(shape = RoundedCornerShape(16.dp),
-         modifier = Modifier.clickable {
-             scope.launch { HomeModel.loadSubstitution(FetchMode.Refresh) }
-         }) {
-        Row(Modifier.fillMaxWidth().height(76.dp).padding(horizontal = 18.dp),
-            verticalAlignment = Alignment.CenterVertically) {
-            IconTile(Icons.Filled.Refresh)
-            Spacer(Modifier.width(14.dp))
-            Text(if (L.isGerman) "Fehler beim Laden" else "Error loading",
-                 fontWeight = FontWeight.SemiBold, modifier = Modifier.weight(1f))
-            Icon(Icons.Filled.Refresh, null, Modifier.size(18.dp),
-                 tint = MaterialTheme.colorScheme.primary)
+            SubCard(vm.today, onOpen)
+            SubCard(vm.tomorrow, onOpen)
         }
     }
 }
 
 @Composable
 private fun SubCard(plan: SchoolApi.SubPlan?, onOpen: (PdfRequest) -> Unit) {
-    if (plan == null && !HomeModel.subLoading && !HomeModel.subError) {
-        SubErrorCard()
+    val vm = LocalHomeViewModel.current
+    val scope = rememberCoroutineScope()
+    if (plan == null) {
+        // per-card failure (home_screen per-day retry parity)
+        HomeCard(onClick = { scope.launch { vm.loadSubstitution(FetchMode.Refresh) } }) {
+            IconTile(Icons.Filled.Refresh)
+            Spacer(Modifier.width(14.dp))
+            Text(stringResource(R.string.error_loading), fontWeight = FontWeight.SemiBold, modifier = Modifier.weight(1f))
+            Icon(Icons.Filled.Refresh, null, Modifier.size(18.dp), tint = MaterialTheme.colorScheme.primary)
+        }
         return
     }
-    val canOpen = plan?.canDisplay == true
-    val weekday = displayWeekday(plan?.weekday)
-    Card(shape = RoundedCornerShape(16.dp),
-         modifier = Modifier.clickable(enabled = canOpen) {
-             plan?.file?.let { onOpen(PdfRequest(it, weekday, null)) }
-         }) {
-        Row(Modifier.fillMaxWidth().height(76.dp).padding(horizontal = 18.dp),
-            verticalAlignment = Alignment.CenterVertically) {
-            IconTile(Icons.Outlined.CalendarToday, if (canOpen) 0.12f else 0.06f)
-            Spacer(Modifier.width(14.dp))
-            Column(Modifier.weight(1f)) {
-                Text(if (canOpen) weekday else L.s("noInfoYet"),
-                     fontWeight = FontWeight.SemiBold,
-                     color = MaterialTheme.colorScheme.onSurface.copy(
-                         alpha = if (canOpen) 1f else 0.35f))
-                if (canOpen && plan != null) {
-                    val n = plan.entries.size
-                    val label = if (L.isGerman) {
-                        if (n == 0) "Keine Vertretungen"
-                        else if (n == 1) "1 Vertretung" else "$n Vertretungen"
-                    } else {
-                        if (n == 0) "No substitutions"
-                        else if (n == 1) "1 substitution" else "$n substitutions"
-                    }
-                    Text("${plan.planDate} · $label",
-                         style = MaterialTheme.typography.bodySmall,
-                         color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f))
-                }
+    val canOpen = plan.canDisplay
+    val weekday = weekdayRes(plan.weekday)?.let { stringResource(it) } ?: stringResource(R.string.no_info_yet)
+    val subtitle = if (canOpen && plan.planDate != null) {
+        stringResource(R.string.plan_with_date, plan.planDate,
+                       if (plan.entries.isEmpty()) stringResource(R.string.no_substitutions)
+                       else pluralStringResource(R.plurals.substitutions_count, plan.entries.size, plan.entries.size))
+    } else null
+    HomeCard(onClick = { plan.file?.let { onOpen(PdfRequest(it, weekday, null)) } }, enabled = canOpen) {
+        IconTile(Icons.Outlined.CalendarToday, if (canOpen) 0.12f else 0.06f)
+        Spacer(Modifier.width(14.dp))
+        Column(Modifier.weight(1f)) {
+            Text(if (canOpen) weekday else stringResource(R.string.no_info_yet),
+                 fontWeight = FontWeight.SemiBold,
+                 color = MaterialTheme.colorScheme.onSurface.copy(alpha = if (canOpen) 1f else 0.45f))
+            if (subtitle != null) {
+                Text(subtitle, style = MaterialTheme.typography.bodySmall,
+                     color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
-            if (canOpen) Icon(Icons.AutoMirrored.Filled.ArrowForwardIos, null,
-                              Modifier.size(14.dp),
-                              tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.3f))
         }
+        if (canOpen) Icon(Icons.AutoMirrored.Filled.ArrowForwardIos, null, Modifier.size(14.dp),
+                          tint = MaterialTheme.colorScheme.onSurfaceVariant)
     }
-}
-
-private fun displayWeekday(weekday: String?): String {
-    if (weekday.isNullOrEmpty() || weekday == "weekend") return L.s("noInfoYet")
-    if (!L.isGerman) {
-        return mapOf("Montag" to "Monday", "Dienstag" to "Tuesday", "Mittwoch" to "Wednesday",
-                     "Donnerstag" to "Thursday", "Freitag" to "Friday",
-                     "Samstag" to "Saturday", "Sonntag" to "Sunday")[weekday] ?: weekday
-    }
-    return weekday
 }
 
 // ── Schedule ────────────────────────────────────────────────────────────────
 
-@OptIn(ExperimentalFoundationApi::class)
 @Composable
-fun ScheduleCard(onSetClass: () -> Unit, onOpen: (PdfRequest) -> Unit) {
+fun ScheduleCard(onSetClass: () -> Unit, onOpen: (PdfRequest) -> Unit, onUnavailable: (String) -> Unit) {
+    val vm = LocalHomeViewModel.current
+    val api = LocalContainer.current.api
+    val prefs = LocalContainer.current.prefs
     val scope = rememberCoroutineScope()
-    val snackbar = LocalSnackbar.current
     var loading by remember { mutableStateOf(false) }
 
-    if (HomeModel.scheduleLoading) {
+    if (vm.scheduleLoading) {
         SkeletonRow()
-    } else if (HomeModel.schedules.isEmpty()) {
+    } else if (vm.schedules.isEmpty()) {
         HomeCard {
-            Icon(Icons.Outlined.Schedule, null,
-                 tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.4f))
+            Icon(Icons.Outlined.Schedule, null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
             Spacer(Modifier.width(12.dp))
-            Text(if (HomeModel.scheduleError) L.s("serverConnectionFailed")
-                 else L.s("noSchedulesAvailable"),
-                 color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
-                 modifier = Modifier.weight(1f))
-            if (HomeModel.scheduleError) {
-                IconButton(onClick = {
-                    scope.launch { HomeModel.loadSchedules(FetchMode.Refresh) }
-                }) {
-                    Icon(Icons.Filled.Refresh, null,
-                         tint = MaterialTheme.colorScheme.primary,
-                         modifier = Modifier.size(18.dp))
-                }
-            }
+            Text(stringResource(if (vm.scheduleError) R.string.server_connection_failed else R.string.no_schedules_available),
+                 color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.weight(1f))
+            if (vm.scheduleError) RetryButton { scope.launch { vm.loadSchedules(FetchMode.Refresh) } }
         }
     } else {
         val cls = prefs.selectedScheduleClass
         if (cls.isEmpty()) {
-            Card(shape = RoundedCornerShape(16.dp),
-                 modifier = Modifier.clickable(onClick = onSetClass)) {
-                Row(Modifier.fillMaxWidth().height(76.dp).padding(horizontal = 18.dp),
-                    verticalAlignment = Alignment.CenterVertically) {
-                    IconTile(Icons.Outlined.School)
-                    Spacer(Modifier.width(14.dp))
-                    Column(Modifier.weight(1f)) {
-                        Text(L.s("scheduleNoClassTitle"), fontWeight = FontWeight.SemiBold)
-                        Text(L.s("scheduleNoClassSub"),
-                             style = MaterialTheme.typography.bodySmall,
-                             color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f))
-                    }
-                    Icon(Icons.AutoMirrored.Filled.ArrowForwardIos, null, Modifier.size(14.dp),
-                         tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.3f))
+            HomeCard(onClick = onSetClass) {
+                IconTile(Icons.Outlined.School)
+                Spacer(Modifier.width(14.dp))
+                Column(Modifier.weight(1f)) {
+                    Text(stringResource(R.string.schedule_no_class_title), fontWeight = FontWeight.SemiBold)
+                    Text(stringResource(R.string.schedule_no_class_sub), style = MaterialTheme.typography.bodySmall,
+                         color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
+                Icon(Icons.AutoMirrored.Filled.ArrowForwardIos, null, Modifier.size(14.dp),
+                     tint = MaterialTheme.colorScheme.onSurfaceVariant)
             }
         } else {
-            val group = HomeModel.preferredGroup
-            val half = if (group.firstOrNull()?.halbjahr == "1. Halbjahr")
-                L.s("firstSemester") else L.s("secondSemester")
-            Card(shape = RoundedCornerShape(16.dp),
-                 modifier = Modifier.combinedClickable(enabled = !loading,
-                     onLongClick = onSetClass) {
-                     val isJ = cls.startsWith("j")
-                     val target = (if (isJ) group.firstOrNull { it.gradeLevel == "J11/J12" }
-                                   else group.firstOrNull { it.gradeLevel == "Klassen 5-10" })
-                         ?: group.firstOrNull() ?: return@clickable
-                     loading = true
-                     scope.launch {
-                         try {
-                             val (file, index) = SchoolApi.schedulePdf(target)
-                             onOpen(PdfRequest(file, "${formatClass(cls)} – $half",
-                                               index[cls], target.gradeLevel))
-                         } catch (e: Exception) {
-                             // home_screen SnackBar parity
-                             snackbar?.showSnackbar("$half " +
-                                 (if (L.isGerman) "ist noch nicht verfügbar"
-                                  else "is not available yet"))
-                         }
-                         loading = false
-                     }
-                 }) {
-                Row(Modifier.fillMaxWidth().height(76.dp).padding(horizontal = 18.dp),
-                    verticalAlignment = Alignment.CenterVertically) {
-                    IconTile(Icons.Outlined.TableChart)
-                    Spacer(Modifier.width(14.dp))
-                    Column(Modifier.weight(1f)) {
-                        Text(formatClass(cls), fontWeight = FontWeight.SemiBold)
-                        Text(half, style = MaterialTheme.typography.bodySmall,
-                             color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f))
+            val group = vm.preferredGroup
+            val half = stringResource(if (group.firstOrNull()?.halbjahr == "1. Halbjahr") R.string.first_semester else R.string.second_semester)
+            val className = formatClass(cls)
+            val unavailable = stringResource(R.string.schedule_not_available, half)
+            val title = stringResource(R.string.title_with_semester, className, half)
+            HomeCard(
+                enabled = !loading,
+                onClick = {
+                    val isJ = cls.startsWith("j")
+                    val target = (if (isJ) group.firstOrNull { it.gradeLevel == "J11/J12" }
+                                  else group.firstOrNull { it.gradeLevel == "Klassen 5-10" })
+                        ?: group.firstOrNull() ?: return@HomeCard
+                    loading = true
+                    scope.launch {
+                        try {
+                            val (file, index) = api.schedulePdf(target)
+                            onOpen(PdfRequest(file, title, index[cls], target.gradeLevel))
+                        } catch (e: Exception) {
+                            onUnavailable(unavailable) // home_screen SnackBar parity
+                        }
+                        loading = false
                     }
-                    if (loading) CircularProgressIndicator(Modifier.size(18.dp), strokeWidth = 2.dp)
-                    else Icon(Icons.AutoMirrored.Filled.ArrowForwardIos, null, Modifier.size(14.dp),
-                              tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.3f))
+                },
+                modifier = Modifier.semantics { }) {
+                IconTile(Icons.Outlined.TableChart)
+                Spacer(Modifier.width(14.dp))
+                Column(Modifier.weight(1f)) {
+                    Text(className, fontWeight = FontWeight.SemiBold)
+                    Text(half, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
+                if (loading) {
+                    val label = stringResource(R.string.loading_schedule)
+                    CircularProgressIndicator(Modifier.size(18.dp).semantics { contentDescription = label }, strokeWidth = 2.dp)
+                }
+                else Icon(Icons.AutoMirrored.Filled.ArrowForwardIos, null, Modifier.size(14.dp),
+                          tint = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+            TextButton(onClick = onSetClass, modifier = Modifier.padding(top = 4.dp)) {
+                Text(stringResource(R.string.set_class_title))
             }
         }
     }
 }
 
+@Composable
 fun formatClass(cls: String): String = when (cls) {
-    "j11" -> L.s("jahrgang11")
-    "j12" -> L.s("jahrgang12")
-    else -> (if (L.isGerman) "Klasse " else "Class ") +
-        cls.replaceFirstChar { it.uppercase() }
+    "j11" -> stringResource(R.string.jahrgang11)
+    "j12" -> stringResource(R.string.jahrgang12)
+    else -> stringResource(R.string.class_name, cls.replaceFirstChar { it.uppercase() })
 }
 
 @Composable
 fun ClassDialog(onDismiss: () -> Unit) {
+    val prefs = LocalContainer.current.prefs
     var input by remember { mutableStateOf(prefs.selectedScheduleClass) }
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text(L.s("setClassTitle")) },
+        title = { Text(stringResource(R.string.set_class_title)) },
         text = {
             OutlinedTextField(value = input, onValueChange = { input = it.take(3) },
-                              placeholder = { Text(L.s("searchHint")) }, singleLine = true)
+                              placeholder = { Text(stringResource(R.string.search_hint)) }, singleLine = true)
         },
         confirmButton = {
             TextButton(onClick = {
                 val cls = input.trim().lowercase(Locale.ROOT)
                 if (cls.isNotEmpty()) prefs.selectedScheduleClass = cls
                 onDismiss()
-            }) { Text(L.s("setClassButton")) }
+            }) { Text(stringResource(R.string.set_class_button)) }
         },
-        dismissButton = { TextButton(onClick = onDismiss) { Text(L.s("cancel")) } })
+        dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.cancel)) } })
 }
 
 // ── Events ──────────────────────────────────────────────────────────────────
 
 @Composable
 fun EventsColumn() {
-    if (HomeModel.eventsLoading) {
-        Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-            repeat(4) { SkeletonRow() }
-        }
-    } else if (HomeModel.events.isEmpty()) {
-        val scope = rememberCoroutineScope()
+    val vm = LocalHomeViewModel.current
+    val scope = rememberCoroutineScope()
+    if (vm.eventsLoading) {
+        Column(verticalArrangement = Arrangement.spacedBy(12.dp)) { repeat(4) { SkeletonRow() } }
+    } else if (vm.events.isEmpty()) {
         HomeCard {
-            Icon(Icons.Outlined.Event, null,
-                 tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.4f))
+            Icon(Icons.Outlined.Event, null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
             Spacer(Modifier.width(12.dp))
-            Text(if (HomeModel.eventsError) L.s("serverConnectionFailed")
-                 else L.s("noEventsAvailable"),
-                 color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
-                 modifier = Modifier.weight(1f))
-            if (HomeModel.eventsError) {
-                IconButton(onClick = {
-                    scope.launch { HomeModel.loadEvents(FetchMode.Refresh) }
-                }) {
-                    Icon(Icons.Filled.Refresh, null,
-                         tint = MaterialTheme.colorScheme.primary,
-                         modifier = Modifier.size(18.dp))
-                }
-            }
+            Text(stringResource(if (vm.eventsError) R.string.server_connection_failed else R.string.no_events_available),
+                 color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.weight(1f))
+            if (vm.eventsError) RetryButton { scope.launch { vm.loadEvents(FetchMode.Refresh) } }
         }
     } else {
         Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-            HomeModel.events.take(4).forEach { event ->
-                HomeCard {
+            vm.events.take(4).forEach { event ->
+                val subtitle = eventSubtitle(event)
+                HomeCard(modifier = Modifier.semantics(mergeDescendants = true) {
+                    contentDescription = "$subtitle: ${event.title}"
+                }) {
                     DateTile(event.date)
                     Spacer(Modifier.width(14.dp))
                     Column(Modifier.weight(1f)) {
-                        Text(event.title, fontWeight = FontWeight.SemiBold, maxLines = 1)
-                        Text(eventSubtitle(event), style = MaterialTheme.typography.bodySmall,
-                             color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f))
+                        Text(event.title, fontWeight = FontWeight.SemiBold, maxLines = 2)
+                        Text(subtitle, style = MaterialTheme.typography.bodySmall,
+                             color = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
                 }
             }
@@ -501,25 +422,21 @@ fun EventsColumn() {
 @Composable
 private fun DateTile(iso: String) {
     val date = runCatching { LocalDate.parse(iso) }.getOrNull()
-    Box(Modifier.size(44.dp).background(
-            MaterialTheme.colorScheme.primary.copy(alpha = 0.12f),
-            RoundedCornerShape(12.dp)),
+    val locale = ComposeLocale.current.platformLocale
+    Box(Modifier.size(44.dp).background(MaterialTheme.colorScheme.primary.copy(alpha = 0.12f), RoundedCornerShape(12.dp)),
         contentAlignment = Alignment.Center) {
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
-            Text("${date?.dayOfMonth ?: "?"}", fontWeight = FontWeight.Bold,
-                 color = MaterialTheme.colorScheme.primary)
-            Text(date?.format(DateTimeFormatter.ofPattern("MMM",
-                     if (L.isGerman) Locale.GERMAN else Locale.ENGLISH)) ?: "",
-                 fontSize = 10.sp,
-                 color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f))
+            Text("${date?.dayOfMonth ?: "?"}", fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
+            Text(date?.format(DateTimeFormatter.ofPattern("MMM", locale)) ?: "", fontSize = 10.sp,
+                 color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
     }
 }
 
+@Composable
 private fun eventSubtitle(event: SchoolApi.Event): String {
+    val locale = ComposeLocale.current.platformLocale
     val date = runCatching { LocalDate.parse(event.date) }.getOrNull() ?: return event.time ?: ""
-    val fmt = DateTimeFormatter.ofPattern("EEE, d. MMMM",
-        if (L.isGerman) Locale.GERMAN else Locale.ENGLISH)
-    val base = date.format(fmt)
+    val base = date.format(DateTimeFormatter.ofPattern("EEE, d. MMMM", locale))
     return if (event.time != null) "$base · ${event.time}" else base
 }

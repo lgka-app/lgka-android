@@ -4,121 +4,142 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.activity.viewModels
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.isSystemInDarkTheme
-import androidx.compose.material3.ColorScheme
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.darkColorScheme
-import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.ui.graphics.Color
-import androidx.navigation.compose.NavHost
-import androidx.navigation.compose.composable
-import androidx.navigation.compose.rememberNavController
-import com.tom_roush.pdfbox.android.PDFBoxResourceLoader
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
+import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.lifecycleScope
+import androidx.lifecycle.repeatOnLifecycle
+import androidx.navigation3.runtime.NavKey
+import androidx.navigation3.runtime.entryProvider
+import androidx.navigation3.runtime.rememberNavBackStack
+import androidx.navigation3.ui.NavDisplay
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
-
-lateinit var prefs: Prefs
+import kotlinx.serialization.Serializable
 
 class MainActivity : ComponentActivity() {
-    override fun onResume() {
-        super.onResume()
-        // main.dart parity: refresh critical data on resume
-        if (::prefs.isInitialized && prefs.isAuthenticated) {
-            // subs+weather are invalidated on background in the Flutter app
-            lifecycleScope.launch {
-                HomeModel.loadSubstitution(FetchMode.Refresh)
-                HomeModel.loadWeather(FetchMode.Refresh)
-            }
-        }
-    }
+    private val homeViewModel: HomeViewModel by viewModels { HomeViewModel.factory(appContainer.api) }
 
     override fun onCreate(savedInstanceState: Bundle?) {
+        installSplashScreen()
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
-        PDFBoxResourceLoader.init(applicationContext)
-        DiskCache.init(applicationContext)
-        prefs = Prefs(applicationContext)
+        val container = appContainer
+        applyDebugSeed(container)
+
+        // main.dart parity: subs + weather are invalidated on background, so
+        // every resume refreshes them (debounced in the view model).
+        lifecycleScope.launch {
+            repeatOnLifecycle(Lifecycle.State.RESUMED) {
+                if (container.prefs.isSignedIn(container.credentials)) homeViewModel.refreshOnForeground()
+            }
+        }
+        // main.dart parity: 1-minute expired-cache refresh timer — only while
+        // the activity is started, never in the background.
+        lifecycleScope.launch {
+            repeatOnLifecycle(Lifecycle.State.STARTED) {
+                while (true) {
+                    delay(60_000)
+                    if (container.prefs.isSignedIn(container.credentials)) homeViewModel.loadAll()
+                }
+            }
+        }
 
         setContent {
-            LgkaTheme {
-                LaunchedEffect(Unit) { HomeModel.bootstrap() }
-                // main.dart parity: 1-minute expired-cache refresh timer
-                LaunchedEffect(Unit) {
-                    while (true) {
-                        kotlinx.coroutines.delay(60_000)
-                        if (prefs.isAuthenticated) HomeModel.loadAll()
+            CompositionLocalProvider(
+                LocalContainer provides container,
+                LocalHomeViewModel provides homeViewModel,
+            ) {
+                LgkaTheme(container.prefs) {
+                    Box {
+                        RootNav()
+                        FireworksOverlay()
                     }
-                }
-                Box {
-                    RootNav()
-                    FireworksOverlay()
                 }
             }
         }
     }
 }
 
-/// Theme — pure-black dark / F2F2F7 light, accent-driven (app_theme.dart).
-@Composable
-fun LgkaTheme(content: @Composable () -> Unit) {
-    val dark = when (prefs.themeMode) {
-        "dark" -> true
-        "light" -> false
-        else -> isSystemInDarkTheme()
+/**
+ * Debug builds only: seed login and preferences from launch intent extras so
+ * screenshots and UI checks can skip onboarding, e.g.
+ * `adb shell am start -n com.lgka/.MainActivity --es lgka_debug_login user:pass --es lgka_debug_accent mint --es lgka_debug_theme dark`.
+ */
+private fun MainActivity.applyDebugSeed(container: AppContainer) {
+    if (!BuildConfig.DEBUG) return
+    intent?.getStringExtra("lgka_debug_login")?.let { pair ->
+        val (user, password) = pair.split(":", limit = 2).let { it[0] to it.getOrElse(1) { "" } }
+        container.credentials.save(Credentials.Pair(user, password))
+        container.prefs.isAuthenticated = true
+        container.prefs.onboardingCompleted = true
     }
-    val accent = prefs.accent
-    val scheme: ColorScheme = if (dark) {
-        darkColorScheme(
-            primary = accent, onPrimary = Color.White,
-            surface = Color.Black, background = Color.Black,
-            surfaceContainer = Color(0xFF1E1E1E),
-            surfaceContainerHigh = Color(0xFF262626),
-            onSurface = Color.White)
-    } else {
-        lightColorScheme(
-            primary = accent, onPrimary = Color.White,
-            surface = Color(0xFFF2F2F7), background = Color(0xFFF2F2F7),
-            surfaceContainer = Color.White,
-            surfaceContainerHigh = Color.White,
-            onSurface = Color(0xFF1A1A1A))
-    }
-    MaterialTheme(colorScheme = scheme, content = content)
+    intent?.getStringExtra("lgka_debug_accent")?.let { container.prefs.accentColor = it }
+    intent?.getStringExtra("lgka_debug_theme")?.let { container.prefs.themeMode = it }
+    intent?.getStringExtra("lgka_debug_class")?.let { container.prefs.selectedScheduleClass = it }
 }
 
 /// Route gating — mirrors main.dart's initialRoute logic, kept live.
 @Composable
 fun RootNav() {
-    if (!prefs.onboardingCompleted) {
-        OnboardingFlow()
-    } else if (!prefs.isAuthenticated) {
-        AuthScreen()
-    } else {
-        MainNav()
+    val container = LocalContainer.current
+    val prefs = container.prefs
+    when {
+        !prefs.onboardingCompleted -> OnboardingFlow()
+        !prefs.isSignedIn(container.credentials) -> AuthScreen()
+        else -> MainNav()
     }
 }
 
+@Serializable sealed interface Route : NavKey
+@Serializable data object HomeRoute : Route
+@Serializable data object WeatherRoute : Route
+@Serializable data object NewsRoute : Route
+@Serializable data class NewsDetailRoute(val url: String) : Route
+@Serializable data object KrankmeldungInfoRoute : Route
+@Serializable data object KrankmeldungFormRoute : Route
+@Serializable data object BugReportRoute : Route
+
 @Composable
 fun MainNav() {
-    val nav = rememberNavController()
-    NavHost(navController = nav, startDestination = "home") {
-        composable("home") { HomeScreen(nav) }
-        composable("weather") { WeatherScreen(nav) }
-        composable("news") { NewsListScreen(nav) }
-        composable("newsDetail/{index}") { entry ->
-            NewsDetailScreen(nav, entry.arguments?.getString("index")?.toIntOrNull() ?: 0)
-        }
-        composable("krankmeldungInfo") { KrankmeldungInfoScreen(nav) }
-        composable("krankmeldungForm") {
-            WebScreen(nav, "https://drkrankmeldung.lgka-online.de", L.s("krankmeldung"),
-                      confineToHost = "lgka-online.de")
-        }
-        composable("bugReport") {
-            WebScreen(nav,
-                "https://docs.google.com/forms/d/e/1FAIpQLSdknGu7-xgFurrghbUYOwoYu-Vsaftar6PGLzMv64UFpwJtRw/viewform?usp=publish-editor",
-                L.s("bugReportTitle"))
-        }
-    }
+    val backStack = rememberNavBackStack(HomeRoute)
+    val pop: () -> Unit = { backStack.removeLastOrNull() }
+    NavDisplay(
+        backStack = backStack,
+        onBack = { backStack.removeLastOrNull() },
+        entryProvider = entryProvider {
+            entry<HomeRoute> { HomeScreen(onNavigate = { backStack.add(it) }) }
+            entry<WeatherRoute> { WeatherScreen(onBack = pop) }
+            entry<NewsRoute> {
+                NewsListScreen(onBack = pop, onOpen = { backStack.add(NewsDetailRoute(it)) })
+            }
+            entry<NewsDetailRoute> { key ->
+                NewsDetailScreen(url = key.url, onBack = pop, onOpen = { backStack.add(NewsDetailRoute(it)) })
+            }
+            entry<KrankmeldungInfoRoute> {
+                KrankmeldungInfoScreen(onBack = pop, onContinue = {
+                    backStack.removeLastOrNull()
+                    backStack.add(KrankmeldungFormRoute)
+                })
+            }
+            entry<KrankmeldungFormRoute> {
+                WebScreen(
+                    url = "https://drkrankmeldung.lgka-online.de",
+                    title = androidx.compose.ui.res.stringResource(R.string.krankmeldung),
+                    confineToHost = "lgka-online.de",
+                    onBack = pop,
+                )
+            }
+            entry<BugReportRoute> {
+                WebScreen(
+                    url = "https://docs.google.com/forms/d/e/1FAIpQLSdknGu7-xgFurrghbUYOwoYu-Vsaftar6PGLzMv64UFpwJtRw/viewform?usp=publish-editor",
+                    title = androidx.compose.ui.res.stringResource(R.string.bug_report_title),
+                    onBack = pop,
+                )
+            }
+        },
+    )
 }

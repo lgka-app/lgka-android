@@ -29,7 +29,7 @@ fun main(args: Array<String>) {
     }
 
     fun forFiles(glob: (File) -> Boolean, run: (File) -> Pair<String, Any?>) {
-        fixtures.listFiles()!!.filter(glob).sortedBy { it.name }.forEach { f ->
+        (fixtures.listFiles() ?: emptyArray()).filter(glob).sortedBy { it.name }.forEach { f ->
             val (name, result) = try {
                 run(f)
             } catch (e: Exception) {

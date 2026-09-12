@@ -3,36 +3,83 @@ package com.lgka
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ColumnScope
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.safeDrawingPadding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.*
-import androidx.compose.material.icons.outlined.*
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.material.icons.filled.BrightnessAuto
+import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.DarkMode
+import androidx.compose.material.icons.filled.LightMode
+import androidx.compose.material.icons.outlined.CalendarToday
+import androidx.compose.material.icons.outlined.Cloud
+import androidx.compose.material.icons.outlined.Event
+import androidx.compose.material.icons.outlined.Lock
+import androidx.compose.material.icons.outlined.MedicalServices
+import androidx.compose.material.icons.outlined.Newspaper
+import androidx.compose.material.icons.outlined.Person
+import androidx.compose.material.icons.outlined.Schedule
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.Card
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.SegmentedButton
+import androidx.compose.material3.SegmentedButtonDefaults
+import androidx.compose.material3.SingleChoiceSegmentedButtonRow
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.heading
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
+import androidx.compose.foundation.text.KeyboardOptions
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
 /// welcome -> features -> accent -> appearance -> auth (app_router parity)
 @Composable
 fun OnboardingFlow() {
-    var step by remember { mutableStateOf(0) }
+    var step by remember { mutableIntStateOf(0) }
     when (step) {
         0 -> WelcomeStep { step = 1 }
         1 -> FeaturesStep { step = 2 }
@@ -43,16 +90,12 @@ fun OnboardingFlow() {
 }
 
 @Composable
-private fun OnboardingScaffold(button: String, onContinue: () -> Unit,
-                               content: @Composable ColumnScope.() -> Unit) {
+private fun OnboardingScaffold(button: String, onContinue: () -> Unit, content: @Composable ColumnScope.() -> Unit) {
     Surface(Modifier.fillMaxSize()) {
-        Column(Modifier.fillMaxSize().padding(24.dp).systemBarsPadding()) {
-            Column(Modifier.weight(1f), horizontalAlignment = Alignment.CenterHorizontally,
-                   content = content)
-            Button(
-                onClick = onContinue,
-                modifier = Modifier.fillMaxWidth().height(50.dp),
-                shape = RoundedCornerShape(12.dp)) {
+        Column(Modifier.fillMaxSize().safeDrawingPadding().padding(24.dp)) {
+            Column(Modifier.weight(1f), horizontalAlignment = Alignment.CenterHorizontally, content = content)
+            Button(onClick = onContinue, modifier = Modifier.fillMaxWidth().heightIn(min = 52.dp),
+                   shape = RoundedCornerShape(16.dp)) {
                 Text(button, fontWeight = FontWeight.SemiBold)
             }
         }
@@ -61,46 +104,45 @@ private fun OnboardingScaffold(button: String, onContinue: () -> Unit,
 
 @Composable
 fun WelcomeStep(onContinue: () -> Unit) {
-    OnboardingScaffold(L.s("continueLabel"), onContinue) {
+    OnboardingScaffold(stringResource(R.string.continue_label), onContinue) {
         Spacer(Modifier.weight(1f))
-        Image(painterResource(R.mipmap.ic_launcher), null, Modifier.size(140.dp))
-        Spacer(Modifier.height(16.dp))
-        Text(L.s("welcomeHeadline"), fontSize = 32.sp, fontWeight = FontWeight.Bold)
+        Image(painterResource(R.mipmap.ic_launcher_foreground), stringResource(R.string.a11y_app_logo), Modifier.size(180.dp))
+        Spacer(Modifier.height(8.dp))
+        Text(stringResource(R.string.welcome_headline), style = MaterialTheme.typography.displaySmall,
+             fontWeight = FontWeight.Bold, modifier = Modifier.semantics { heading() })
         Spacer(Modifier.height(12.dp))
-        Text(L.s("welcomeSubtitle"), textAlign = TextAlign.Center,
-             color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f))
+        Text(stringResource(R.string.welcome_subtitle), textAlign = TextAlign.Center,
+             color = MaterialTheme.colorScheme.onSurfaceVariant)
         Spacer(Modifier.weight(1f))
     }
 }
 
 @Composable
 fun FeaturesStep(onContinue: () -> Unit) {
-    val features = listOf<Triple<ImageVector, String, String>>(
-        Triple(Icons.Outlined.CalendarToday, "featureSubstitutionTitle", "featureSubstitutionDesc"),
-        Triple(Icons.Outlined.Schedule, "featureScheduleTitle", "featureScheduleDesc"),
-        Triple(Icons.Outlined.Cloud, "featureWeatherTitle", "featureWeatherDesc"),
-        Triple(Icons.Outlined.Newspaper, "featureNewsTitle", "featureNewsDesc"),
-        Triple(Icons.Outlined.MedicalServices, "featureSickTitle", "featureSickDesc"),
-        Triple(Icons.Outlined.Event, "featureEventsTitle", "featureEventsDesc"))
-    OnboardingScaffold(L.s("continueLabel"), onContinue) {
-        Text(L.s("infoHeader"), fontSize = 28.sp, fontWeight = FontWeight.Bold,
-             modifier = Modifier.align(Alignment.Start))
+    val features = listOf<Triple<ImageVector, Int, Int>>(
+        Triple(Icons.Outlined.CalendarToday, R.string.feature_substitution_title, R.string.feature_substitution_desc),
+        Triple(Icons.Outlined.Schedule, R.string.feature_schedule_title, R.string.feature_schedule_desc),
+        Triple(Icons.Outlined.Cloud, R.string.feature_weather_title, R.string.feature_weather_desc),
+        Triple(Icons.Outlined.Newspaper, R.string.feature_news_title, R.string.feature_news_desc),
+        Triple(Icons.Outlined.MedicalServices, R.string.feature_sick_title, R.string.feature_sick_desc),
+        Triple(Icons.Outlined.Event, R.string.feature_events_title, R.string.feature_events_desc))
+    OnboardingScaffold(stringResource(R.string.continue_label), onContinue) {
+        Text(stringResource(R.string.info_header), style = MaterialTheme.typography.headlineMedium,
+             fontWeight = FontWeight.Bold, modifier = Modifier.align(Alignment.Start).semantics { heading() })
         Spacer(Modifier.height(16.dp))
         LazyColumn(verticalArrangement = Arrangement.spacedBy(12.dp)) {
             items(features) { (icon, title, desc) ->
-                Card(shape = RoundedCornerShape(16.dp)) {
+                Card(shape = CardShape, modifier = Modifier.semantics(mergeDescendants = true) {}) {
                     Row(Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
-                        Box(Modifier.size(48.dp).background(
-                                MaterialTheme.colorScheme.primary.copy(alpha = 0.1f),
-                                RoundedCornerShape(12.dp)),
+                        Box(Modifier.size(48.dp).background(MaterialTheme.colorScheme.primary.copy(alpha = 0.1f), RoundedCornerShape(12.dp)),
                             contentAlignment = Alignment.Center) {
                             Icon(icon, null, tint = MaterialTheme.colorScheme.primary)
                         }
                         Spacer(Modifier.width(16.dp))
                         Column {
-                            Text(L.s(title), fontWeight = FontWeight.SemiBold)
-                            Text(L.s(desc), style = MaterialTheme.typography.bodyMedium,
-                                 color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f))
+                            Text(stringResource(title), fontWeight = FontWeight.SemiBold)
+                            Text(stringResource(desc), style = MaterialTheme.typography.bodyMedium,
+                                 color = MaterialTheme.colorScheme.onSurfaceVariant)
                         }
                     }
                 }
@@ -111,38 +153,47 @@ fun FeaturesStep(onContinue: () -> Unit) {
 
 @Composable
 fun AccentStep(onContinue: () -> Unit) {
-    OnboardingScaffold(L.s("continueLabel"), onContinue) {
+    OnboardingScaffold(stringResource(R.string.continue_label), onContinue) {
         Spacer(Modifier.weight(1f))
-        Text(L.s("accentColorTitle"), fontSize = 28.sp, fontWeight = FontWeight.Bold)
+        Text(stringResource(R.string.accent_color_title), style = MaterialTheme.typography.headlineMedium,
+             fontWeight = FontWeight.Bold, textAlign = TextAlign.Center, modifier = Modifier.semantics { heading() })
         Spacer(Modifier.height(12.dp))
-        Text(L.s("accentColorDescription"), textAlign = TextAlign.Center,
-             color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f))
+        Text(stringResource(R.string.accent_color_description), textAlign = TextAlign.Center,
+             color = MaterialTheme.colorScheme.onSurfaceVariant)
         Spacer(Modifier.height(32.dp))
         AccentRow(swatchSize = 56)
         Spacer(Modifier.weight(1f))
     }
 }
 
+/** Accent picker; each swatch is a 48dp+ radio-button target with a spoken color name. */
 @Composable
 fun AccentRow(swatchSize: Int) {
+    val prefs = LocalContainer.current.prefs
     val haptic = LocalHapticFeedback.current
+    val selectedLabel = stringResource(R.string.a11y_selected)
     Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
         Accent.entries.forEach { accent ->
             val selected = prefs.accentColor == accent.key
+            val name = stringResource(accent.labelRes)
             Box(
-                Modifier.size(swatchSize.dp)
-                    .background(accent.color, RoundedCornerShape((swatchSize * 0.32f).dp))
-                    .border(if (selected) 3.dp else 0.dp,
-                            if (selected) Color.White else Color.Transparent,
-                            RoundedCornerShape((swatchSize * 0.32f).dp))
-                    .clickable {
-                        haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                Modifier.size(maxOf(swatchSize, 48).dp)
+                    .selectable(selected = selected, role = Role.RadioButton, onClick = {
+                        haptic.performHapticFeedback(HapticFeedbackType.SegmentTick)
                         prefs.accentColor = accent.key
-                    },
+                    })
+                    .semantics { contentDescription = if (selected) "$name, $selectedLabel" else name },
                 contentAlignment = Alignment.Center) {
-                if (selected) Icon(Icons.Filled.Check, null, tint = Color.White)
-                else Box(Modifier.size((swatchSize * 0.24).dp)
-                    .background(Color.White.copy(alpha = 0.24f), CircleShape))
+                Box(
+                    Modifier.size(swatchSize.dp)
+                        .background(accent.color, RoundedCornerShape((swatchSize * 0.32f).dp))
+                        .border(if (selected) 3.dp else 0.dp,
+                                if (selected) MaterialTheme.colorScheme.onSurface else Color.Transparent,
+                                RoundedCornerShape((swatchSize * 0.32f).dp)),
+                    contentAlignment = Alignment.Center) {
+                    if (selected) Icon(Icons.Filled.Check, null, tint = accent.onColor)
+                    else Box(Modifier.size((swatchSize * 0.24).dp).background(Color.White.copy(alpha = 0.24f), CircleShape))
+                }
             }
         }
     }
@@ -150,9 +201,10 @@ fun AccentRow(swatchSize: Int) {
 
 @Composable
 fun AppearanceStep(onContinue: () -> Unit) {
-    OnboardingScaffold(L.s("letsGo"), onContinue) {
+    OnboardingScaffold(stringResource(R.string.lets_go), onContinue) {
         Spacer(Modifier.weight(1f))
-        Text(L.s("appearanceTitle"), fontSize = 28.sp, fontWeight = FontWeight.Bold)
+        Text(stringResource(R.string.appearance_title), style = MaterialTheme.typography.headlineMedium,
+             fontWeight = FontWeight.Bold, modifier = Modifier.semantics { heading() })
         Spacer(Modifier.height(32.dp))
         ThemeModeRow()
         Spacer(Modifier.weight(1f))
@@ -161,10 +213,11 @@ fun AppearanceStep(onContinue: () -> Unit) {
 
 @Composable
 fun ThemeModeRow() {
+    val prefs = LocalContainer.current.prefs
     val options = listOf(
-        Triple("dark", Icons.Filled.DarkMode, L.s("themeDark")),
-        Triple("system", Icons.Filled.BrightnessAuto, L.s("themeAuto")),
-        Triple("light", Icons.Filled.LightMode, L.s("themeLight")))
+        Triple("dark", Icons.Filled.DarkMode, R.string.theme_dark),
+        Triple("system", Icons.Filled.BrightnessAuto, R.string.theme_auto),
+        Triple("light", Icons.Filled.LightMode, R.string.theme_light))
     SingleChoiceSegmentedButtonRow {
         options.forEachIndexed { i, (mode, icon, label) ->
             SegmentedButton(
@@ -172,77 +225,106 @@ fun ThemeModeRow() {
                 onClick = { prefs.themeMode = mode },
                 shape = SegmentedButtonDefaults.itemShape(index = i, count = options.size),
                 icon = { Icon(icon, null, Modifier.size(16.dp)) }) {
-                Text(label)
+                Text(stringResource(label))
             }
         }
     }
 }
 
-/// Password gate — mirrors auth_screen.dart (school website credentials).
+/// Login gate — the school website's credentials are verified against the
+/// server and stored privately; the app never compares them locally.
 @Composable
 fun AuthScreen() {
+    val container = LocalContainer.current
     var username by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
-    var flash by remember { mutableStateOf(0) } // 0 none, 1 error, 2 success
+    var flash by remember { mutableIntStateOf(0) } // 0 none, 1 error, 2 success
     var loading by remember { mutableStateOf(false) }
+    var message by remember { mutableStateOf<String?>(null) }
     val scope = rememberCoroutineScope()
+    val haptic = LocalHapticFeedback.current
+    val failedText = stringResource(R.string.login_failed)
+    val offlineText = stringResource(R.string.login_offline)
 
     val canLogin = username.isNotBlank() && password.isNotBlank() && !loading
     val buttonColor = when (flash) {
-        1 -> Color(0xFFD32F2F)
+        1 -> MaterialTheme.colorScheme.error
         2 -> Color(0xFF2E7D32)
-        else -> if (canLogin) MaterialTheme.colorScheme.primary
-                else MaterialTheme.colorScheme.primary.copy(alpha = 0.5f)
+        else -> MaterialTheme.colorScheme.primary
     }
 
     fun validate() {
-        if (username.trim() == "vertretungsplan" && password.trim() == "ephraim") {
-            flash = 2
-            scope.launch {
-                delay(600)
-                loading = true
-                delay(600)
-                prefs.isAuthenticated = true
-                prefs.onboardingCompleted = true
+        if (!canLogin || flash != 0) return
+        val pair = Credentials.Pair(username.trim(), password.trim())
+        loading = true
+        message = null
+        scope.launch {
+            try {
+                if (container.api.verify(pair)) {
+                    container.credentials.save(pair)
+                    flash = 2
+                    haptic.performHapticFeedback(HapticFeedbackType.Confirm)
+                    delay(500)
+                    container.prefs.isAuthenticated = true
+                    container.prefs.onboardingCompleted = true
+                } else {
+                    flash = 1; message = failedText
+                    haptic.performHapticFeedback(HapticFeedbackType.Reject)
+                    delay(700); flash = 0
+                }
+            } catch (e: Exception) {
+                flash = 1; message = offlineText
+                haptic.performHapticFeedback(HapticFeedbackType.Reject)
+                delay(700); flash = 0
+            } finally {
+                loading = false
             }
-        } else {
-            flash = 1
-            scope.launch { delay(600); flash = 0 }
         }
     }
 
     Surface(Modifier.fillMaxSize()) {
         Column(
-            Modifier.fillMaxSize().padding(24.dp).systemBarsPadding(),
+            Modifier.fillMaxSize().safeDrawingPadding().padding(24.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Center) {
-            Text(L.s("authTitle"), fontSize = 28.sp, fontWeight = FontWeight.Bold)
+            Text(stringResource(R.string.auth_title), style = MaterialTheme.typography.headlineMedium,
+                 fontWeight = FontWeight.Bold, modifier = Modifier.semantics { heading() })
             Spacer(Modifier.height(12.dp))
-            Text(L.s("authSubtitle"), textAlign = TextAlign.Center,
-                 style = MaterialTheme.typography.bodyMedium,
-                 color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f))
+            Text(stringResource(R.string.auth_subtitle), textAlign = TextAlign.Center,
+                 style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
             Spacer(Modifier.height(48.dp))
             OutlinedTextField(
                 value = username, onValueChange = { username = it },
-                label = { Text(L.s("username")) },
+                label = { Text(stringResource(R.string.username)) },
                 leadingIcon = { Icon(Icons.Outlined.Person, null) },
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Text, imeAction = ImeAction.Next, autoCorrectEnabled = false),
                 singleLine = true, modifier = Modifier.fillMaxWidth())
             Spacer(Modifier.height(12.dp))
             OutlinedTextField(
                 value = password, onValueChange = { password = it },
-                label = { Text(L.s("password")) },
+                label = { Text(stringResource(R.string.password)) },
                 leadingIcon = { Icon(Icons.Outlined.Lock, null) },
                 visualTransformation = PasswordVisualTransformation(),
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password, imeAction = ImeAction.Go),
+                keyboardActions = androidx.compose.foundation.text.KeyboardActions(onGo = { validate() }),
                 singleLine = true, modifier = Modifier.fillMaxWidth())
+            message?.let {
+                Spacer(Modifier.height(12.dp))
+                Text(it, color = MaterialTheme.colorScheme.error, textAlign = TextAlign.Center,
+                     style = MaterialTheme.typography.bodyMedium)
+            }
             Spacer(Modifier.height(32.dp))
             Button(
-                onClick = { if (canLogin && flash == 0) validate() },
+                onClick = { validate() },
+                enabled = canLogin || flash != 0,
                 colors = ButtonDefaults.buttonColors(containerColor = buttonColor),
-                modifier = Modifier.fillMaxWidth().height(46.dp),
-                shape = RoundedCornerShape(12.dp)) {
-                if (loading) CircularProgressIndicator(
-                    Modifier.size(22.dp), color = Color.White, strokeWidth = 2.5.dp)
-                else Text(L.s("login"), fontWeight = FontWeight.SemiBold)
+                modifier = Modifier.fillMaxWidth().heightIn(min = 52.dp),
+                shape = RoundedCornerShape(16.dp)) {
+                when {
+                    loading -> CircularProgressIndicator(Modifier.size(22.dp), color = MaterialTheme.colorScheme.onPrimary, strokeWidth = 2.5.dp)
+                    flash == 2 -> Icon(Icons.Filled.Check, null)
+                    else -> Text(stringResource(R.string.login), fontWeight = FontWeight.SemiBold)
+                }
             }
         }
     }

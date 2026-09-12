@@ -5,16 +5,26 @@ pluginManagement {
         gradlePluginPortal()
     }
 }
+
+plugins {
+    // Provisions the JDK declared by `jvmToolchain(17)` on machines without it.
+    id("org.gradle.toolchains.foojay-resolver-convention") version "1.0.0"
+}
+
 dependencyResolutionManagement {
+    repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS)
     repositories {
         google()
         mavenCentral()
     }
 }
+
 rootProject.name = "lgka-android"
 include(":core", ":extractor")
-// :app needs the Android SDK + AGP; keep the JVM modules (parity CLI)
+// :app needs the Android SDK + AGP; the JVM modules (parity CLI, tests) stay
 // buildable on machines without either.
-if (System.getenv("ANDROID_HOME") != null || file("local.properties").exists()) {
+if (System.getenv("ANDROID_HOME") != null || System.getenv("ANDROID_SDK_ROOT") != null ||
+    file("local.properties").exists()
+) {
     include(":app")
 }

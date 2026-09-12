@@ -154,14 +154,15 @@ object Extractor {
         // ---- table --------------------------------------------------------
         if (headerIdx != null) {
             val xs = mutableListOf<Double>()
-            var lastRight: Double? = null
+            var lastRight = Double.NEGATIVE_INFINITY
             for (w in lines[headerIdx].words) {
                 if (w.text.isBlank()) continue
-                if (xs.isEmpty() || w.left - lastRight!! > 3) xs.add(w.left)
+                if (xs.isEmpty() || w.left - lastRight > 3) xs.add(w.left)
                 lastRight = w.right
             }
-            check(xs.size == COLUMN_NAMES.size) {
-                "expected ${COLUMN_NAMES.size} columns, found ${xs.size}: $xs"
+            if (xs.size != COLUMN_NAMES.size) {
+                throw LgkaParseException(
+                    "unexpected substitution table header: ${xs.size} columns, expected ${COLUMN_NAMES.size}")
             }
 
             fun columnOf(left: Double): Int {
@@ -178,14 +179,14 @@ object Extractor {
             for (i in headerIdx + 1 until tableEnd) {
                 val cells = MutableList(COLUMN_NAMES.size) { "" }
                 var prevCol: Int? = null
-                var prevRight: Double? = null
+                var prevRight = Double.NEGATIVE_INFINITY
                 for (w in lines[i].words) {
                     val t = w.text.trim()
                     if (t.isEmpty()) continue
                     val c = columnOf(w.left)
                     cells[c] = when {
                         cells[c].isEmpty() -> t
-                        c == prevCol && w.left - prevRight!! <= 3 -> "${cells[c]}$t"
+                        c == prevCol && w.left - prevRight <= 3 -> "${cells[c]}$t"
                         else -> "${cells[c]} $t"
                     }
                     prevCol = c
@@ -220,9 +221,9 @@ object Extractor {
     private fun segments(line: Line): List<String> {
         val out = mutableListOf<String>()
         val sb = StringBuilder()
-        var prevRight: Double? = null
+        var prevRight = Double.NEGATIVE_INFINITY
         for (w in line.words) {
-            if (sb.isNotEmpty() && w.left - prevRight!! > SEGMENT_GAP) {
+            if (sb.isNotEmpty() && w.left - prevRight > SEGMENT_GAP) {
                 out.add(sb.toString())
                 sb.clear()
             }
