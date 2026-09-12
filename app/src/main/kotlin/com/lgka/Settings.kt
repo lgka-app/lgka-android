@@ -109,10 +109,6 @@ fun SettingsSheet(onBugReport: () -> Unit, onOpenWeb: (String, String) -> Unit, 
                 }
             }
 
-            Spacer(Modifier.height(12.dp))
-            Text(stringResource(R.string.data_source_note), style = MaterialTheme.typography.bodySmall,
-                 color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(horizontal = 4.dp))
-
             Spacer(Modifier.height(24.dp))
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.Center) {
                 Text("© ${java.time.Year.now().value} ", style = MaterialTheme.typography.bodySmall,

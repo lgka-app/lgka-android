@@ -159,5 +159,4 @@
         <item quantity="one">1 substitution</item>
         <item quantity="other">%d substitutions</item>
     </plurals>
-    <string name="data_source_note">All data comes via api.lgka.app (Cloudflare, stored in the EU). The app only sends the school credentials – no identifiers, no analytics.</string>
 </resources>

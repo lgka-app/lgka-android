@@ -159,5 +159,4 @@
         <item quantity="one">1 Vertretung</item>
         <item quantity="other">%d Vertretungen</item>
     </plurals>
-    <string name="data_source_note">Alle Daten kommen über api.lgka.app (Cloudflare, Speicherung in der EU). Die App sendet nur die Schulzugangsdaten – keine Kennungen, keine Analyse.</string>
 </resources>
