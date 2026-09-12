@@ -16,6 +16,7 @@ import androidx.navigation3.runtime.NavKey
 import androidx.navigation3.runtime.entryProvider
 import androidx.navigation3.runtime.rememberNavBackStack
 import androidx.navigation3.ui.NavDisplay
+import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.animation.togetherWith
 import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.slideInHorizontally
@@ -62,9 +63,11 @@ class MainActivity : ComponentActivity() {
                 LocalHomeViewModel provides homeViewModel,
             ) {
                 LgkaTheme(container.prefs) {
-                    Box {
-                        RootNav()
-                        FireworksOverlay()
+                    CompositionLocalProvider(LocalUriHandler provides InAppUriHandler(this@MainActivity)) {
+                        Box {
+                            RootNav()
+                            FireworksOverlay()
+                        }
                     }
                 }
             }

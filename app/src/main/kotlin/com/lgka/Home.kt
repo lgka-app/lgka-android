@@ -14,6 +14,9 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.layout.navigationBars
+import androidx.compose.foundation.layout.asPaddingValues
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowForwardIos
@@ -121,9 +124,10 @@ fun HomeScreen(onNavigate: (Route) -> Unit) {
                     refreshing = false
                 }
             },
-            modifier = Modifier.padding(padding)) {
+            modifier = Modifier.padding(top = padding.calculateTopPadding())) {
             LazyColumn(
                 Modifier.fillMaxSize().readableWidth().padding(horizontal = 20.dp),
+                contentPadding = WindowInsets.navigationBars.asPaddingValues(),
                 verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 item { WeatherRow { onNavigate(WeatherRoute) } }
                 item { SectionHeader(stringResource(R.string.substitution_plan)) }
@@ -447,9 +451,11 @@ private fun DateTile(iso: String) {
     val locale = ComposeLocale.current.platformLocale
     Box(Modifier.size(44.dp).background(MaterialTheme.colorScheme.primary.copy(alpha = 0.12f), RoundedCornerShape(12.dp)),
         contentAlignment = Alignment.Center) {
-        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-            Text("${date?.dayOfMonth ?: "?"}", fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
-            Text(date?.format(DateTimeFormatter.ofPattern("MMM", locale)) ?: "", fontSize = 10.sp,
+        Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
+            Text("${date?.dayOfMonth ?: "?"}", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold,
+                 color = MaterialTheme.colorScheme.primary, lineHeight = 18.sp)
+            Text(date?.format(DateTimeFormatter.ofPattern("MMM", locale))?.trimEnd('.') ?: "",
+                 style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.SemiBold, lineHeight = 12.sp,
                  color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
     }

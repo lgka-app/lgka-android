@@ -17,6 +17,9 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.layout.navigationBars
+import androidx.compose.foundation.layout.asPaddingValues
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -112,8 +115,9 @@ fun NewsListScreen(onBack: () -> Unit, onOpen: (String) -> Unit) {
                 PullToRefreshBox(
                     isRefreshing = refreshing,
                     onRefresh = { haptics.medium(); scope.launch { refreshing = true; vm.loadNews(FetchMode.Refresh); refreshing = false } },
-                    modifier = Modifier.padding(padding)) {
+                    modifier = Modifier.padding(top = padding.calculateTopPadding())) {
                     LazyColumn(Modifier.fillMaxSize().readableWidth().padding(horizontal = 20.dp),
+                               contentPadding = WindowInsets.navigationBars.asPaddingValues(),
                                verticalArrangement = Arrangement.spacedBy(12.dp)) {
                         items(list, key = { it.url }) { md -> NewsCard(md, Modifier.testTag("news.row")) { onOpen(md.url) } }
                         item { Spacer(Modifier.height(16.dp)) }
@@ -219,7 +223,7 @@ fun NewsDetailScreen(url: String, onBack: () -> Unit, onOpen: (String) -> Unit) 
                 IconButton(onClick = { haptics.light(); onBack() }) { Icon(Icons.AutoMirrored.Filled.ArrowBack, stringResource(R.string.a11y_back)) }
             },
             actions = {
-                IconButton(onClick = { haptics.light(); context.startActivity(Intent(Intent.ACTION_VIEW, url.toUri())) }) {
+                IconButton(onClick = { haptics.light(); openInApp(context, url) }) {
                     Icon(Icons.AutoMirrored.Filled.OpenInNew, stringResource(R.string.open_in_browser))
                 }
             })
@@ -229,7 +233,8 @@ fun NewsDetailScreen(url: String, onBack: () -> Unit, onOpen: (String) -> Unit) 
             md == null -> Box(Modifier.fillMaxSize().padding(padding), Alignment.Center) {
                 Text(stringResource(R.string.no_news_available))
             }
-            a != null -> LazyColumn(Modifier.padding(padding).readableWidth().padding(horizontal = 20.dp).testTag("news.detail")) {
+            a != null -> LazyColumn(Modifier.padding(top = padding.calculateTopPadding()).readableWidth().padding(horizontal = 20.dp).testTag("news.detail"),
+                                    contentPadding = WindowInsets.navigationBars.asPaddingValues()) {
                 item {
                     Text(md.title, style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold,
                          modifier = Modifier.semantics { heading() })
@@ -274,7 +279,7 @@ fun NewsDetailScreen(url: String, onBack: () -> Unit, onOpen: (String) -> Unit) 
                         ActionRow(title = title, subtitle = dl["size"] as? String,
                                   icon = fileTypeIcon(dl["file_type"] as? String), favicon = null,
                                   trailing = Icons.Outlined.Download,
-                                  onClick = { context.startActivity(Intent(Intent.ACTION_VIEW, target.toUri())) })
+                                  onClick = { openInApp(context, target) })
                     }
                     a.standaloneLinks.forEach { link ->
                         val title = link["text"] ?: return@forEach
@@ -283,7 +288,7 @@ fun NewsDetailScreen(url: String, onBack: () -> Unit, onOpen: (String) -> Unit) 
                         ActionRow(title = title, subtitle = host, icon = Icons.Outlined.Link,
                                   favicon = host?.let { "https://www.google.com/s2/favicons?sz=64&domain=$it" },
                                   trailing = Icons.AutoMirrored.Filled.OpenInNew,
-                                  onClick = { context.startActivity(Intent(Intent.ACTION_VIEW, target.toUri())) })
+                                  onClick = { openInApp(context, target) })
                     }
                     // "Weitere Neuigkeiten" — recommended articles (parity)
                     val others = vm.newsList?.filter { it.url != md.url }?.take(3) ?: emptyList()

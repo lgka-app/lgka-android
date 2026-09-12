@@ -304,7 +304,7 @@ fun WeatherScreen(onBack: () -> Unit) {
                 Text(stringResource(R.string.weather_attribution), color = Color.White.copy(alpha = 0.8f),
                      style = MaterialTheme.typography.labelMedium,
                      modifier = Modifier.align(Alignment.CenterHorizontally).heightIn(min = 48.dp)
-                         .clickable { ctx.startActivity(android.content.Intent(android.content.Intent.ACTION_VIEW, "https://open-meteo.com/".toUri())) }
+                         .clickable { openInApp(ctx, "https://open-meteo.com/") }
                          .padding(vertical = 14.dp))
                 Spacer(Modifier.height(24.dp))
             }
