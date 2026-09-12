@@ -26,7 +26,7 @@ jobs:
       - uses: android-actions/setup-android@v3
         with:
           packages: platform-tools platforms;android-37.0 build-tools;37.0.0
-      - uses: gradle/actions/setup-gradle@v5
+      - uses: gradle/actions/setup-gradle@v6
       - name: Build and test
         run: ./gradlew build --no-daemon
         env:
