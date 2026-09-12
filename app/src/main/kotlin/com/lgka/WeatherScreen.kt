@@ -291,7 +291,7 @@ fun WeatherScreen(onBack: () -> Unit) {
         if (w != null) {
             SkyBox(code = preview?.first ?: w.code, isDay = preview?.second ?: w.isDay,
                    particles = true, modifier = Modifier.matchParentSize())
-            Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).safeDrawingPadding().padding(horizontal = 16.dp)) {
+            Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).safeDrawingPadding().readableWidth().padding(horizontal = 16.dp)) {
                 Spacer(Modifier.height(56.dp))
                 Hero(w)
                 Spacer(Modifier.height(20.dp))

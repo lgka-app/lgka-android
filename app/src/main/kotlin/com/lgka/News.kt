@@ -6,6 +6,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -85,7 +86,7 @@ fun NewsListScreen(onBack: () -> Unit, onOpen: (String) -> Unit) {
                     isRefreshing = refreshing,
                     onRefresh = { scope.launch { refreshing = true; vm.loadNews(FetchMode.Refresh); refreshing = false } },
                     modifier = Modifier.padding(padding)) {
-                    LazyColumn(Modifier.fillMaxSize().padding(horizontal = 20.dp),
+                    LazyColumn(Modifier.fillMaxSize().readableWidth().padding(horizontal = 20.dp),
                                verticalArrangement = Arrangement.spacedBy(12.dp)) {
                         items(list, key = { it.url }) { md -> NewsCard(md, Modifier.testTag("news.row")) { onOpen(md.url) } }
                         item { Spacer(Modifier.height(16.dp)) }
@@ -132,13 +133,17 @@ private fun NewsCard(md: News.Metadata, modifier: Modifier = Modifier, onClick: 
 @Composable
 private fun MetaRow(md: News.Metadata) {
     val color = MaterialTheme.colorScheme.onSurfaceVariant
-    Row(horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.CenterVertically) {
-        Icon(Icons.Outlined.Person, null, Modifier.size(14.dp), tint = color)
-        Text(md.author, style = MaterialTheme.typography.bodySmall, color = color)
-        Icon(Icons.Outlined.CalendarToday, null, Modifier.size(14.dp), tint = color)
-        Text(md.createdDate, style = MaterialTheme.typography.bodySmall, color = color)
-        Icon(Icons.Outlined.Visibility, null, Modifier.size(14.dp), tint = color)
-        Text("${md.views} " + stringResource(R.string.views), style = MaterialTheme.typography.bodySmall, color = color)
+    // Each icon+text pair wraps as a unit — a view count must never break mid-word.
+    @Composable fun Item(icon: androidx.compose.ui.graphics.vector.ImageVector, text: String) {
+        Row(horizontalArrangement = Arrangement.spacedBy(4.dp), verticalAlignment = Alignment.CenterVertically) {
+            Icon(icon, null, Modifier.size(14.dp), tint = color)
+            Text(text, style = MaterialTheme.typography.bodySmall, color = color, maxLines = 1, softWrap = false)
+        }
+    }
+    FlowRow(horizontalArrangement = Arrangement.spacedBy(12.dp), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+        Item(Icons.Outlined.Person, md.author)
+        Item(Icons.Outlined.CalendarToday, md.createdDate)
+        Item(Icons.Outlined.Visibility, "${md.views} " + stringResource(R.string.views))
     }
 }
 
@@ -173,7 +178,7 @@ fun NewsDetailScreen(url: String, onBack: () -> Unit, onOpen: (String) -> Unit) 
             md == null -> Box(Modifier.fillMaxSize().padding(padding), Alignment.Center) {
                 Text(stringResource(R.string.no_news_available))
             }
-            a != null -> LazyColumn(Modifier.padding(padding).padding(horizontal = 20.dp)) {
+            a != null -> LazyColumn(Modifier.padding(padding).readableWidth().padding(horizontal = 20.dp).testTag("news.detail")) {
                 item {
                     Text(md.title, style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold,
                          modifier = Modifier.semantics { heading() })

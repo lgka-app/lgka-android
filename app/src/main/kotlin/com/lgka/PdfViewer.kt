@@ -45,6 +45,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.graphicsLayer
@@ -279,6 +280,6 @@ private fun PdfPage(pages: PdfPages, index: Int, widthPx: Int) {
     val label = stringResource(R.string.a11y_page, index + 1)
     val ratio = pages.aspectRatios.getOrNull(index) ?: 0.7f
     Box(Modifier.fillMaxWidth().aspectRatio(ratio).padding(bottom = 4.dp)) {
-        bitmap?.let { Image(it.asImageBitmap(), label, modifier = Modifier.fillMaxSize()) }
+        bitmap?.let { Image(it.asImageBitmap(), label, modifier = Modifier.fillMaxSize().testTag("plan.page")) }
     }
 }

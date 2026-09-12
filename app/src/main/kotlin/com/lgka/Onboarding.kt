@@ -93,7 +93,7 @@ fun OnboardingFlow() {
 @Composable
 private fun OnboardingScaffold(button: String, onContinue: () -> Unit, content: @Composable ColumnScope.() -> Unit) {
     Surface(Modifier.fillMaxSize()) {
-        Column(Modifier.fillMaxSize().safeDrawingPadding().padding(24.dp)) {
+        Column(Modifier.fillMaxSize().safeDrawingPadding().readableWidth(560.dp).padding(24.dp)) {
             Column(Modifier.weight(1f), horizontalAlignment = Alignment.CenterHorizontally, content = content)
             Button(onClick = onContinue, modifier = Modifier.fillMaxWidth().heightIn(min = 52.dp).testTag("onboarding.continue"),
                    shape = RoundedCornerShape(16.dp)) {
@@ -285,7 +285,7 @@ fun AuthScreen() {
 
     Surface(Modifier.fillMaxSize()) {
         Column(
-            Modifier.fillMaxSize().safeDrawingPadding().padding(24.dp),
+            Modifier.fillMaxSize().safeDrawingPadding().readableWidth(560.dp).padding(24.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Center) {
             Text(stringResource(R.string.auth_title), style = MaterialTheme.typography.headlineMedium,

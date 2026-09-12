@@ -2,6 +2,9 @@ package com.lgka
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
+import androidx.compose.ui.unit.Dp
+import androidx.compose.foundation.layout.wrapContentWidth
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.RowScope
@@ -129,3 +132,11 @@ fun ErrorState(message: String, onRetry: () -> Unit, modifier: Modifier = Modifi
 
 @Composable
 fun cardColors() = CardDefaults.cardColors()
+
+/**
+ * Layout basics: on large screens (tablets, landscape) content stays in a readable
+ * centred column instead of stretching edge to edge. Phones are narrower than the
+ * limit, so they are unaffected.
+ */
+fun Modifier.readableWidth(max: Dp = 760.dp): Modifier =
+    fillMaxWidth().wrapContentWidth(Alignment.CenterHorizontally).widthIn(max = max).fillMaxWidth()

@@ -121,7 +121,7 @@ fun HomeScreen(onNavigate: (Route) -> Unit) {
             },
             modifier = Modifier.padding(padding)) {
             LazyColumn(
-                Modifier.fillMaxSize().padding(horizontal = 20.dp),
+                Modifier.fillMaxSize().readableWidth().padding(horizontal = 20.dp),
                 verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 item { WeatherRow { onNavigate(WeatherRoute) } }
                 item { SectionHeader(stringResource(R.string.substitution_plan)) }
@@ -406,7 +406,7 @@ fun EventsColumn() {
         Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
             vm.events.take(4).forEach { event ->
                 val subtitle = eventSubtitle(event)
-                HomeCard(modifier = Modifier.semantics(mergeDescendants = true) {
+                HomeCard(modifier = Modifier.testTag("home.event").semantics(mergeDescendants = true) {
                     contentDescription = "$subtitle: ${event.title}"
                 }) {
                     DateTile(event.date)
