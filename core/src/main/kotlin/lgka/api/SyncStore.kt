@@ -55,7 +55,7 @@ class SyncStore(val dir: File) {
     fun pdfFile(sha256: String): File? = File(pdfDir, "$sha256.pdf").takeIf { it.length() > 0 }
 
     /** Stores PDF bytes fetched separately (payload without inline bytes). */
-    fun putPdf(sha256: String, bytes: ByteArray): File = File(pdfDir, "$sha256.pdf").also { it.writeBytes(bytes) }
+    fun putPdf(sha256: String, bytes: ByteArray): File = File(pdfDir, "$sha256.pdf").also { writeAtomically(it, bytes) }
 
     /**
      * Applies a sync response: `updated` payloads are persisted (PDFs decoded to
@@ -98,11 +98,18 @@ class SyncStore(val dir: File) {
     private fun put(r: Resource, hash: String, updatedAt: String, sourceUpdatedAt: String?, data: JsonElement) {
         val stripped = extractPdfs(data)
         val rec = Record(hash, updatedAt, sourceUpdatedAt, stripped)
-        val target = file(r)
-        val tmp = File(dir, "${r.key}.json.tmp")
-        tmp.writeText(ApiJson.encodeToString(Record.serializer(), rec))
+        writeAtomically(file(r), ApiJson.encodeToString(Record.serializer(), rec).toByteArray())
+    }
+
+    /**
+     * Temp file in [dir] (outside `pdf/`, so [gcPdfs] never sees it) plus rename: an
+     * interrupted write never leaves a truncated file that [pdfFile] would hand out.
+     */
+    private fun writeAtomically(target: File, bytes: ByteArray) {
+        val tmp = File(dir, "${target.name}.tmp")
+        tmp.writeBytes(bytes)
         if (!tmp.renameTo(target)) {
-            target.writeText(tmp.readText())
+            target.writeBytes(bytes)
             tmp.delete()
         }
     }
@@ -127,7 +134,7 @@ class SyncStore(val dir: File) {
                 if (b64 is JsonPrimitive && b64.isString) {
                     runCatching { Base64.getDecoder().decode(b64.content) }.getOrNull()?.let { bytes ->
                         val f = File(pdfDir, "$sha.pdf")
-                        if (f.length() != bytes.size.toLong()) f.writeBytes(bytes)
+                        if (f.length() != bytes.size.toLong()) writeAtomically(f, bytes)
                     }
                 }
             }

@@ -94,6 +94,23 @@ class SyncStoreTest {
     }
 
     @Test
+    fun pdfWritesGoThroughATempFileAndLeaveNoneBehind() {
+        val store = SyncStore(Fixtures.tempDir())
+        val sha = "e".repeat(64)
+        // a write interrupted before its rename: the temp file must never be served as the PDF
+        store.dir.resolve("$sha.pdf.tmp").writeText("%PDF-1.4 trunc")
+        assertNull(store.pdfFile(sha))
+
+        store.putPdf(sha, "%PDF-1.4 complete".toByteArray())
+        assertEquals("%PDF-1.4 complete", store.pdfFile(sha)!!.readText())
+        assertFalse(store.dir.resolve("$sha.pdf.tmp").exists())
+
+        store.apply(embed())
+        assertTrue(store.dir.listFiles()!!.none { it.name.endsWith(".tmp") })
+        assertTrue(store.dir.resolve("pdf").listFiles()!!.all { it.name.endsWith(".pdf") })
+    }
+
+    @Test
     fun corruptRecordBehavesLikeNothingStored() {
         val store = SyncStore(Fixtures.tempDir())
         store.dir.resolve("events.json").writeText("{not json")
