@@ -107,7 +107,7 @@ fun KrankmeldungInfoScreen(onBack: () -> Unit, onContinue: () -> Unit) {
 @SuppressLint("SetJavaScriptEnabled")
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun WebScreen(url: String, title: String, confineToHost: String? = null, onBack: () -> Unit) {
+fun WebScreen(url: String, title: String, onBack: () -> Unit) {
     val haptics = rememberHaptics()
     val credentials = LocalContainer.current.credentials
     var progress by remember { mutableIntStateOf(0) }
@@ -130,14 +130,13 @@ fun WebScreen(url: String, title: String, confineToHost: String? = null, onBack:
                         settings.userAgentString = AppInfo.userAgent
                         CookieManager.getInstance().removeAllCookies(null)
                         webViewClient = object : WebViewClient() {
-                            // webview_screen parity: external links -> browser
+                            // mailto:, tel: and other non-web links (the legal notice has an address) go to
+                            // the system, like LocalUriHandler in MainNav; the WebView would show an error page.
                             override fun shouldOverrideUrlLoading(view: WebView?, request: WebResourceRequest?): Boolean {
                                 val target = request?.url ?: return false
-                                if (confineToHost != null && !isConfined(target.host, confineToHost)) {
-                                    context.startActivity(Intent(Intent.ACTION_VIEW, target))
-                                    return true
-                                }
-                                return false
+                                if (!request.isForMainFrame || target.scheme == "http" || target.scheme == "https") return false
+                                runCatching { context.startActivity(Intent(Intent.ACTION_VIEW, target)) }
+                                return true
                             }
                             override fun onReceivedError(view: WebView?, request: WebResourceRequest?, error: WebResourceError?) {
                                 if (request?.isForMainFrame == true) failed = true
@@ -180,7 +179,3 @@ fun WebScreen(url: String, title: String, confineToHost: String? = null, onBack:
         }
     }
 }
-
-/** Host suffix match: "lgka-online.de" confines to that domain and its subdomains only. */
-fun isConfined(host: String?, confined: String): Boolean =
-    host != null && (host == confined || host.endsWith(".$confined"))
