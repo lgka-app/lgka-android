@@ -1,6 +1,6 @@
 # LGKA+ Android release lanes, run by .github/workflows/release.yml.
 #
-#   bundle exec fastlane android release    # signed AAB → Play internal track + store listing
+#   bundle exec fastlane android release    # signed AAB with release notes → Play internal track (draft)
 #   bundle exec fastlane android metadata   # store texts and screenshots only
 #
 # Needs PLAY_SERVICE_ACCOUNT_JSON and, for release, the ANDROID_KEY* variables the
@@ -45,10 +45,10 @@ platform :android do
       skip_upload_apk: true, # the CI gate's `gradlew build` leaves APKs next to the bundle
       changes_not_sent_for_review: true, # the owner sends changes for review in Play Console
       version_name: version,
-      # Listing changes committed through the API go live on the public page,
-      # so the release lane never touches them; see the metadata lane.
+      # Release notes come from metadata/android/<locale>/changelogs/default.txt;
+      # listing texts and images are the metadata lane's job.
+      metadata_path: File.join(__dir__, "metadata", "android"),
       skip_upload_metadata: true,
-      skip_upload_changelogs: true,
       skip_upload_images: true,
       skip_upload_screenshots: true,
     )
