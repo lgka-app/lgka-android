@@ -152,7 +152,9 @@ fun WebScreen(url: String, title: String, confineToHost: String? = null, onBack:
                         }
                         loadUrl(url)
                     }
-                }, modifier = Modifier.fillMaxSize())
+                }, modifier = Modifier.fillMaxSize(),
+                    // a detached WebView keeps its renderer and JS timers alive until destroyed
+                    onRelease = { it.destroy() })
             }
             if (failed) {
                 Column(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.surface).padding(32.dp),
