@@ -43,6 +43,7 @@ platform :android do
       release_status: "draft",
       aab: lane_context[SharedValues::GRADLE_AAB_OUTPUT_PATH],
       skip_upload_apk: true, # the CI gate's `gradlew build` leaves APKs next to the bundle
+      changes_not_sent_for_review: true, # the owner sends changes for review in Play Console
       version_name: version,
       # Listing changes committed through the API go live on the public page,
       # so the release lane never touches them; see the metadata lane.
@@ -70,6 +71,8 @@ platform :android do
       skip_upload_apk: true,
       skip_upload_changelogs: true,
       sync_image_upload: true,
+      # Stays in "Changes not sent for review" until the owner sends it in Play Console.
+      changes_not_sent_for_review: true,
     )
   end
 end
