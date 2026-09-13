@@ -146,7 +146,9 @@ class HomeViewModel(private val container: AppContainer) : ViewModel() {
                 val response = api.sync(login, hashes, only = only, embed = Embed.AllPdf)
                 val statuses = withContext(Dispatchers.IO) { store.apply(response) }
                 if (statuses.values.any { it == SyncStatus.Updated }) loadFromDisk()
-                unavailable = statuses.filterValues { it == SyncStatus.Unavailable }.keys
+                val nowUnavailable = statuses.filterValues { it == SyncStatus.Unavailable }.keys
+                // A per-section retry only reports its own resources; the others keep their state.
+                unavailable = if (only == null) nowUnavailable else unavailable - only + nowUnavailable
                 syncFailed = false
                 lastSyncAt = System.currentTimeMillis()
             } catch (e: UnauthorizedException) {
