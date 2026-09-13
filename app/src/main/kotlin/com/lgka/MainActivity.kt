@@ -126,7 +126,9 @@ fun MainNav() {
     val backStack = rememberNavBackStack(HomeRoute)
     val haptics = rememberHaptics()
     val context = LocalContext.current
-    val pop: () -> Unit = { haptics.light(); backStack.removeLastOrNull() }
+    // A second tap on a back arrow while the pop transition still shows the old screen
+    // would remove HomeRoute too, and NavDisplay crashes on an empty back stack.
+    val pop: () -> Unit = { if (backStack.size > 1) { haptics.light(); backStack.removeLastOrNull() } }
     // Every http(s) link — Compose text links included — opens the app's own web screen;
     // anything else (mailto, tel, files) goes to the system. Only the Krankmeldung form
     // deliberately opens the user's real browser.
@@ -145,7 +147,7 @@ fun MainNav() {
     CompositionLocalProvider(LocalUriHandler provides openWeb) {
     NavDisplay(
         backStack = backStack,
-        onBack = { haptics.light(); backStack.removeLastOrNull() },
+        onBack = pop,
         transitionSpec = { iosPush() },
         popTransitionSpec = { iosPop() },
         predictivePopTransitionSpec = { iosPop() },
@@ -160,7 +162,7 @@ fun MainNav() {
             }
             entry<KrankmeldungInfoRoute> {
                 KrankmeldungInfoScreen(onBack = pop, onContinue = {
-                    backStack.removeLastOrNull()
+                    if (backStack.size > 1) backStack.removeLastOrNull()
                     openKrankmeldungForm(context)
                 })
             }
