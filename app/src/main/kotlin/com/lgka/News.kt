@@ -121,7 +121,8 @@ fun NewsListScreen(onBack: () -> Unit, onOpen: (String) -> Unit) {
                     LazyColumn(Modifier.fillMaxSize().readableWidth().padding(horizontal = 20.dp),
                                contentPadding = WindowInsets.navigationBars.asPaddingValues(),
                                verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                        items(list, key = { it.url }) { md -> NewsCard(md, Modifier.testTag("news.row")) { onOpen(md.url) } }
+                        // lazy keys must be unique: an article listed twice by the school site would crash the list
+                        items(list.distinctBy { it.url }, key = { it.url }) { md -> NewsCard(md, Modifier.testTag("news.row")) { onOpen(md.url) } }
                         item { Spacer(Modifier.height(16.dp)) }
                     }
                 }
