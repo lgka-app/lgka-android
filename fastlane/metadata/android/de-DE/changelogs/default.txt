@@ -1,0 +1,4 @@
+LGKA+ 3.0 wurde von Grund auf neu entwickelt – als native Android-App.
+• Deutlich schneller: Vertretungsplan, Stundenplan, News und Termine laden in Sekundenbruchteilen
+• Neues Material-3-Design
+• Viele kleine Verbesserungen und Fehlerbehebungen

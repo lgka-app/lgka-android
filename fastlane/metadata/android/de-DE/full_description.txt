@@ -1,0 +1,5 @@
+LGKA+ – die App fürs Lessing-Gymnasium Karlsruhe
+
+Alles an einem Ort: Vertretungsplan, Stundenplan, Schulnews, Schulveranstaltungen, Krankmeldung und aktuelle Wetterdaten.
+Die Bedienung ist klar und einfach – entwickelt von einem Schüler für alle Schülerinnen und Schüler.
+Anmeldedaten werden nur einmal eingegeben und bleiben dauerhaft gespeichert.
