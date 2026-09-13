@@ -18,6 +18,8 @@ TRACK   = ENV.fetch("PLAY_TRACK", "internal")
 LOCALES = { "de" => "de-DE", "en" => "en-US" }.freeze
 # Screenshot form factor → supply image folder.
 IMAGE_DIRS = { "phone" => "phoneScreenshots", "tablet" => "tenInchScreenshots" }.freeze
+# The only screenshots that go to the store, in this order.
+STORE_SHOTS = %w[01_welcome.png 02_home.png 03_weather.png 04_news.png].freeze
 
 platform :android do
   desc "Build the signed AAB, upload it to the internal track, update the store listing"
@@ -111,8 +113,8 @@ def stage_metadata
       target = File.join(listing, "images", dir)
       FileUtils.rm_rf(target)
       FileUtils.mkdir_p(target)
-      Dir.glob(File.join(ROOT, "app_store_assets", "screenshots", folder, "android", form, THEME, "*.png")).sort.each do |png|
-        FileUtils.cp(png, target)
+      STORE_SHOTS.each do |name|
+        FileUtils.cp(File.join(ROOT, "app_store_assets", "screenshots", folder, "android", form, THEME, name), target)
       end
     end
   end
