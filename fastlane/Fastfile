@@ -42,6 +42,7 @@ platform :android do
       # Draft only: nothing reaches testers or users until it is rolled out by hand in Play Console.
       release_status: "draft",
       aab: lane_context[SharedValues::GRADLE_AAB_OUTPUT_PATH],
+      skip_upload_apk: true, # the CI gate's `gradlew build` leaves APKs next to the bundle
       version_name: version,
       # Listing changes committed through the API go live on the public page,
       # so the release lane never touches them; see the metadata lane.
