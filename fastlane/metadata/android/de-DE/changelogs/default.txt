@@ -6,4 +6,4 @@ News-Artikel mit Fotoansicht und passenden weiteren Artikeln
 Deine Zugangsdaten werden verschlüsselt auf dem Gerät gespeichert
 
 Mehr Infos:
-github.com/luka-loehr/LGKA/releases/tag/v3.0.0
+github.com/lgka-app/lgka-android/releases/tag/v3.0.0
