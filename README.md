@@ -1,4 +1,4 @@
-![LGKA+ Banner](https://raw.githubusercontent.com/luka-loehr/LGKA/main/app_store_assets/banners/lgka_banner_1024x500.png)
+![LGKA+ for Android](docs/assets/banner.png)
 
 # LGKA+ – The app for Lessing-Gymnasium Karlsruhe
 
