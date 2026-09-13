@@ -6,3 +6,9 @@ build/
 local.properties
 .kotlin/
 report.html
+
+# fastlane
+fastlane/report.xml
+fastlane/README.md
+vendor/bundle/
+.bundle/

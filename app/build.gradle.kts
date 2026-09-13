@@ -14,13 +14,30 @@ android {
         applicationId = "com.lgka" // same as the shipping Flutter app
         minSdk = 29
         targetSdk = 37
-        versionCode = 310
-        versionName = "3.0.0"
+        // The release workflow passes the next free Play version code (fastlane/Fastfile).
+        versionCode = providers.gradleProperty("lgka.versionCode").orNull?.toInt() ?: 310
+        versionName = providers.gradleProperty("lgka.versionName").orNull ?: "3.0.0"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+    }
+
+    // Play upload key (alias "upload", 1Password LGKA+/lgka-upload-keystore), provided by
+    // .github/workflows/release.yml. Without ANDROID_KEYSTORE_PATH release builds stay unsigned.
+    val keystorePath = providers.environmentVariable("ANDROID_KEYSTORE_PATH").orNull
+    signingConfigs {
+        if (keystorePath != null) {
+            create("release") {
+                storeFile = file(keystorePath)
+                storeType = "pkcs12"
+                storePassword = providers.environmentVariable("ANDROID_KEYSTORE_PASSWORD").get()
+                keyAlias = providers.environmentVariable("ANDROID_KEY_ALIAS").get()
+                keyPassword = providers.environmentVariable("ANDROID_KEY_PASSWORD").get()
+            }
+        }
     }
 
     buildTypes {
         release {
+            if (keystorePath != null) signingConfig = signingConfigs.getByName("release")
             isMinifyEnabled = true
             isShrinkResources = true
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")

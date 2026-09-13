@@ -1,0 +1,116 @@
+# LGKA+ Android release lanes, run by .github/workflows/release.yml.
+#
+#   bundle exec fastlane android release    # signed AAB → Play internal track + store listing
+#   bundle exec fastlane android metadata   # store texts and screenshots only
+#
+# Needs PLAY_SERVICE_ACCOUNT_JSON and, for release, the ANDROID_KEY* variables the
+# Gradle signing config reads. Promotion to production and review stay manual.
+
+require "fileutils"
+
+default_platform(:android)
+
+PACKAGE = "com.lgka"
+ROOT    = File.expand_path("..", __dir__)
+THEME   = ENV.fetch("SCREENSHOT_THEME", "dark")
+TRACK   = ENV.fetch("PLAY_TRACK", "internal")
+# Screenshot folders in app_store_assets → Play listing locales.
+LOCALES = { "de" => "de-DE", "en" => "en-US" }.freeze
+# Screenshot form factor → supply image folder.
+IMAGE_DIRS = { "phone" => "phoneScreenshots", "tablet" => "tenInchScreenshots" }.freeze
+
+platform :android do
+  desc "Build the signed AAB, upload it to the internal track, update the store listing"
+  lane :release do
+    version = version_name
+    # Continues after every code on any track (the Flutter app used up to ~300).
+    code = %w[internal alpha beta production].flat_map { |track| track_codes(track) }.max.to_i + 1
+    code = 311 if code < 311
+    UI.message("Releasing LGKA+ #{version} (#{code}) to #{TRACK}")
+
+    gradle(
+      project_dir: ROOT,
+      task: "bundle",
+      build_type: "Release",
+      flags: "--no-daemon",
+      properties: { "lgka.versionCode" => code, "lgka.versionName" => version },
+    )
+    upload_to_play_store(
+      json_key_data: ENV.fetch("PLAY_SERVICE_ACCOUNT_JSON"),
+      package_name: PACKAGE,
+      track: TRACK,
+      # Draft only: nothing reaches testers or users until it is rolled out by hand in Play Console.
+      release_status: "draft",
+      aab: lane_context[SharedValues::GRADLE_AAB_OUTPUT_PATH],
+      version_name: version,
+      # Listing changes committed through the API go live on the public page,
+      # so the release lane never touches them; see the metadata lane.
+      skip_upload_metadata: true,
+      skip_upload_changelogs: true,
+      skip_upload_images: true,
+      skip_upload_screenshots: true,
+    )
+  end
+
+  desc "Upload store texts and screenshots (no build)"
+  lane :metadata do
+    # Without Managed Publishing, Play applies listing edits right away. The owner
+    # turns it on in Play Console (Publishing overview) and then sets the repository
+    # variable PLAY_MANAGED_PUBLISHING=true.
+    unless ENV["PLAY_MANAGED_PUBLISHING"] == "true"
+      UI.user_error!("Refusing to upload the store listing: turn on Managed Publishing in Play Console, then set PLAY_MANAGED_PUBLISHING=true")
+    end
+
+    upload_to_play_store(
+      json_key_data: ENV.fetch("PLAY_SERVICE_ACCOUNT_JSON"),
+      package_name: PACKAGE,
+      metadata_path: stage_metadata,
+      skip_upload_aab: true,
+      skip_upload_apk: true,
+      skip_upload_changelogs: true,
+      sync_image_upload: true,
+    )
+  end
+end
+
+def track_codes(track)
+  google_play_track_version_codes(
+    json_key_data: ENV.fetch("PLAY_SERVICE_ACCOUNT_JSON"),
+    package_name: PACKAGE,
+    track: track,
+  )
+rescue StandardError => e
+  UI.important("No version codes on #{track}: #{e.message}")
+  []
+end
+
+# Tag v3.1.0 → "3.1.0"; otherwise the versionName default in app/build.gradle.kts.
+def version_name
+  tag = ENV["RELEASE_VERSION"].to_s.sub(/\Av/, "")
+  return tag unless tag.empty?
+
+  File.read(File.join(ROOT, "app", "build.gradle.kts"))[/lgka\.versionName"\)\.orNull \?: "([^"]+)"/, 1]
+end
+
+# Copy the versioned texts to build/ and add the screenshots from app_store_assets,
+# so generated images never land in fastlane/metadata.
+def stage_metadata
+  out = File.join(ROOT, "build", "play_metadata")
+  FileUtils.rm_rf(out)
+  FileUtils.mkdir_p(out)
+  FileUtils.cp_r(File.join(__dir__, "metadata", "android"), out)
+  LOCALES.each do |folder, locale|
+    listing = File.join(out, "android", locale)
+    next unless Dir.exist?(listing)
+
+    IMAGE_DIRS.each do |form, dir|
+      target = File.join(listing, "images", dir)
+      FileUtils.rm_rf(target)
+      FileUtils.mkdir_p(target)
+      Dir.glob(File.join(ROOT, "app_store_assets", "screenshots", folder, "android", form, THEME, "*.png")).sort.each do |png|
+        FileUtils.cp(png, target)
+      end
+    end
+  end
+  File.join(out, "android")
+end
