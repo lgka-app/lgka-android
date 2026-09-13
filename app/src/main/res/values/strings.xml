@@ -63,7 +63,6 @@
     <string name="lets_go">Los geht\'s!</string>
     <string name="live">Live</string>
     <string name="loading">Lädt…</string>
-    <string name="loading_schedule">Lade Stundenplan…</string>
     <string name="login">Anmelden</string>
     <string name="login_password_rotated">Die Schule hat das Passwort geändert – bitte neu anmelden.</string>
     <string name="logout">Abmelden</string>

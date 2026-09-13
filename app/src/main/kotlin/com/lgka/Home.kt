@@ -32,7 +32,6 @@ import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material.icons.outlined.TableChart
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -316,7 +315,6 @@ fun ScheduleCard(onSetClass: () -> Unit, onOpen: (PdfRequest) -> Unit, onUnavail
     val vm = LocalHomeViewModel.current
     val prefs = LocalContainer.current.prefs
     val scope = rememberCoroutineScope()
-    var loading by remember { mutableStateOf(false) }
 
     if (vm.scheduleLoading) {
         SkeletonRow()
@@ -349,14 +347,13 @@ fun ScheduleCard(onSetClass: () -> Unit, onOpen: (PdfRequest) -> Unit, onUnavail
             val unavailable = stringResource(R.string.schedule_not_available, half)
             val title = stringResource(R.string.title_with_semester, className, half)
             HomeCard(
-                enabled = !loading,
                 onLongClick = onSetClass, // the iOS context menu equivalent
                 onClick = {
                     // the PDF whose class index / grades contain the class (5-10, J11, J12, a future J13, …)
                     val target = scheduleFor(cls, group) ?: return@HomeCard
                     val pdf = target.pdf
                     if (pdf == null || !target.available) { onUnavailable(unavailable); return@HomeCard }
-                    loading = true
+                    // opens straight away like the substitution cards: the PDF is already on disk
                     scope.launch {
                         try {
                             val file = vm.pdfFile(pdf.sha256, pdf.url)
@@ -364,7 +361,6 @@ fun ScheduleCard(onSetClass: () -> Unit, onOpen: (PdfRequest) -> Unit, onUnavail
                         } catch (e: Exception) {
                             onUnavailable(unavailable) // home_screen SnackBar parity
                         }
-                        loading = false
                     }
                 },
                 modifier = Modifier.testTag("home.schedule")) {
@@ -374,12 +370,8 @@ fun ScheduleCard(onSetClass: () -> Unit, onOpen: (PdfRequest) -> Unit, onUnavail
                     Text(className, fontWeight = FontWeight.SemiBold)
                     Text(half, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
-                if (loading) {
-                    val label = stringResource(R.string.loading_schedule)
-                    CircularProgressIndicator(Modifier.size(18.dp).semantics { contentDescription = label }, strokeWidth = 2.dp)
-                }
-                else Icon(Icons.AutoMirrored.Filled.ArrowForwardIos, null, Modifier.size(14.dp),
-                          tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                Icon(Icons.AutoMirrored.Filled.ArrowForwardIos, null, Modifier.size(14.dp),
+                     tint = MaterialTheme.colorScheme.onSurfaceVariant)
             }
         }
     }
