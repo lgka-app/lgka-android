@@ -31,22 +31,46 @@ class Credentials(context: Context) {
         private const val KEY_PASSWORD = "password"
     }
 
+    // load() runs on the main thread (root navigation, every sync, WebView auth); each
+    // Keystore decrypt is a binder call, so the pair is decrypted once per process.
+    private var cached: Login? = null
+    private var cacheValid = false
+
     init {
         migrateLegacy()
     }
 
+    @Synchronized
     fun load(): Login? {
+        if (!cacheValid) {
+            cached = decryptStored()
+            cacheValid = true
+        }
+        return cached
+    }
+
+    @Synchronized
+    fun save(login: Login) {
+        sp.edit {
+            putString(KEY_USER, encrypt(login.user))
+            putString(KEY_PASSWORD, encrypt(login.password))
+        }
+        cached = login
+        cacheValid = true
+    }
+
+    @Synchronized
+    fun clear() {
+        sp.edit { clear() }
+        cached = null
+        cacheValid = true
+    }
+
+    private fun decryptStored(): Login? {
         val user = decrypt(sp.getString(KEY_USER, null)) ?: return null
         val password = decrypt(sp.getString(KEY_PASSWORD, null)) ?: return null
         return Login(user, password)
     }
-
-    fun save(login: Login) = sp.edit {
-        putString(KEY_USER, encrypt(login.user))
-        putString(KEY_PASSWORD, encrypt(login.password))
-    }
-
-    fun clear() = sp.edit { clear() }
 
     /** Installs before the API switch kept the pair in plain private prefs; move it once. */
     private fun migrateLegacy() {
