@@ -47,7 +47,7 @@ platform :android do
       version_name: version,
       # Release notes come from metadata/android/<locale>/changelogs/default.txt;
       # listing texts and images are the metadata lane's job.
-      metadata_path: File.join(__dir__, "metadata", "android"),
+      metadata_path: File.join(ROOT, "fastlane", "metadata", "android"), # absolute: the gradle action changes the working directory
       skip_upload_metadata: true,
       skip_upload_images: true,
       skip_upload_screenshots: true,
