@@ -154,6 +154,7 @@ class HomeViewModel(private val container: AppContainer) : ViewModel() {
                     Log.w(TAG, "school credentials rotated; back to login (snapshot kept)")
                     container.prefs.passwordRotated = true
                     container.prefs.signOut(container.credentials)
+                    bootstrapped = false // the hub after the new login syncs right away
                 } else {
                     Log.w(TAG, "transient 401 on sync; keeping the session")
                     syncFailed = true
@@ -175,9 +176,21 @@ class HomeViewModel(private val container: AppContainer) : ViewModel() {
      * school password does NOT come through here — that path keeps the snapshot.)
      */
     fun clear() {
+        resetState()
+        // The next sign-in composes the hub again and must load and sync from scratch.
+        bootstrapped = false
+        viewModelScope.launch {
+            // A sync already past its network call would otherwise write the old login's data back.
+            syncMutex.withLock {
+                withContext(Dispatchers.IO) { store.clear() }
+                resetState()
+            }
+        }
+    }
+
+    private fun resetState() {
         substitutions = null; schedules = null; news = null; events = null; weatherData = null
         unavailable = emptySet(); syncFailed = false; lastSyncAt = 0L
-        viewModelScope.launch(Dispatchers.IO) { store.clear() }
     }
 
     /** The mirrored PDF for a resource file: from disk, else fetched once from the API. */
