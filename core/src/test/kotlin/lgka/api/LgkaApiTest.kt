@@ -113,7 +113,7 @@ class LgkaApiTest {
     @Test
     fun otherErrorsCarryTheStatus() = runTest {
         server.enqueue(MockResponse(code = 503, body = """{"error":"unavailable"}"""))
-        val e = assertFailsWith<ApiStatusException> { api().resource(login, Resource.Weather) }
+        val e = assertFailsWith<ApiStatusException> { api().sync(login, emptyMap()) }
         assertEquals(503, e.status)
     }
 

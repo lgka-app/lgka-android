@@ -110,15 +110,6 @@ class LgkaApi(
         ApiJson.decodeFromString(SyncResponse.serializer(), body)
     }
 
-    /** One resource, e.g. after a per-section retry. */
-    suspend fun resource(login: Login, resource: Resource, embed: Embed = Embed.AllPdf): ResourceEnvelope =
-        withContext(Dispatchers.IO) {
-            val url = base.resolve("/v1/${resource.key}")!!.newBuilder().apply {
-                embed.query?.let { addQueryParameter("embed", it) }
-            }.build()
-            ApiJson.decodeFromString(ResourceEnvelope.serializer(), getString(url, login))
-        }
-
     /** A mirrored PDF by its API path (`/v1/files/<sha>.pdf`) — fallback when a payload had no inline bytes. */
     suspend fun file(login: Login, path: String): ByteArray = withContext(Dispatchers.IO) {
         val req = Request.Builder().url(base.resolve(path)!!).header("Authorization", login.header).build()

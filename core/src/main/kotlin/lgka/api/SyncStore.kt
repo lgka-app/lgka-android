@@ -5,7 +5,6 @@ import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
-import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 import java.io.File
 import java.util.Base64
@@ -80,12 +79,6 @@ class SyncStore(val dir: File) {
         }
         gcPdfs()
         return out
-    }
-
-    /** Persists one full resource envelope (`GET /v1/<resource>`). */
-    fun apply(r: Resource, envelope: ResourceEnvelope) {
-        put(r, envelope.hash, envelope.updatedAt, envelope.sourceUpdatedAt, envelope.data)
-        gcPdfs()
     }
 
     fun clear() {
@@ -167,6 +160,3 @@ class SyncStore(val dir: File) {
         }
     }
 }
-
-/** Convenience: the data object of a JSON envelope element, if any. */
-fun JsonElement.dataObject(): JsonObject? = (this as? JsonObject)?.get("data")?.jsonObject
