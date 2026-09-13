@@ -34,7 +34,6 @@ import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
@@ -78,7 +77,6 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.foundation.gestures.detectTransformGestures
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.ui.text.style.TextOverflow
-import androidx.compose.ui.graphics.vector.rememberVectorPainter
 import androidx.compose.material.icons.outlined.Slideshow
 import androidx.compose.material.icons.outlined.TableChart
 import androidx.compose.material.icons.automirrored.outlined.TextSnippet
@@ -275,7 +273,7 @@ fun NewsDetailScreen(url: String, onBack: () -> Unit, onOpen: (String) -> Unit) 
                         val title = dl.title
                         val target = dl.url
                         ActionRow(title = title, subtitle = dl.size,
-                                  icon = fileTypeIcon(dl.fileType), favicon = null,
+                                  icon = fileTypeIcon(dl.fileType),
                                   trailing = Icons.Outlined.Download,
                                   onClick = { runCatching { context.startActivity(Intent(Intent.ACTION_VIEW, target.toUri())) } })
                     }
@@ -284,7 +282,7 @@ fun NewsDetailScreen(url: String, onBack: () -> Unit, onOpen: (String) -> Unit) 
                         val target = link.url
                         val host = target.toUri().host?.removePrefix("www.")
                         // no favicon service: that would send the reader's IP to a third party
-                        ActionRow(title = title, subtitle = host, icon = Icons.Outlined.Link, favicon = null,
+                        ActionRow(title = title, subtitle = host, icon = Icons.Outlined.Link,
                                   trailing = Icons.AutoMirrored.Filled.OpenInNew,
                                   onClick = { uriHandler.openUri(target) })
                     }
@@ -321,18 +319,13 @@ private fun fileTypeIcon(type: String?): androidx.compose.ui.graphics.vector.Ima
 /** A download or website row in an article (news_detail_screen `_buildDownloadButton` / link button). */
 @Composable
 private fun ActionRow(title: String, subtitle: String?, icon: androidx.compose.ui.graphics.vector.ImageVector,
-                      favicon: String?, trailing: androidx.compose.ui.graphics.vector.ImageVector, onClick: () -> Unit) {
+                      trailing: androidx.compose.ui.graphics.vector.ImageVector, onClick: () -> Unit) {
     val haptics = rememberHaptics()
     Card(onClick = { haptics.light(); onClick() }, shape = CardShape, modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp)) {
         Row(Modifier.padding(14.dp), verticalAlignment = Alignment.CenterVertically) {
             Box(Modifier.size(40.dp).background(MaterialTheme.colorScheme.primary.copy(alpha = 0.12f), RoundedCornerShape(10.dp)),
                 contentAlignment = Alignment.Center) {
-                if (favicon != null) {
-                    AsyncImage(model = favicon, contentDescription = null, modifier = Modifier.size(22.dp),
-                               error = rememberVectorPainter(icon), placeholder = rememberVectorPainter(icon))
-                } else {
-                    Icon(icon, null, tint = MaterialTheme.colorScheme.primary)
-                }
+                Icon(icon, null, tint = MaterialTheme.colorScheme.primary)
             }
             Spacer(Modifier.width(14.dp))
             Column(Modifier.weight(1f)) {

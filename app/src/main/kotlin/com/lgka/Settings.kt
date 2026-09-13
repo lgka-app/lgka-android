@@ -1,6 +1,5 @@
 package com.lgka
 
-import android.content.Intent
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -51,7 +50,6 @@ import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import androidx.core.net.toUri
 import kotlinx.coroutines.delay
 import java.time.ZoneId
 import java.time.ZonedDateTime
@@ -61,7 +59,6 @@ import kotlin.math.sin
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SettingsSheet(onBugReport: () -> Unit, onOpenWeb: (String, String) -> Unit, onDismiss: () -> Unit) {
-    val context = LocalContext.current
     val container = LocalContainer.current
     var confirmLogout by remember { mutableStateOf(false) }
     val haptics = rememberHaptics()

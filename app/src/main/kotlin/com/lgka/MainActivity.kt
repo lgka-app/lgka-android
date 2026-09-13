@@ -182,9 +182,7 @@ fun MainNav() {
 const val KRANKMELDUNG_URL = "https://drkrankmeldung.lgka-online.de"
 
 /** The Krankmeldung form is the one page that opens in the user's real browser. */
-fun openKrankmeldungForm(context: android.content.Context) {
-    runCatching { context.startActivity(Intent(Intent.ACTION_VIEW, KRANKMELDUNG_URL.toUri())) }
-}
+fun openKrankmeldungForm(context: android.content.Context) = openExternally(context, KRANKMELDUNG_URL)
 
 // ── iOS navigation transitions: the new screen slides in from the right while the
 // previous one parallaxes a third of the way out and dims; pop reverses it.

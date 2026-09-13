@@ -76,7 +76,6 @@ class HomeViewModel(private val container: AppContainer) : ViewModel() {
     val subLoading get() = substitutions == null && syncing
     val subError get() = substitutions == null && !syncing && (syncFailed || Resource.Substitutions in unavailable)
 
-    val scheduleItems: List<ScheduleItem> get() = schedules?.items ?: emptyList()
     val scheduleLoading get() = schedules == null && syncing
     val scheduleError get() = schedules == null && !syncing && (syncFailed || Resource.Schedules in unavailable)
     /** Prefer the 2. Halbjahr once published. */
@@ -114,8 +113,6 @@ class HomeViewModel(private val container: AppContainer) : ViewModel() {
 
     /** Pull-to-refresh and per-section retries. */
     suspend fun refresh(only: Set<Resource>? = null) = sync(only)
-
-    fun launch(block: suspend () -> Unit) { viewModelScope.launch { block() } }
 
     private suspend fun loadFromDisk() = withContext(Dispatchers.IO) {
         val s = store.load<Substitutions>(Resource.Substitutions)?.data
@@ -213,8 +210,6 @@ data class WeatherUi(
     /** "school" | "open-meteo" — who measured `temp` & co. */
     val source: String,
     val attribution: List<String>,
-    /** Station reading time (ISO) when the school station is the source. */
-    val stationUpdatedAt: String?,
 ) {
     data class Hour(val time: String, val temp: Double, val pop: Double, val code: Int, val isDay: Boolean)
     data class Day(val date: String, val tempMax: Double, val tempMin: Double, val pop: Double, val code: Int)
@@ -230,7 +225,6 @@ data class WeatherUi(
             daily = w.daily.map { Day(it.dt.take(10), it.tempMax, it.tempMin, it.pop, it.weatherCode) },
             source = w.source,
             attribution = w.attribution,
-            stationUpdatedAt = if (w.fromSchoolStation) w.station.updatedAt else null,
         )
     }
 }
