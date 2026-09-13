@@ -33,10 +33,6 @@ Run the tests with `./gradlew :core:test`.
 
 To sign in you need the school's substitution plan login.
 
-## Releases
-
-Push a tag like `v3.0.1` and GitHub Actions builds a signed bundle and uploads it to Google Play as a draft. Rolling it out is still done by hand.
-
 ## Feedback
 
 Found a bug? [Open an issue](https://github.com/lgka-app/lgka-android/issues) or write to [support@lgka.app](mailto:support@lgka.app).
