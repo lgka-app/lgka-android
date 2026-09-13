@@ -1,5 +1,8 @@
 package com.lgka
 
+import androidx.compose.foundation.background
+import androidx.compose.runtime.Composable
+import androidx.compose.ui.graphics.Color
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.core.view.WindowCompat
 import androidx.compose.ui.platform.LocalView
@@ -12,12 +15,11 @@ import androidx.compose.material3.MaterialExpressiveTheme
 import androidx.compose.material3.MotionScheme
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.lightColorScheme
-import androidx.compose.runtime.Composable
 import androidx.compose.runtime.staticCompositionLocalOf
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.compositeOver
 
 val LocalContainer = staticCompositionLocalOf<AppContainer> { error("AppContainer not provided") }
+
 val LocalHomeViewModel = staticCompositionLocalOf<HomeViewModel> { error("HomeViewModel not provided") }
 
 /**
@@ -101,28 +103,4 @@ fun LgkaTheme(prefs: Prefs, content: @Composable () -> Unit) {
         motionScheme = MotionScheme.expressive(),
         content = content,
     )
-}
-
-/** WMO weather code -> localized description resource. */
-fun wmoRes(code: Int): Int = when (code) {
-    0 -> R.string.wmo0; 1 -> R.string.wmo1; 2 -> R.string.wmo2; 3 -> R.string.wmo3
-    45 -> R.string.wmo45; 48 -> R.string.wmo48
-    51 -> R.string.wmo51; 53 -> R.string.wmo53; 55 -> R.string.wmo55; 56 -> R.string.wmo56; 57 -> R.string.wmo57
-    61 -> R.string.wmo61; 63 -> R.string.wmo63; 65 -> R.string.wmo65; 66 -> R.string.wmo66; 67 -> R.string.wmo67
-    71 -> R.string.wmo71; 73 -> R.string.wmo73; 75 -> R.string.wmo75; 77 -> R.string.wmo77
-    80 -> R.string.wmo80; 81 -> R.string.wmo81; 82 -> R.string.wmo82; 85 -> R.string.wmo85; 86 -> R.string.wmo86
-    95 -> R.string.wmo95; 96 -> R.string.wmo96; 99 -> R.string.wmo99
-    else -> R.string.wmo_unknown
-}
-
-/** German Untis weekday name -> localized resource; null for "weekend"/unknown. */
-fun weekdayRes(german: String?): Int? = when (german) {
-    "Montag" -> R.string.weekday_montag
-    "Dienstag" -> R.string.weekday_dienstag
-    "Mittwoch" -> R.string.weekday_mittwoch
-    "Donnerstag" -> R.string.weekday_donnerstag
-    "Freitag" -> R.string.weekday_freitag
-    "Samstag" -> R.string.weekday_samstag
-    "Sonntag" -> R.string.weekday_sonntag
-    else -> null
 }
