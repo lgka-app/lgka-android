@@ -1,4 +1,9 @@
-LGKA+ 3.0 wurde von Grund auf neu entwickelt – als native Android-App.
-• Deutlich schneller: Vertretungsplan, Stundenplan, News und Termine laden in Sekundenbruchteilen
-• Neues Material-3-Design
-• Viele kleine Verbesserungen und Fehlerbehebungen
+LGKA+ wurde komplett neu als native Android-App entwickelt
+Vertretungsplan, Stundenplan, News und Termine laden jetzt in Sekundenbruchteilen
+Neues Design mit Material 3
+Stundenplan erkennt die neuen PDFs für Klasse 5 bis 10, J11 und J12 automatisch
+News-Artikel mit Fotoansicht und passenden weiteren Artikeln
+Deine Zugangsdaten werden verschlüsselt auf dem Gerät gespeichert
+
+Mehr Infos:
+github.com/luka-loehr/LGKA/releases/tag/v3.0.0
