@@ -67,30 +67,39 @@ import androidx.core.content.FileProvider
 import androidx.core.graphics.createBitmap
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.sync.Mutex
-import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import java.io.File
+import java.io.IOException
 
 /**
  * Page renderer with lazy, width-fitted bitmaps: only visible pages are
  * rasterized, at most [cacheSize] bitmaps stay in memory, and the underlying
- * PdfRenderer (not thread-safe) is serialized behind a mutex.
+ * PdfRenderer (not thread-safe) is serialized behind the instance lock. [close]
+ * takes the same lock: closing the renderer under a page that is still rendering crashes.
  */
-class PdfPages(file: File, private val cacheSize: Int = 6) : AutoCloseable {
+class PdfPages(file: File, cacheSize: Int = 6) : AutoCloseable {
     private val fd = ParcelFileDescriptor.open(file, ParcelFileDescriptor.MODE_READ_ONLY)
-    private val renderer = PdfRenderer(fd)
-    private val mutex = Mutex()
+    private val renderer = try {
+        PdfRenderer(fd)
+    } catch (e: Exception) {
+        fd.close()
+        throw e
+    }
     private val cache = object : LruCache<Int, Bitmap>(cacheSize) {}
+    private var closed = false
     val pageCount: Int = renderer.pageCount
     /** width/height ratios so placeholders reserve the right space. */
     val aspectRatios: List<Float> = (0 until pageCount).map { i ->
         renderer.openPage(i).use { it.width.toFloat() / it.height.toFloat() }
     }
 
-    suspend fun render(index: Int, widthPx: Int): Bitmap = mutex.withLock {
+    /** Blocking: call it off the main thread. */
+    @Synchronized
+    fun render(index: Int, widthPx: Int): Bitmap {
+        check(!closed) { "PdfPages closed" }
         cache.get(index)?.takeIf { it.width == widthPx }?.let { return it }
         val bmp = renderer.openPage(index).use { page ->
             val scale = widthPx.toFloat() / page.width
@@ -100,10 +109,13 @@ class PdfPages(file: File, private val cacheSize: Int = 6) : AutoCloseable {
             target
         }
         cache.put(index, bmp)
-        bmp
+        return bmp
     }
 
+    @Synchronized
     override fun close() {
+        if (closed) return
+        closed = true
         cache.evictAll()
         renderer.close()
         fd.close()
@@ -135,6 +147,7 @@ private fun PdfViewerContent(request: PdfRequest, onClose: () -> Unit) {
     var currentSchedule by remember { mutableStateOf(request.schedule) }
     var currentIndex by remember { mutableStateOf(request.classIndex) }
     var pages by remember { mutableStateOf<PdfPages?>(null) }
+    var openFailed by remember { mutableStateOf(false) }
     var classInput by remember { mutableStateOf("") }
     var showClassBar by remember { mutableStateOf(false) }
     val toast = rememberToastState()
@@ -143,16 +156,27 @@ private fun PdfViewerContent(request: PdfRequest, onClose: () -> Unit) {
     val scope = rememberCoroutineScope()
     val focusRequester = remember { FocusRequester() }
     val connectionFailed = stringResource(R.string.server_connection_failed)
+    val errorLoading = stringResource(R.string.error_loading)
     val isSchedule = currentSchedule != null
 
     suspend fun loadPdf(file: File, targetPage: Int?) {
         val opened = withContext(Dispatchers.IO) { PdfPages(file) }
-        pages?.close()
+        val previous = pages
         pages = opened
         targetPage?.let { page -> pagerState.scrollToPage(pagerIndex(page, opened.pageCount)) }
+        // off the main thread: close() waits for a page that is still rendering
+        withContext(Dispatchers.IO) { previous?.close() }
     }
 
-    LaunchedEffect(request.file) { loadPdf(request.file, request.targetPage) }
+    LaunchedEffect(request.file) {
+        try {
+            loadPdf(request.file, request.targetPage)
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            openFailed = true // not a readable PDF: an uncaught exception here would crash the app
+        }
+    }
     DisposableEffect(Unit) { onDispose { pages?.close() } }
     LaunchedEffect(showClassBar) { if (showClassBar) focusRequester.requestFocus() }
 
@@ -186,10 +210,10 @@ private fun PdfViewerContent(request: PdfRequest, onClose: () -> Unit) {
                     val index = other.classIndex
                     val page = index[q]
                     if (page == null) { notFound(q); return@launch }
+                    loadPdf(file, page) // first: a PDF that fails to open must not replace the current one
                     currentFile = file
                     currentSchedule = other
                     currentIndex = index
-                    loadPdf(file, page)
                     applyClass(q, page)
                 } catch (e: Exception) {
                     haptics.error(); toast.show(connectionFailed)
@@ -221,14 +245,23 @@ private fun PdfViewerContent(request: PdfRequest, onClose: () -> Unit) {
                     val prefix = if (currentSchedule != null) "LGKA_Stundenplan_" else "LGKA_Vertretungsplan_"
                     val safe = currentTitle.replace(Regex("[^A-Za-z0-9]+"), "_").trim('_')
                     val shareFile = File(context.cacheDir, prefix + safe.ifEmpty { "Plan" } + ".pdf")
-                    currentFile.copyTo(shareFile, overwrite = true)
-                    val uri = FileProvider.getUriForFile(context, "com.lgka.files", shareFile)
-                    context.startActivity(Intent.createChooser(
-                        Intent(Intent.ACTION_SEND).apply {
-                            type = "application/pdf"
-                            putExtra(Intent.EXTRA_STREAM, uri)
-                            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
-                        }, resources.getString(R.string.share_pdf)))
+                    val source = currentFile
+                    scope.launch {
+                        try {
+                            withContext(Dispatchers.IO) { source.copyTo(shareFile, overwrite = true) }
+                        } catch (e: IOException) {
+                            // a sync replaced the plan while it was open and removed the old PDF
+                            haptics.error(); toast.show(errorLoading)
+                            return@launch
+                        }
+                        val uri = FileProvider.getUriForFile(context, "com.lgka.files", shareFile)
+                        context.startActivity(Intent.createChooser(
+                            Intent(Intent.ACTION_SEND).apply {
+                                type = "application/pdf"
+                                putExtra(Intent.EXTRA_STREAM, uri)
+                                addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                            }, resources.getString(R.string.share_pdf)))
+                    }
                 }) { Icon(Icons.Filled.Share, stringResource(R.string.a11y_share)) }
             })
     }) { padding ->
@@ -251,7 +284,10 @@ private fun PdfViewerContent(request: PdfRequest, onClose: () -> Unit) {
             }
             val p = pages
             if (p == null) {
-                Box(Modifier.fillMaxSize(), Alignment.Center) { Loading() }
+                Box(Modifier.fillMaxSize(), Alignment.Center) {
+                    if (openFailed) Text(stringResource(R.string.error_loading), color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    else Loading()
+                }
             } else {
                 BoxWithConstraints(Modifier.fillMaxSize()) {
                     val widthPx = constraints.maxWidth
