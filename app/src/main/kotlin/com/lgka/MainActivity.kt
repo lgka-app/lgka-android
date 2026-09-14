@@ -72,9 +72,7 @@ private fun MainActivity.applyDebugSeed(container: AppContainer) {
     }
     intent?.getStringExtra("lgka_debug_login")?.let { pair ->
         val (user, password) = pair.split(":", limit = 2).let { it[0] to it.getOrElse(1) { "" } }
-        container.credentials.save(lgka.api.Login(user, password))
-        container.prefs.isAuthenticated = true
-        container.prefs.onboardingCompleted = true
+        container.prefs.signIn(container.credentials, lgka.api.Login(user, password))
     }
     intent?.getStringExtra("lgka_debug_accent")?.let { container.prefs.accentColor = it }
     intent?.getStringExtra("lgka_debug_theme")?.let { container.prefs.themeMode = it }

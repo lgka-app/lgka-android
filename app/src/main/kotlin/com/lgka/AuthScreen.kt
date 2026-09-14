@@ -45,6 +45,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import lgka.api.verifyAndSignIn
 
 /// Login gate — the school website's credentials are verified by api.lgka.app (never locally) against the
 /// server and stored privately; the app never compares them locally.
@@ -81,28 +82,18 @@ fun AuthScreen() {
         loading = true
         message = null
         scope.launch {
-            try {
-                if (container.api.checkCredentials(pair)) {
-                    container.credentials.save(pair)
-                    loading = false
-                    flash = 2
-                    haptics.success()
-                    delay(900)
-                    container.prefs.passwordRotated = false
-                    container.prefs.isAuthenticated = true
-                    container.prefs.onboardingCompleted = true
-                } else {
-                    loading = false
-                    flash = 1; haptics.error()
-                    delay(900); flash = 0
-                }
-            } catch (e: Exception) {
-                // offline, 403/429/5xx: the same calm red, no text
-                loading = false
-                flash = 1; haptics.error()
-                delay(900); flash = 0
+            val signedIn = try {
+                verifyAndSignIn(pair,
+                    check = container.api::checkCredentials,
+                    celebrate = { loading = false; flash = 2; haptics.success(); delay(900) },
+                    commit = { container.prefs.signIn(container.credentials, it) })
             } finally {
                 loading = false
+            }
+            // rejected, offline, 403/429/5xx or a refused write: the same calm red, no text
+            if (!signedIn) {
+                flash = 1; haptics.error()
+                delay(900); flash = 0
             }
         }
     }

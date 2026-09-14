@@ -7,6 +7,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.graphics.Color
 import androidx.core.content.edit
+import lgka.api.Login
 import kotlin.properties.ReadWriteProperty
 import kotlin.reflect.KProperty
 
@@ -56,6 +57,22 @@ class Prefs(context: Context) {
      * failing every request.
      */
     fun isSignedIn(credentials: Credentials): Boolean = isAuthenticated && credentials.load() != null
+
+    /**
+     * Stores the verified pair and completes onboarding in one step (Prefs.swift signIn).
+     * Returns false, with nothing changed, when the Keystore refused the write.
+     */
+    fun signIn(credentials: Credentials, login: Login): Boolean {
+        try {
+            credentials.save(login)
+        } catch (e: Exception) {
+            return false // GeneralSecurityException / ProviderException from the Keystore
+        }
+        passwordRotated = false
+        onboardingCompleted = true
+        isAuthenticated = true
+        return true
+    }
 
     fun signOut(credentials: Credentials) {
         credentials.clear()
