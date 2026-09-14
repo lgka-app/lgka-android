@@ -32,6 +32,13 @@ class CustomPlanStore(private val file: File) {
     /** Set after scanning or editing: Home opens this plan's PDF once it is back on screen. */
     var openRequest by mutableStateOf<SavedCustomPlan?>(null)
 
+    /**
+     * The plan's PDF while it is open on Home. Kept here, not in Home's composition: Home is composed
+     * again once the back transition from the scan ends, and a PDF held in `remember` would close
+     * right after it appeared.
+     */
+    var shownPdf by mutableStateOf<PdfRequest?>(null)
+
     private fun load(): SavedCustomPlan? = try {
         if (file.exists()) PlanJson.decodeFromString(SavedCustomPlan.serializer(), file.readText()) else null
     } catch (e: Exception) {
@@ -58,6 +65,7 @@ class CustomPlanStore(private val file: File) {
         file.delete()
         saved = null
         openRequest = null
+        shownPdf = null
     }
 
     private companion object {

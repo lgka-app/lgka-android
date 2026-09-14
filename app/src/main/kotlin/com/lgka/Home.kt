@@ -62,7 +62,7 @@ fun HomeScreen(onNavigate: (Route) -> Unit) {
     androidx.compose.runtime.LaunchedEffect(customPlans.openRequest) {
         val request = customPlans.openRequest ?: return@LaunchedEffect
         customPlans.openRequest = null
-        pdf = PdfRequest(CustomPlanSource.pdfFile(context, request.plan), customTitle, null, shareName = customTitle)
+        customPlans.shownPdf = PdfRequest(CustomPlanSource.pdfFile(context, request.plan), customTitle, null, shareName = customTitle)
     }
 
     Box(Modifier.fillMaxSize()) {
@@ -125,7 +125,12 @@ fun HomeScreen(onNavigate: (Route) -> Unit) {
         // privacy / legal notice: the same path as the bug report (dismiss, then push)
         onOpenWeb = { url, title -> showSettings = false; onNavigate(WebRoute(url, title)) }) { showSettings = false }
     if (showClassDialog) ClassDialog { showClassDialog = false }
-    pdf?.let { request -> PdfViewerDialog(request) { pdf = null } }
+    (pdf ?: customPlans.shownPdf)?.let { request ->
+        PdfViewerDialog(request) {
+            pdf = null
+            customPlans.shownPdf = null
+        }
+    }
 }
 
 /** [targetPage] is a real 1-based PDF page (the API's class index). */
