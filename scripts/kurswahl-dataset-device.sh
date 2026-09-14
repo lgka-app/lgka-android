@@ -10,7 +10,8 @@ set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 DATASET="${1:-$HOME/Documents/lgka-kurswahl-dataset}"
-ADB_BIN="${ANDROID_HOME:-$HOME/Library/Android/sdk}/platform-tools/adb"
+# adb from ADB, else the one on PATH, else the SDK's platform-tools
+ADB_BIN="${ADB:-$(command -v adb || echo "${ANDROID_HOME:-$HOME/Library/Android/sdk}/platform-tools/adb")}"
 FILES=/sdcard/Android/data/com.lgka/files
 REMOTE=$FILES/dataset
 
