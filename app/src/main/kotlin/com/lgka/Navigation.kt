@@ -109,12 +109,8 @@ fun MainNav() {
             }
             entry<WebRoute> { key -> WebScreen(url = key.url, title = key.title, onBack = pop) }
             entry<CustomPlanRoute> { key ->
-                val plans = LocalContainer.current.customPlans
-                CustomPlanHost(edit = key.edit, onBack = pop, onSaved = { saved ->
-                    // back to Home, which opens the plan's PDF
-                    plans.openRequest = saved
-                    if (backStack.size > 1) backStack.removeLastOrNull()
-                })
+                // the finished plan opens into its PDF inside the flow; closing it lands on Home
+                CustomPlanHost(edit = key.edit, onBack = pop, onDone = pop)
             }
             entry<BugReportRoute> {
                 WebScreen(

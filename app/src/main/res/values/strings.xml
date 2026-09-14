@@ -191,6 +191,9 @@
     <string name="custom_pdf_shared_slots">%1$s: %2$s im Kurswahlprotokoll nicht vermerkt, alle zur selben Zeit</string>
     <string name="custom_pdf_stand">Stand %1$s</string>
     <string name="custom_pdf_title">Persönlicher Stundenplan</string>
+    <string name="custom_ready_title">Dein Stundenplan ist fertig</string>
+    <string name="custom_ready_tap">Tippe, um ihn anzusehen</string>
+    <string name="custom_ready_a11y">Vorschau deines neuen Stundenplans. Tippen zum Öffnen.</string>
     <string name="custom_reading_title">Kurswahlprotokoll wird gelesen …</string>
     <string name="custom_review_add_subject">Fach hinzufügen</string>
     <string name="custom_review_basisfach">Basisfach</string>
@@ -243,7 +246,6 @@
     <string name="scan_permission_body">Erlaube LGKA+ den Zugriff auf die Kamera, um dein Kurswahlprotokoll zu fotografieren. Das Foto wird nur auf diesem Handy gelesen.</string>
     <string name="scan_permission_settings">Einstellungen öffnen</string>
     <string name="scan_permission_title">Kamerazugriff benötigt</string>
-    <string name="scan_torch_auto">Licht automatisch eingeschaltet</string>
     <string name="subject_ast">Astronomie</string>
     <string name="subject_bk">Bildende Kunst</string>
     <string name="subject_bio">Biologie</string>

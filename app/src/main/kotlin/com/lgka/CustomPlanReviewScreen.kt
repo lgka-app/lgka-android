@@ -73,15 +73,21 @@ private val Remove = Color(0xFFFF3B30)
 
 /**
  * Pushed from Home: scanning a Kurswahlprotokoll (setup, then review) or correcting the saved courses.
- * Saving hands the plan back, and Home opens its PDF.
+ * Saving presents the finished plan, which opens into its PDF in place; closing that returns to Home.
  */
 @Composable
-fun CustomPlanHost(edit: Boolean, onBack: () -> Unit, onSaved: (SavedCustomPlan) -> Unit) {
+fun CustomPlanHost(edit: Boolean, onBack: () -> Unit, onDone: () -> Unit) {
     val vm = LocalHomeViewModel.current
     val store = LocalContainer.current.customPlans
     var reviewing by remember { mutableStateOf(DebugCustomPlan.takeDraft()) }
     var loadFailed by remember { mutableStateOf(false) }
-    val save: (SavedCustomPlan) -> Unit = { store.save(it); onSaved(it) }
+    var ready by remember { mutableStateOf<SavedCustomPlan?>(null) }
+    val save: (SavedCustomPlan) -> Unit = { store.save(it); ready = it }
+
+    ready?.let { saved ->
+        CustomPlanReadyScreen(saved, onClose = onDone)
+        return
+    }
 
     if (edit) {
         LaunchedEffect(Unit) {
@@ -104,8 +110,7 @@ fun CustomPlanHost(edit: Boolean, onBack: () -> Unit, onSaved: (SavedCustomPlan)
             BackHandler { reviewing = null }
             CustomPlanReviewScreen(draft, onBack = { reviewing = null }, onSave = save)
         } else {
-            // a plan without a single issue (scan hints included) is saved and opened at once
-            CustomPlanSetupScreen(onBack = onBack, onDraft = { if (it.plan.checks.issues.isEmpty()) save(it.saved) else reviewing = it })
+            CustomPlanSetupScreen(onBack = onBack, onDraft = { reviewing = it })
         }
     }
 }

@@ -56,15 +56,6 @@ fun HomeScreen(onNavigate: (Route) -> Unit) {
 
     androidx.compose.runtime.LaunchedEffect(Unit) { vm.bootstrap() }
 
-    // after scanning or editing the custom plan: back on Home, straight into its PDF
-    val customPlans = LocalContainer.current.customPlans
-    val customTitle = stringResource(R.string.custom_home_title)
-    androidx.compose.runtime.LaunchedEffect(customPlans.openRequest) {
-        val request = customPlans.openRequest ?: return@LaunchedEffect
-        customPlans.openRequest = null
-        customPlans.shownPdf = PdfRequest(CustomPlanSource.pdfFile(context, request.plan), customTitle, null, shareName = customTitle)
-    }
-
     Box(Modifier.fillMaxSize()) {
     Scaffold(
         topBar = {
@@ -125,12 +116,7 @@ fun HomeScreen(onNavigate: (Route) -> Unit) {
         // privacy / legal notice: the same path as the bug report (dismiss, then push)
         onOpenWeb = { url, title -> showSettings = false; onNavigate(WebRoute(url, title)) }) { showSettings = false }
     if (showClassDialog) ClassDialog { showClassDialog = false }
-    (pdf ?: customPlans.shownPdf)?.let { request ->
-        PdfViewerDialog(request) {
-            pdf = null
-            customPlans.shownPdf = null
-        }
-    }
+    pdf?.let { request -> PdfViewerDialog(request) { pdf = null } }
 }
 
 /** [targetPage] is a real 1-based PDF page (the API's class index). */

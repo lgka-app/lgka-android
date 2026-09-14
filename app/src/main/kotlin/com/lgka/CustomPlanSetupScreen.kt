@@ -218,7 +218,7 @@ fun CustomPlanSetupScreen(onBack: () -> Unit, onDraft: (CustomPlanDraft) -> Unit
             }
         }
         ResultOverlay(resultExpanded, onClose = { haptics.light(); resultExpanded = false })
-        if (reading) ReadingScreen(progress.value)
+        if (reading) ReadingScreen { progress.value }
         if (showCamera) {
             KurswahlCameraScreen(onCapture = { images -> showCamera = false; read(images) }, onCancel = { showCamera = false })
         }
@@ -376,7 +376,7 @@ private fun ResultOverlay(visible: Boolean, onClose: () -> Unit) {
 
 /** Plain full-screen progress while the photos are read and the plan is built. */
 @Composable
-private fun ReadingScreen(progress: Float) {
+private fun ReadingScreen(progress: () -> Float) {
     BackHandler {} // reading cannot be interrupted halfway
     Surface(Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
         Column(Modifier.fillMaxSize().padding(32.dp), horizontalAlignment = Alignment.CenterHorizontally,
@@ -384,7 +384,8 @@ private fun ReadingScreen(progress: Float) {
             Text(stringResource(R.string.custom_reading_title), style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.SemiBold, textAlign = TextAlign.Center)
             Spacer(Modifier.height(20.dp))
-            LinearProgressIndicator(progress = { progress }, modifier = Modifier.width(260.dp))
+            // read in the draw phase: every animation frame, no recomposition; no stop dot, no track gap
+            LinearProgressIndicator(progress = progress, modifier = Modifier.width(260.dp), gapSize = 0.dp, drawStopIndicator = {})
         }
     }
 }

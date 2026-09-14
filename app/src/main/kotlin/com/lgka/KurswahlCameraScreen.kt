@@ -1,5 +1,8 @@
 package com.lgka
 
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.ui.unit.sp
+import androidx.compose.foundation.text.TextAutoSize
 import android.Manifest
 import android.content.Intent
 import android.content.pm.PackageManager
@@ -35,7 +38,6 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.FlashlightOn
 import androidx.compose.material.icons.filled.PanTool
 import androidx.compose.material.icons.filled.PhotoCamera
 import androidx.compose.material.icons.outlined.DocumentScanner
@@ -169,14 +171,17 @@ private fun CameraContent(onCapture: (List<Bitmap>) -> Unit, onCancel: () -> Uni
         SheetOverlay(camera, accent, reduceMotion)
         Column(Modifier.fillMaxSize().systemBarsPadding().padding(top = 12.dp, bottom = 20.dp),
             horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(12.dp)) {
-            // the only control: close, top left; the photos are taken by themselves
-            Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp)) {
+            // one row: close on the left (the only control; the photos are taken by themselves), the
+            // instruction centred on the screen at the same height, kept clear of the X on both sides
+            Box(Modifier.fillMaxWidth().heightIn(min = 48.dp).padding(horizontal = 16.dp)) {
                 IconButton(onClick = { haptics.light(); onCancel() },
-                    modifier = Modifier.size(48.dp).clip(CircleShape).background(Color.Black.copy(alpha = 0.45f))) {
+                    modifier = Modifier.align(Alignment.CenterStart).size(48.dp).clip(CircleShape).background(Color.Black.copy(alpha = 0.45f))) {
                     Icon(Icons.Filled.Close, stringResource(R.string.scan_close), tint = Color.White)
                 }
+                Box(Modifier.align(Alignment.Center).padding(horizontal = 56.dp)) {
+                    InstructionPill(camera, photosTaken, accent)
+                }
             }
-            InstructionPill(camera, photosTaken, accent)
             if (hint == ScanHint.HOLD_PARALLEL && !camera.isCapturing) SpiritLevel(camera.level, accent)
         }
         Box(Modifier.fillMaxSize().background(Color.White.copy(alpha = flashAlpha)))
@@ -304,23 +309,21 @@ private fun InstructionPill(camera: KurswahlCamera, photosTaken: Int, accent: Co
     Row(Modifier.clip(CircleShape)
             .background(if (highlighted) accent.copy(alpha = 0.35f) else Color.Black.copy(alpha = 0.55f))
             .border(1.dp, Color.White.copy(alpha = 0.18f), CircleShape)
-            .padding(horizontal = 18.dp, vertical = 12.dp)
+            .padding(horizontal = 16.dp, vertical = 8.dp)
             .animateContentSize()
             .semantics(mergeDescendants = true) { liveRegion = LiveRegionMode.Polite; contentDescription = text },
         verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
         Icon(if (bursting) Icons.Filled.PanTool else hintIcon(hint), null, tint = if (highlighted) Color.White else Color.White)
         Text(if (bursting) stringResource(R.string.scan_burst_hold) else text, color = Color.White,
-            style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
+            style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold, textAlign = TextAlign.Center,
+            maxLines = 2, autoSize = TextAutoSize.StepBased(minFontSize = 12.sp, maxFontSize = 14.sp),
+            modifier = Modifier.weight(1f, fill = false))
         if (bursting) {
             Row(horizontalArrangement = Arrangement.spacedBy(5.dp)) {
                 repeat(BURST) { index ->
                     Box(Modifier.size(8.dp).clip(CircleShape).background(if (index < photosTaken) Color.White else Color.White.copy(alpha = 0.3f)))
                 }
             }
-        }
-        if (camera.torchOn) {
-            // the torch came on by itself
-            Icon(Icons.Filled.FlashlightOn, stringResource(R.string.scan_torch_auto), Modifier.size(18.dp), tint = Color(0xFFFFD60A))
         }
     }
 }

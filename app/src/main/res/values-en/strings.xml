@@ -191,6 +191,9 @@
     <string name="custom_pdf_shared_slots">%1$s: %2$s not stated on the course selection record, all at the same time</string>
     <string name="custom_pdf_stand">As of %1$s</string>
     <string name="custom_pdf_title">Personal timetable</string>
+    <string name="custom_ready_title">Your timetable is ready</string>
+    <string name="custom_ready_tap">Tap to view it</string>
+    <string name="custom_ready_a11y">Preview of your new timetable. Tap to open.</string>
     <string name="custom_reading_title">Reading your course selection record …</string>
     <string name="custom_review_add_subject">Add subject</string>
     <string name="custom_review_basisfach">Basic course</string>
@@ -243,7 +246,6 @@
     <string name="scan_permission_body">Allow LGKA+ to use the camera to photograph your course selection record. The photo is only read on this phone.</string>
     <string name="scan_permission_settings">Open Settings</string>
     <string name="scan_permission_title">Camera access needed</string>
-    <string name="scan_torch_auto">Light switched on automatically</string>
     <string name="subject_ast">Astronomy</string>
     <string name="subject_bk">Art</string>
     <string name="subject_bio">Biology</string>
