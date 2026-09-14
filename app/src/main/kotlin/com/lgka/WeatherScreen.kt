@@ -1,6 +1,21 @@
 package com.lgka
 
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.spring
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.background
+import androidx.compose.material.icons.automirrored.outlined.OpenInNew
+import androidx.compose.material.icons.filled.Info
+import androidx.compose.material.icons.outlined.Business
+import androidx.compose.material.icons.outlined.CalendarToday
+import androidx.compose.material.icons.outlined.Info
+import androidx.compose.material.icons.outlined.WbSunny
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
@@ -70,6 +85,7 @@ fun WeatherScreen(onBack: () -> Unit) {
     val scope = rememberCoroutineScope()
     var preview by remember { mutableStateOf<Pair<Int, Boolean>?>(null) }
     var menu by remember { mutableStateOf(false) }
+    var showSource by remember { mutableStateOf(false) }
     val w = vm.weather
 
     Box(Modifier.fillMaxSize().background(Color.Black)) {
@@ -115,8 +131,9 @@ fun WeatherScreen(onBack: () -> Unit) {
             }
         }
 
-        // top bar overlay
-        Row(Modifier.fillMaxWidth().safeDrawingPadding().padding(4.dp), verticalAlignment = Alignment.CenterVertically) {
+        // top bar overlay, with the data source panel under it
+        Column(Modifier.fillMaxWidth().safeDrawingPadding()) {
+        Row(Modifier.fillMaxWidth().padding(4.dp), verticalAlignment = Alignment.CenterVertically) {
             IconButton(onClick = { haptics.light(); onBack() }) { Icon(Icons.AutoMirrored.Filled.ArrowBack, stringResource(R.string.a11y_back), tint = Color.White) }
             Text(stringResource(R.string.weather_page_title), color = Color.White, fontWeight = FontWeight.SemiBold,
                  modifier = Modifier.semantics { heading() })
@@ -139,7 +156,56 @@ fun WeatherScreen(onBack: () -> Unit) {
                     }
                 }
             }
+            if (w != null) {
+                val sourceLabel = stringResource(R.string.weather_source_info)
+                IconButton(onClick = { haptics.light(); showSource = !showSource },
+                    modifier = Modifier.semantics { contentDescription = sourceLabel }) {
+                    Icon(if (showSource) Icons.Filled.Info else Icons.Outlined.Info, null, tint = Color.White)
+                }
+            }
         }
+        AnimatedVisibility(visible = w != null && showSource,
+            enter = expandVertically(spring(dampingRatio = 0.8f, stiffness = Spring.StiffnessMediumLow)) + fadeIn(),
+            exit = shrinkVertically(spring(dampingRatio = 0.8f, stiffness = Spring.StiffnessMediumLow)) + fadeOut()) {
+            w?.let { SourcePanel(it, onClose = { haptics.light(); showSource = false }) }
+        }
+        }
+    }
+}
+
+/**
+ * Where the numbers come from: the school's rooftop station (when it is healthy) or Open-Meteo for the
+ * current values, Open-Meteo for the forecast. Tapping the panel closes it.
+ */
+@Composable
+private fun SourcePanel(w: WeatherUi, onClose: () -> Unit) {
+    val context = LocalContext.current
+    val haptics = rememberHaptics()
+    Column(Modifier.readableWidth().padding(horizontal = 16.dp).padding(top = 8.dp).fillMaxWidth()
+            .background(Color.Black.copy(alpha = 0.45f), RoundedCornerShape(20.dp))
+            .clickable(onClick = onClose).padding(16.dp),
+        verticalArrangement = Arrangement.spacedBy(10.dp)) {
+        Text(stringResource(R.string.weather_source_title), color = Color.White,
+            style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
+        SourceLine(if (w.fromSchoolStation) Icons.Outlined.Business else Icons.Outlined.WbSunny,
+            stringResource(if (w.fromSchoolStation) R.string.weather_source_live_school else R.string.weather_source_current_open_meteo))
+        SourceLine(Icons.Outlined.CalendarToday, stringResource(R.string.weather_source_forecast))
+        Row(Modifier.clickable { haptics.light(); openExternally(context, "https://open-meteo.com/") }.padding(vertical = 4.dp),
+            verticalAlignment = Alignment.CenterVertically) {
+            Icon(Icons.AutoMirrored.Outlined.OpenInNew, null, Modifier.size(18.dp), tint = Color.White)
+            Spacer(Modifier.width(10.dp))
+            Text("open-meteo.com", color = Color.White, style = MaterialTheme.typography.bodySmall,
+                textDecoration = TextDecoration.Underline)
+        }
+    }
+}
+
+@Composable
+private fun SourceLine(icon: ImageVector, text: String) {
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        Icon(icon, null, Modifier.size(18.dp), tint = Color.White)
+        Spacer(Modifier.width(10.dp))
+        Text(text, color = Color.White, style = MaterialTheme.typography.bodySmall)
     }
 }
 

@@ -90,6 +90,8 @@
     <string name="set_class_title">Klasse eingeben</string>
     <string name="settings">Einstellungen</string>
     <string name="settings_section_appearance">DARSTELLUNG</string>
+    <string name="settings_language">Sprache</string>
+    <string name="settings_language_system">Systemsprache</string>
     <string name="settings_section_more">MEHR</string>
     <string name="share_pdf">PDF teilen</string>
     <string name="substitution_plan">Vertretungsplan</string>
@@ -112,7 +114,12 @@
     <string name="weather_source_school">Aktuelle Werte von der Wetterstation auf dem Schuldach</string>
     <string name="weather_data_not_available">Wetterdaten nicht verfügbar</string>
     <string name="weather_humidity_short">Luftfeuchte</string>
-    <string name="weather_page_title">Wetter Karlsruhe</string>
+    <string name="weather_page_title">Wetter</string>
+    <string name="weather_source_info">Datenquelle</string>
+    <string name="weather_source_title">Woher die Wetterdaten kommen</string>
+    <string name="weather_source_live_school">Live von der Wetterstation auf dem Schuldach</string>
+    <string name="weather_source_current_open_meteo">Aktuelle Werte von Open-Meteo</string>
+    <string name="weather_source_forecast">Vorhersage von Open-Meteo</string>
     <string name="weather_wind_short">Wind</string>
     <string name="weekday_dienstag">Dienstag</string>
     <string name="weekday_donnerstag">Donnerstag</string>
@@ -158,4 +165,111 @@
         <item quantity="one">1 Vertretung</item>
         <item quantity="other">%d Vertretungen</item>
     </plurals>
+
+    <!-- custom J11/J12 timetable (texts shared with the iOS app) -->
+    <string name="custom_error_generic">Das hat nicht geklappt. Bitte versuch es noch einmal.</string>
+    <string name="custom_error_no_plan">Die Schule hat noch keinen J11/J12-Stundenplan veröffentlicht.</string>
+    <string name="custom_error_not_a_sheet">Das sieht nicht wie ein Kurswahlprotokoll aus. Versuch es mit einem scharfen Foto des ganzen Blatts.</string>
+    <string name="custom_home_create">Eigenen Stundenplan erstellen</string>
+    <string name="custom_home_create_subtitle">Kurswahlprotokoll scannen</string>
+    <string name="custom_home_subtitle" tools:ignore="PluralsCandidate">%1$s · %2$d Wochenstunden</string>
+    <string name="custom_home_title">Mein Stundenplan</string>
+    <string name="custom_issue_ambiguous">%1$s: mehrere Kurse möglich (%2$s)</string>
+    <string name="custom_issue_conflict">%1$s liegen gleichzeitig</string>
+    <string name="custom_issue_grade">Das Kurswahlprotokoll gehört zu einem anderen Jahrgang.</string>
+    <string name="custom_issue_hours">%1$s: Stunden passen nicht zum Kurswahlprotokoll</string>
+    <string name="custom_issue_inferred">%1$s: Stunden im Foto nicht lesbar, aus dem Kurswahlprotokoll ergänzt – bitte prüfen</string>
+    <string name="custom_issue_not_in_plan">%1$s: Kurs nicht im Stundenplan gefunden</string>
+    <string name="custom_issue_sum_unreadable">Die Summe im Kurswahlprotokoll war nicht lesbar – bitte prüfe, ob alle Fächer da sind</string>
+    <string name="custom_issue_total" tools:ignore="PluralsCandidate">%1$d Wochenstunden, laut Kurswahlprotokoll %2$d</string>
+    <string name="custom_issue_unknown_row">Ein Fach mit %1$s Wochenstunden wurde nicht erkannt – bitte über „Fach hinzufügen“ ergänzen</string>
+    <string name="custom_issue_unreadable">%1$s: im Foto nicht lesbar – bitte Kurs wählen</string>
+    <string name="custom_level_short_lf">LF</string>
+    <string name="custom_pdf_footer">Läuteordnung ab SJ 2025/26 (Schulordnung, Stand 2025). Große Pausen: %1$s</string>
+    <string name="custom_pdf_room">Raum %1$s</string>
+    <string name="custom_pdf_school_year">Schuljahr %1$s</string>
+    <string name="custom_pdf_shared_slots">%1$s: %2$s im Kurswahlprotokoll nicht vermerkt, alle zur selben Zeit</string>
+    <string name="custom_pdf_stand">Stand %1$s</string>
+    <string name="custom_pdf_title">Persönlicher Stundenplan</string>
+    <string name="custom_reading_subtitle">Direkt auf deinem Handy</string>
+    <string name="custom_reading_title">Kurswahlprotokoll wird gelesen …</string>
+    <string name="custom_review_add_subject">Fach hinzufügen</string>
+    <string name="custom_review_basisfach">Basisfach</string>
+    <string name="custom_review_courses">Deine Kurse</string>
+    <string name="custom_review_footer">Tippe auf einen Kurs, um einen anderen Parallelkurs zu wählen. Zum Entfernen nach links wischen.</string>
+    <string name="custom_review_hours" tools:ignore="PluralsCandidate">%1$d Std.</string>
+    <string name="custom_review_hours_match" tools:ignore="PluralsCandidate">%1$d Wochenstunden, passt zu deinem Kurswahlprotokoll</string>
+    <string name="custom_review_hours_mismatch" tools:ignore="PluralsCandidate">%1$d Wochenstunden, laut Kurswahlprotokoll %2$d</string>
+    <string name="custom_review_issues">Bitte prüfen</string>
+    <string name="custom_review_leistungsfach">Leistungsfach</string>
+    <string name="custom_review_name_placeholder">Dein Name (optional)</string>
+    <string name="custom_review_pick_course">Kurs wählen</string>
+    <string name="custom_review_plan">Stundenplan</string>
+    <string name="custom_review_save">Speichern</string>
+    <string name="custom_review_title">Kurse prüfen</string>
+    <string name="custom_setup_a11y_bad">Schlechtes Beispielfoto: schräg, abgeschnitten, unscharf oder zu dunkel</string>
+    <string name="custom_setup_a11y_good">Gutes Beispielfoto: Blatt flach, ganz im Bild, scharf und hell</string>
+    <string name="custom_setup_a11y_result">Beispiel eines persönlichen Stundenplans als PDF</string>
+    <string name="custom_setup_a11y_sample">Beispiel eines Kurswahlprotokolls mit Fächern, Stunden je Halbjahr und Summenzeile</string>
+    <string name="custom_setup_bad">Nicht so</string>
+    <string name="custom_setup_callout_hours">Stunden je Halbjahr</string>
+    <string name="custom_setup_callout_subjects">Fächer</string>
+    <string name="custom_setup_callout_sums">Summen</string>
+    <string name="custom_setup_good">So</string>
+    <string name="custom_setup_need_body">Dein Kurswahlprotokoll aus der Kurswahl.</string>
+    <string name="custom_setup_need_title">Das brauchst du</string>
+    <string name="custom_setup_photo_title">So machst du das Foto</string>
+    <string name="custom_setup_privacy">Alles bleibt auf deinem Gerät: Fotos, erkannte Daten und das PDF verlassen es nie. Die Erkennung übernimmt KI direkt auf dem Gerät.</string>
+    <string name="custom_setup_result_body">Dein persönlicher Stundenplan als PDF – nur mit deinen Kursen.</string>
+    <string name="custom_setup_result_title">Das bekommst du</string>
+    <string name="custom_setup_scan">Kurswahlprotokoll scannen</string>
+    <string name="custom_setup_tip_auto">Die Kamera fotografiert von selbst und macht bei Bedarf Licht an</string>
+    <string name="custom_setup_tip_flat">Blatt flach auf den Tisch legen</string>
+    <string name="custom_setup_tip_whole">Das ganze Blatt ins Bild</string>
+    <string name="custom_title">Eigener Stundenplan</string>
+    <string name="plan_delete">Stundenplan löschen</string>
+    <string name="plan_edit_courses">Kurse bearbeiten</string>
+    <string name="plan_rescan">Neu scannen</string>
+    <string name="scan_burst_hold">Nicht bewegen</string>
+    <string name="scan_burst_photo" tools:ignore="PluralsCandidate">Foto %1$d von %2$d</string>
+    <string name="scan_close">Schließen</string>
+    <string name="scan_hint_glare">Spiegelung vermeiden</string>
+    <string name="scan_hint_hold_parallel">Handy parallel zum Blatt halten</string>
+    <string name="scan_hint_hold_still">Ruhig halten</string>
+    <string name="scan_hint_move_back">Etwas weiter weg</string>
+    <string name="scan_hint_move_closer">Näher ran</string>
+    <string name="scan_hint_no_document">Kurswahlprotokoll ins Bild legen</string>
+    <string name="scan_hint_ready">Perfekt – nicht bewegen</string>
+    <string name="scan_hint_too_dark">Mehr Licht, bitte</string>
+    <string name="scan_permission_body">Erlaube LGKA+ den Zugriff auf die Kamera, um dein Kurswahlprotokoll zu fotografieren. Das Foto wird nur auf diesem Handy gelesen.</string>
+    <string name="scan_permission_settings">Einstellungen öffnen</string>
+    <string name="scan_permission_title">Kamerazugriff benötigt</string>
+    <string name="scan_torch_auto">Licht automatisch eingeschaltet</string>
+    <string name="subject_ast">Astronomie</string>
+    <string name="subject_bk">Bildende Kunst</string>
+    <string name="subject_bio">Biologie</string>
+    <string name="subject_ch">Chemie</string>
+    <string name="subject_d">Deutsch</string>
+    <string name="subject_e">Englisch</string>
+    <string name="subject_eth">Ethik</string>
+    <string name="subject_f">Französisch</string>
+    <string name="subject_g">Geschichte</string>
+    <string name="subject_geo">Geographie</string>
+    <string name="subject_gk">Gemeinschaftskunde</string>
+    <string name="subject_i">Italienisch</string>
+    <string name="subject_inf">Informatik</string>
+    <string name="subject_l">Latein</string>
+    <string name="subject_lth">Literatur und Theater</string>
+    <string name="subject_m">Mathematik</string>
+    <string name="subject_mu">Musik</string>
+    <string name="subject_nw_t">NwT</string>
+    <string name="subject_ph">Physik</string>
+    <string name="subject_phil">Philosophie</string>
+    <string name="subject_psy">Psychologie</string>
+    <string name="subject_rel">Religion</string>
+    <string name="subject_rel_er">ev. Religion</string>
+    <string name="subject_rel_kr">kath. Religion</string>
+    <string name="subject_sp">Spanisch</string>
+    <string name="subject_sport">Sport</string>
+    <string name="subject_wbs">Wirtschaft</string>
 </resources>

@@ -56,6 +56,15 @@ fun HomeScreen(onNavigate: (Route) -> Unit) {
 
     androidx.compose.runtime.LaunchedEffect(Unit) { vm.bootstrap() }
 
+    // after scanning or editing the custom plan: back on Home, straight into its PDF
+    val customPlans = LocalContainer.current.customPlans
+    val customTitle = stringResource(R.string.custom_home_title)
+    androidx.compose.runtime.LaunchedEffect(customPlans.openRequest) {
+        val request = customPlans.openRequest ?: return@LaunchedEffect
+        customPlans.openRequest = null
+        pdf = PdfRequest(CustomPlanSource.pdfFile(context, request.plan), customTitle, null, shareName = customTitle)
+    }
+
     Box(Modifier.fillMaxSize()) {
     Scaffold(
         topBar = {
@@ -99,7 +108,8 @@ fun HomeScreen(onNavigate: (Route) -> Unit) {
                     ScheduleCard(
                         onSetClass = { showClassDialog = true },
                         onOpen = { req -> pdf = req },
-                        onUnavailable = { msg -> haptics.error(); toast.show(msg) })
+                        onUnavailable = { msg -> haptics.error(); toast.show(msg) },
+                        onCustomPlan = { edit -> onNavigate(CustomPlanRoute(edit)) })
                 }
                 item { SectionHeader(stringResource(R.string.termine)) }
                 item { EventsColumn() }
@@ -120,4 +130,6 @@ fun HomeScreen(onNavigate: (Route) -> Unit) {
 
 /** [targetPage] is a real 1-based PDF page (the API's class index). */
 data class PdfRequest(val file: File, val title: String, val targetPage: Int?, val schedule: ScheduleItem? = null,
-                      val classIndex: Map<String, Int> = emptyMap())
+                      val classIndex: Map<String, Int> = emptyMap(),
+                      /** Name for the shared file ("LGKA_<name>.pdf") when neither a schedule nor a substitution plan. */
+                      val shareName: String? = null)

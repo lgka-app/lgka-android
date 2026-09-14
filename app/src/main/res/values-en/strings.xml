@@ -90,6 +90,8 @@
     <string name="set_class_title">Enter class</string>
     <string name="settings">Settings</string>
     <string name="settings_section_appearance">APPEARANCE</string>
+    <string name="settings_language">Language</string>
+    <string name="settings_language_system">System language</string>
     <string name="settings_section_more">MORE</string>
     <string name="share_pdf">Share PDF</string>
     <string name="substitution_plan">Substitution plan</string>
@@ -112,7 +114,12 @@
     <string name="weather_source_school">Current values from the weather station on the school roof</string>
     <string name="weather_data_not_available">Weather data not available</string>
     <string name="weather_humidity_short">Humidity</string>
-    <string name="weather_page_title">Weather Karlsruhe</string>
+    <string name="weather_page_title">Weather</string>
+    <string name="weather_source_info">Data source</string>
+    <string name="weather_source_title">Where the weather data comes from</string>
+    <string name="weather_source_live_school">Live from the school\'s rooftop weather station</string>
+    <string name="weather_source_current_open_meteo">Current conditions from Open-Meteo</string>
+    <string name="weather_source_forecast">Forecast from Open-Meteo</string>
     <string name="weather_wind_short">Wind</string>
     <string name="weekday_dienstag">Tuesday</string>
     <string name="weekday_donnerstag">Thursday</string>
@@ -158,4 +165,111 @@
         <item quantity="one">1 substitution</item>
         <item quantity="other">%d substitutions</item>
     </plurals>
+
+    <!-- custom J11/J12 timetable (texts shared with the iOS app) -->
+    <string name="custom_error_generic">That didn\'t work. Please try again.</string>
+    <string name="custom_error_no_plan">The school hasn\'t published a J11/J12 timetable yet.</string>
+    <string name="custom_error_not_a_sheet">This doesn\'t look like a course selection record. Try a sharp photo of the whole sheet.</string>
+    <string name="custom_home_create">Create your own timetable</string>
+    <string name="custom_home_create_subtitle">Scan your course selection record</string>
+    <string name="custom_home_subtitle" tools:ignore="PluralsCandidate">%1$s · %2$d weekly hours</string>
+    <string name="custom_home_title">My timetable</string>
+    <string name="custom_issue_ambiguous">%1$s: several courses possible (%2$s)</string>
+    <string name="custom_issue_conflict">%1$s take place at the same time</string>
+    <string name="custom_issue_grade">This course selection record belongs to another year group.</string>
+    <string name="custom_issue_hours">%1$s: hours don\'t match the course selection record</string>
+    <string name="custom_issue_inferred">%1$s: hours not readable in the photo, filled in from the rest of the sheet – please check</string>
+    <string name="custom_issue_not_in_plan">%1$s: course not found in the timetable</string>
+    <string name="custom_issue_sum_unreadable">The total on the course selection record wasn\'t readable – please check that all subjects are there</string>
+    <string name="custom_issue_total" tools:ignore="PluralsCandidate">%1$d weekly hours, the course selection record says %2$d</string>
+    <string name="custom_issue_unknown_row">A subject with %1$s weekly hours wasn\'t recognised – add it with “Add subject”</string>
+    <string name="custom_issue_unreadable">%1$s: not readable in the photo – please pick the course</string>
+    <string name="custom_level_short_lf">adv.</string>
+    <string name="custom_pdf_footer">Bell times from school year 2025/26 (school rules, 2025). Long breaks: %1$s</string>
+    <string name="custom_pdf_room">Room %1$s</string>
+    <string name="custom_pdf_school_year">School year %1$s</string>
+    <string name="custom_pdf_shared_slots">%1$s: %2$s not stated on the course selection record, all at the same time</string>
+    <string name="custom_pdf_stand">As of %1$s</string>
+    <string name="custom_pdf_title">Personal timetable</string>
+    <string name="custom_reading_subtitle">Right on your phone</string>
+    <string name="custom_reading_title">Reading your course selection record …</string>
+    <string name="custom_review_add_subject">Add subject</string>
+    <string name="custom_review_basisfach">Basic course</string>
+    <string name="custom_review_courses">Your courses</string>
+    <string name="custom_review_footer">Tap a course to pick another parallel course. Swipe left to remove it.</string>
+    <string name="custom_review_hours" tools:ignore="PluralsCandidate">%1$d h</string>
+    <string name="custom_review_hours_match" tools:ignore="PluralsCandidate">%1$d hours a week, matches your course selection record</string>
+    <string name="custom_review_hours_mismatch" tools:ignore="PluralsCandidate">%1$d hours a week, your course selection record says %2$d</string>
+    <string name="custom_review_issues">Please check</string>
+    <string name="custom_review_leistungsfach">Advanced course</string>
+    <string name="custom_review_name_placeholder">Your name (optional)</string>
+    <string name="custom_review_pick_course">Pick a course</string>
+    <string name="custom_review_plan">Timetable</string>
+    <string name="custom_review_save">Save</string>
+    <string name="custom_review_title">Check courses</string>
+    <string name="custom_setup_a11y_bad">Bad example photo: tilted, cut off, blurry or too dark</string>
+    <string name="custom_setup_a11y_good">Good example photo: sheet flat, fully in frame, sharp and bright</string>
+    <string name="custom_setup_a11y_result">Example of a personal timetable as a PDF</string>
+    <string name="custom_setup_a11y_sample">Example course selection record with subjects, hours per semester and totals row</string>
+    <string name="custom_setup_bad">Not like this</string>
+    <string name="custom_setup_callout_hours">Hours per semester</string>
+    <string name="custom_setup_callout_subjects">Subjects</string>
+    <string name="custom_setup_callout_sums">Totals</string>
+    <string name="custom_setup_good">Like this</string>
+    <string name="custom_setup_need_body">Your course selection record from choosing your courses.</string>
+    <string name="custom_setup_need_title">What you need</string>
+    <string name="custom_setup_photo_title">How to take the photo</string>
+    <string name="custom_setup_privacy">Everything stays on your device: the photos, the recognised data and the PDF never leave it. On-device AI does the recognition.</string>
+    <string name="custom_setup_result_body">Your personal timetable as a PDF – only your courses.</string>
+    <string name="custom_setup_result_title">What you get</string>
+    <string name="custom_setup_scan">Scan course selection record</string>
+    <string name="custom_setup_tip_auto">The camera takes the photos by itself and turns on the light if needed</string>
+    <string name="custom_setup_tip_flat">Lay the sheet flat on a table</string>
+    <string name="custom_setup_tip_whole">Get the whole sheet in the frame</string>
+    <string name="custom_title">Custom timetable</string>
+    <string name="plan_delete">Delete timetable</string>
+    <string name="plan_edit_courses">Edit courses</string>
+    <string name="plan_rescan">Scan again</string>
+    <string name="scan_burst_hold">Don\'t move</string>
+    <string name="scan_burst_photo" tools:ignore="PluralsCandidate">Photo %1$d of %2$d</string>
+    <string name="scan_close">Close</string>
+    <string name="scan_hint_glare">Avoid reflections</string>
+    <string name="scan_hint_hold_parallel">Hold your phone parallel to the sheet</string>
+    <string name="scan_hint_hold_still">Hold still</string>
+    <string name="scan_hint_move_back">Move back a little</string>
+    <string name="scan_hint_move_closer">Move closer</string>
+    <string name="scan_hint_no_document">Place your course selection record in the frame</string>
+    <string name="scan_hint_ready">Perfect – don\'t move</string>
+    <string name="scan_hint_too_dark">More light, please</string>
+    <string name="scan_permission_body">Allow LGKA+ to use the camera to photograph your course selection record. The photo is only read on this phone.</string>
+    <string name="scan_permission_settings">Open Settings</string>
+    <string name="scan_permission_title">Camera access needed</string>
+    <string name="scan_torch_auto">Light switched on automatically</string>
+    <string name="subject_ast">Astronomy</string>
+    <string name="subject_bk">Art</string>
+    <string name="subject_bio">Biology</string>
+    <string name="subject_ch">Chemistry</string>
+    <string name="subject_d">German</string>
+    <string name="subject_e">English</string>
+    <string name="subject_eth">Ethics</string>
+    <string name="subject_f">French</string>
+    <string name="subject_g">History</string>
+    <string name="subject_geo">Geography</string>
+    <string name="subject_gk">Social Studies</string>
+    <string name="subject_i">Italian</string>
+    <string name="subject_inf">Computer Science</string>
+    <string name="subject_l">Latin</string>
+    <string name="subject_lth">Literature and Theatre</string>
+    <string name="subject_m">Maths</string>
+    <string name="subject_mu">Music</string>
+    <string name="subject_nw_t">Science and Technology</string>
+    <string name="subject_ph">Physics</string>
+    <string name="subject_phil">Philosophy</string>
+    <string name="subject_psy">Psychology</string>
+    <string name="subject_rel">Religious Education</string>
+    <string name="subject_rel_er">Protestant RE</string>
+    <string name="subject_rel_kr">Catholic RE</string>
+    <string name="subject_sp">Spanish</string>
+    <string name="subject_sport">PE</string>
+    <string name="subject_wbs">Economics</string>
 </resources>

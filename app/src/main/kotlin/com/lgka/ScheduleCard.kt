@@ -40,7 +40,8 @@ import lgka.api.preferredGroup
 // ── Schedule ────────────────────────────────────────────────────────────────
 
 @Composable
-fun ScheduleCard(onSetClass: () -> Unit, onOpen: (PdfRequest) -> Unit, onUnavailable: (String) -> Unit) {
+fun ScheduleCard(onSetClass: () -> Unit, onOpen: (PdfRequest) -> Unit, onUnavailable: (String) -> Unit,
+                 onCustomPlan: (edit: Boolean) -> Unit) {
     val vm = LocalHomeViewModel.current
     val prefs = LocalContainer.current.prefs
     val scope = rememberCoroutineScope()
@@ -75,6 +76,7 @@ fun ScheduleCard(onSetClass: () -> Unit, onOpen: (PdfRequest) -> Unit, onUnavail
             val className = formatClass(cls)
             val unavailable = stringResource(R.string.schedule_not_available, half)
             val title = stringResource(R.string.title_with_semester, className, half)
+            Column(verticalArrangement = androidx.compose.foundation.layout.Arrangement.spacedBy(12.dp)) {
             HomeCard(
                 onLongClick = onSetClass, // the iOS context menu equivalent
                 onClick = {
@@ -101,6 +103,11 @@ fun ScheduleCard(onSetClass: () -> Unit, onOpen: (PdfRequest) -> Unit, onUnavail
                 }
                 Icon(Icons.AutoMirrored.Filled.ArrowForwardIos, null, Modifier.size(14.dp),
                      tint = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+            // J11 / J12: a personal plan from the crowded Stufenplan
+            if ((ScheduleGrades.gradeOf(cls) ?: 0) >= 11 || LocalContainer.current.customPlans.saved != null) {
+                CustomPlanCard(onOpen = onOpen, onCustomPlan = onCustomPlan)
+            }
             }
         }
     }

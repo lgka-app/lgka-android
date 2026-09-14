@@ -4,7 +4,9 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.setValue
 import kotlinx.coroutines.launch
+import android.content.Context
 import android.os.Bundle
+import kotlinx.coroutines.CancellationException
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
@@ -19,12 +21,29 @@ import kotlinx.coroutines.delay
 class MainActivity : ComponentActivity() {
     private val homeViewModel: HomeViewModel by viewModels { HomeViewModel.factory(appContainer) }
 
+    // before Android 13 the language picked in Settings is applied here (13+: per-app language)
+    override fun attachBaseContext(newBase: Context) = super.attachBaseContext(AppLanguage.wrap(newBase))
+
     override fun onCreate(savedInstanceState: Bundle?) {
         installSplashScreen()
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         val container = appContainer
         applyDebugSeed(container)
+
+        // the saved personal plan's PDF follows the app language: re-rendered silently when it changed
+        container.customPlans.saved?.let { saved ->
+            if (AppLanguage.pdfNeedsRender(this)) lifecycleScope.launch {
+                try {
+                    CustomPlanSource.pdfFile(this@MainActivity, saved.plan)
+                    AppLanguage.pdfRendered(this@MainActivity)
+                } catch (e: CancellationException) {
+                    throw e
+                } catch (e: Exception) {
+                    // rendered again when it is opened
+                }
+            }
+        }
 
         // Every resume is one cheap /v1/sync (hashes out, changes in; debounced).
         lifecycleScope.launch {
@@ -77,4 +96,5 @@ private fun MainActivity.applyDebugSeed(container: AppContainer) {
     intent?.getStringExtra("lgka_debug_accent")?.let { container.prefs.accentColor = it }
     intent?.getStringExtra("lgka_debug_theme")?.let { container.prefs.themeMode = it }
     intent?.getStringExtra("lgka_debug_class")?.let { container.prefs.selectedScheduleClass = it }
+    DebugCustomPlan.seed(container, intent)
 }

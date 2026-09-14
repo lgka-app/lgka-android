@@ -13,6 +13,8 @@ class AppContainer(context: Context) {
     /** Synced resources + mirrored PDFs live in the private files dir (survives cache trims). */
     val store = SyncStore(File(context.filesDir, "lgka-data"))
     val api = LgkaApi(userAgent = AppInfo.userAgent)
+    /** The custom J11/J12 timetable, if one was made on this device. */
+    val customPlans = CustomPlanStore(File(context.filesDir, "custom-plan.json"))
 }
 
 object AppInfo {
@@ -26,6 +28,8 @@ class LgkaApplication : Application() {
 
     override fun onCreate() {
         super.onCreate()
+        // fonts and glyph lists for reading the Stufenplan PDFs (custom timetable)
+        com.tom_roush.pdfbox.android.PDFBoxResourceLoader.init(applicationContext)
         container = AppContainer(applicationContext)
     }
 }

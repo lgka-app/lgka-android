@@ -1,6 +1,12 @@
 package com.lgka
 
+import androidx.activity.compose.LocalActivity
 import androidx.compose.foundation.clickable
+import androidx.compose.material3.SegmentedButton
+import androidx.compose.material3.SegmentedButtonDefaults
+import androidx.compose.material3.SingleChoiceSegmentedButtonRow
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.testTag
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -51,6 +57,7 @@ fun SettingsSheet(onBugReport: () -> Unit, onOpenWeb: (String, String) -> Unit, 
     var confirmLogout by remember { mutableStateOf(false) }
     val haptics = rememberHaptics()
     val vm = LocalHomeViewModel.current
+    val activity = LocalActivity.current
     val privacyTitle = stringResource(R.string.privacy_label)
     val legalTitle = stringResource(R.string.legal_label)
     // Opens fully expanded (no half-height stop) — the sheet is short enough to show at once.
@@ -75,6 +82,12 @@ fun SettingsSheet(onBugReport: () -> Unit, onOpenWeb: (String, String) -> Unit, 
                     Text(stringResource(R.string.accent_color))
                     Spacer(Modifier.height(8.dp))
                     AccentRow(swatchSize = 30)
+                    Spacer(Modifier.height(12.dp))
+                    HorizontalDivider()
+                    Spacer(Modifier.height(12.dp))
+                    Text(stringResource(R.string.settings_language))
+                    Spacer(Modifier.height(8.dp))
+                    LanguageRow()
                 }
             }
 
@@ -118,12 +131,36 @@ fun SettingsSheet(onBugReport: () -> Unit, onOpenWeb: (String, String) -> Unit, 
                 TextButton(onClick = {
                     haptics.medium(); confirmLogout = false; onDismiss()
                     vm.clear() // explicit sign-out: snapshot, login and every preference go
+                    container.customPlans.delete() // the custom timetable belongs to that login too
                     container.prefs.reset(container.credentials) // back to the welcome screen
+                    activity?.let { AppLanguage.set(it, null) } // and to the system language
                 }) {
                     Text(stringResource(R.string.logout), color = MaterialTheme.colorScheme.error)
                 }
             },
             dismissButton = { TextButton(onClick = { haptics.light(); confirmLogout = false }) { Text(stringResource(R.string.cancel)) } })
+    }
+}
+
+/** System language, Deutsch, English: applies at once (the activity is recreated in the new language). */
+@Composable
+private fun LanguageRow() {
+    val activity = LocalActivity.current
+    val context = LocalContext.current
+    val haptics = rememberHaptics()
+    val current = remember(context) { AppLanguage.code(context) }
+    // the language names are shown in their own language, never translated
+    val options = listOf(null to stringResource(R.string.settings_language_system), "de" to "Deutsch", "en" to "English")
+    SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth().testTag("settings.language")) {
+        options.forEachIndexed { i, (code, label) ->
+            SegmentedButton(
+                selected = current == code,
+                onClick = { if (current != code) { haptics.light(); activity?.let { AppLanguage.set(it, code) } } },
+                shape = SegmentedButtonDefaults.itemShape(index = i, count = options.size),
+                icon = {}) {
+                Text(label, maxLines = 1)
+            }
+        }
     }
 }
 

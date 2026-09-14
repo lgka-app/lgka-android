@@ -194,7 +194,9 @@ private fun PdfViewerContent(request: PdfRequest, onClose: () -> Unit) {
                     // pdf_share_service parity: friendly filename
                     val prefix = if (currentSchedule != null) "LGKA_Stundenplan_" else "LGKA_Vertretungsplan_"
                     val safe = currentTitle.replace(Regex("[^A-Za-z0-9]+"), "_").trim('_')
-                    val shareFile = File(context.cacheDir, prefix + safe.ifEmpty { "Plan" } + ".pdf")
+                    val shareFile = File(context.cacheDir, request.shareName
+                        ?.let { "LGKA_" + it.replace(Regex("[^A-Za-z0-9]+"), "_").trim('_') + ".pdf" }
+                        ?: (prefix + safe.ifEmpty { "Plan" } + ".pdf"))
                     val source = currentFile
                     scope.launch {
                         try {

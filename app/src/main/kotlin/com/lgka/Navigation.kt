@@ -53,11 +53,20 @@ fun RootNav() {
 /** Any web page in the app's own web screen (privacy, legal notice, article links, …). */
 @Serializable data class WebRoute(val url: String, val title: String) : Route
 
+/** The custom J11/J12 timetable: scanning a Kurswahlprotokoll, or correcting the saved courses ([edit]). */
+@Serializable data class CustomPlanRoute(val edit: Boolean) : Route
+
 @Composable
 fun MainNav() {
     val backStack = rememberNavBackStack(HomeRoute)
     val haptics = rememberHaptics()
     val context = LocalContext.current
+    androidx.compose.runtime.LaunchedEffect(Unit) {
+        if (BuildConfig.DEBUG && DebugCustomPlan.openSetup) {
+            DebugCustomPlan.openSetup = false
+            backStack.add(CustomPlanRoute(edit = false))
+        }
+    }
     // A second tap on a back arrow while the pop transition still shows the old screen
     // would remove HomeRoute too, and NavDisplay crashes on an empty back stack.
     val pop: () -> Unit = { if (backStack.size > 1) { haptics.light(); backStack.removeLastOrNull() } }
@@ -99,6 +108,14 @@ fun MainNav() {
                 })
             }
             entry<WebRoute> { key -> WebScreen(url = key.url, title = key.title, onBack = pop) }
+            entry<CustomPlanRoute> { key ->
+                val plans = LocalContainer.current.customPlans
+                CustomPlanHost(edit = key.edit, onBack = pop, onSaved = { saved ->
+                    // back to Home, which opens the plan's PDF
+                    plans.openRequest = saved
+                    if (backStack.size > 1) backStack.removeLastOrNull()
+                })
+            }
             entry<BugReportRoute> {
                 WebScreen(
                     url = "https://docs.google.com/forms/d/e/1FAIpQLSdknGu7-xgFurrghbUYOwoYu-Vsaftar6PGLzMv64UFpwJtRw/viewform?usp=publish-editor",
