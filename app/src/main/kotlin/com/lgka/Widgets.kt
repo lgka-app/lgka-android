@@ -68,6 +68,8 @@ fun HomeCard(
     onClick: (() -> Unit)? = null,
     onLongClick: (() -> Unit)? = null,
     enabled: Boolean = true,
+    /** A light tap haptic instead of the medium one (e.g. a row that only opens a picker). */
+    lightTap: Boolean = false,
     content: @Composable RowScope.() -> Unit,
 ) {
     val haptics = rememberHaptics()
@@ -81,7 +83,7 @@ fun HomeCard(
         val shape = CardShape
         Card(shape = shape, modifier = modifier.clip(shape).combinedClickable(
             enabled = enabled, role = Role.Button,
-            onClick = { haptics.medium(); onClick() },
+            onClick = { if (lightTap) haptics.light() else haptics.medium(); onClick() },
             onLongClick = onLongClick?.let { { haptics.light(); it() } })) { row() }
     } else {
         Card(shape = CardShape, modifier = modifier) { row() }

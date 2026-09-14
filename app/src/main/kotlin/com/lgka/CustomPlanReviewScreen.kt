@@ -319,7 +319,7 @@ private fun CourseRow(draft: CustomPlanDraft, plan: CustomPlan, choice: CustomPl
             }
         }) {
         Box {
-            HomeCard(onClick = { open = true }) {
+            HomeCard(onClick = { open = true }, lightTap = true) {
                 Column(Modifier.weight(1f)) {
                     Text(course?.let { CustomPlanLabels.title(resources, it) } ?: name, fontWeight = FontWeight.SemiBold, color = titleColor)
                     if (course != null) {

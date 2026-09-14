@@ -3,7 +3,7 @@
     <string name="a11y_app_logo">LGKA+ Logo</string>
     <string name="a11y_back">Zurück</string>
     <string name="a11y_change_class">Klasse wechseln</string>
-    <string name="a11y_open_photo">Foto in der Vollbildansicht öffnen</string>
+    <string name="a11y_open_photo">Öffnet das Foto in der Vollbildansicht</string>
     <string name="a11y_close">Schließen</string>
     <string name="a11y_day" tools:ignore="PluralsCandidate">%1$s: %2$s, Höchstwert %3$d Grad, Tiefstwert %4$d Grad</string>
     <string name="a11y_hour" tools:ignore="PluralsCandidate">%1$s Uhr, %2$d Grad, %3$s</string>
@@ -31,7 +31,7 @@
     <string name="check_internet_connection">Bitte prüfe deine Internetverbindung.</string>
     <string name="city">Karlsruhe</string>
     <string name="class_changed">Deine Klasse wurde auf %1$s geändert.</string>
-    <string name="jahrgang_named">Jahrgang %1$s</string>
+    <string name="jahrgang_named">Jahrgang %1$d</string>
     <string name="class_name">Klasse %1$s</string>
     <string name="continue_label">Weiter</string>
     <string name="error_loading">Fehler beim Laden</string>
@@ -45,7 +45,7 @@
     <string name="feature_sick_title">Krankmeldung</string>
     <string name="feature_substitution_desc">Aktueller Vertretungsplan für heute/morgen</string>
     <string name="feature_substitution_title">Vertretungsplan</string>
-    <string name="feature_weather_desc">Wetterstation der Schule, Vorhersage von Open-Meteo</string>
+    <string name="feature_weather_desc">Aktuelles Wetter von der Wetterstation der Schule, Vorhersage via Open-Meteo</string>
     <string name="feature_weather_title">Wetterdaten</string>
     <string name="feels_like">Gefühlt %1$d°</string>
     <string name="first_semester">1. Halbjahr</string>

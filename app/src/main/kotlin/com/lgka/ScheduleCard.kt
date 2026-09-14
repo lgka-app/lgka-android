@@ -119,7 +119,7 @@ fun formatClass(cls: String): String = classDisplayName(LocalResources.current, 
 /** "Klasse 7b" / "Jahrgang 11" — any Jahrgang number, no per-year strings. */
 fun classDisplayName(resources: android.content.res.Resources, cls: String): String {
     val grade = ScheduleGrades.gradeOf(cls)
-    return if (grade != null && cls.lowercase().startsWith("j")) resources.getString(R.string.jahrgang_named, grade.toString())
+    return if (grade != null && cls.lowercase().startsWith("j")) resources.getString(R.string.jahrgang_named, grade)
     else resources.getString(R.string.class_name, cls.replaceFirstChar { it.uppercase() })
 }
 
