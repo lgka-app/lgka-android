@@ -283,6 +283,7 @@ object CustomPlanBuilder {
         val languages = setOf("D", "E", "F", "L", "I", "Sp")
         val firstOther = kurswahl.rows.indexOfFirst { SchoolReference.subject(it.subject) != null && it.subject !in languages }
             .takeIf { it >= 0 } ?: kurswahl.rows.size
+        val named = kurswahl.rows.map { row -> SchoolReference.subject(row.subject)?.let { sheetGroup(it.key) } }
         for ((index, row) in kurswahl.rows.withIndex()) {
             if (SchoolReference.subject(row.subject) != null) continue
             val cell = row.halves.getOrNull(half) ?: continue
@@ -290,8 +291,12 @@ object CustomPlanBuilder {
             val parallel = cell.parallel
             val occupied = cells(choices, kurswahl.konfession, plan)
             val taken = choices.map { it.subject }.toSet()
+            // the sheet lists subjects in groups: a row can only be a subject of a group between its named neighbours'
+            val above = named.subList(0, index).lastOrNull { it != null }
+            val below = named.subList(index + 1, named.size).firstOrNull { it != null }
             val matches = SchoolReference.subjects.map { it.key }
                 .filter { key -> key !in taken && (index < firstOther) == (key in languages) }
+                .filter { key -> sheetGroup(key).let { g -> g == null || ((above == null || g >= above) && (below == null || g <= below)) } }
                 .mapNotNull { key ->
                     val choice = CustomPlan.Choice(key, level(row.fachart, hours), hours, parallel)
                     val resolution = resolve(choice, kurswahl.konfession, plan) as? Resolution.Courses ?: return@mapNotNull null
@@ -386,6 +391,17 @@ object CustomPlanBuilder {
     }
 
     private fun subjectName(key: String): String = SchoolReference.subject(key)?.name ?: key
+
+    /**
+     * The blocks of the Kurswahlprotokoll, top to bottom. Within a block the order varies between sheets
+     * (Sp before or after F, Inf before or after Sport), the blocks themselves do not.
+     */
+    private val sheetGroups = listOf(
+        setOf("D", "E", "F", "Sp", "L", "I"), setOf("BK", "Mu"), setOf("G", "Gk", "Geo", "WBS"), setOf("Rel", "Eth", "Phil"),
+        setOf("M"), setOf("Bio", "Ph", "Ch", "NwT"), setOf("Inf", "Sport", "Psy", "Ast", "LTh"),
+    )
+
+    private fun sheetGroup(key: String): Int? = sheetGroups.indexOfFirst { key in it }.takeIf { it >= 0 }
 
     /** Row order of the Kurswahlprotokoll. */
     private fun order(key: String): Int = SchoolReference.subjects.indexOfFirst { it.key == key }.takeIf { it >= 0 } ?: Int.MAX_VALUE

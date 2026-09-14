@@ -106,6 +106,16 @@ object KurswahlParser {
     private val NAME = Regex("[A-ZÄÖÜ][\\p{L}\\-]+(?: [\\p{L}\\-]+)*,\\s*[A-ZÄÖÜ][\\p{L}\\- ]+")
     private val ABITUR = Regex("Abiturjahr:?\\s*(\\d{4})")
     private val HEADER_TEXTS = listOf("pro kurs", "fachart", "fächer")
+    private val SINGLE_DIGIT = Regex("\\d")
+    private val BRACKET_PART = Regex("[(\\[{]\\d[)\\]}]?(?:\\.?[psPS])?")
+    private val LOOSE_CELL = Regex("([0-9OoIl|SsZzB])[(C]([0-9OoIl|SsZzB])\\)?(?:\\.?([psPS]))?")
+    private val DIGIT_LOOK_ALIKES = mapOf('O' to 0, 'o' to 0, 'I' to 1, 'l' to 1, '|' to 1, 'S' to 5, 's' to 5, 'Z' to 2, 'z' to 2, 'B' to 8)
+
+    /** Basisfach hours of the subjects required in all four Halbjahre; as Leistungsfach they have 5. */
+    private val BASIS_HOURS = mapOf("D" to 3, "M" to 3, "G" to 2, "Sport" to 2)
+
+    /** The weekly hours a subject required in all four Halbjahre can have; null for other subjects. */
+    fun possibleHours(subject: String): Set<Int>? = BASIS_HOURS[subject]?.let { setOf(it, 5) }
 
     /** The parsed sheet plus what was found where. */
     class Detail(
@@ -123,7 +133,7 @@ object KurswahlParser {
     fun parse(boxes: List<TextBox>, aspect: Double = 4.0 / 3.0): Kurswahl = parseDetailed(boxes, aspect).kurswahl
 
     fun parseDetailed(boxes: List<TextBox>, aspect: Double = 4.0 / 3.0): Detail {
-        val words = boxes.flatMap { it.words() }.map { normalised(it) }
+        val words = withJoinedCells(boxes.flatMap { it.words() }.map { normalised(it) })
         val lines = boxes.map { normalised(it) }
 
         // subject column: the x where most subject abbreviations line up
@@ -232,7 +242,8 @@ object KurswahlParser {
             val perCourse = picked[index][1]?.text
             val key = anchor.first
             if (key != null) {
-                rows += Kurswahl.Row(key, fachart, inferMissing(halves, perCourse, allHalves = key in allFourHalves), perCourse = perCourse)
+                rows += Kurswahl.Row(key, fachart, inferMissing(halves, perCourse, allHalves = key in allFourHalves, possibleHours = possibleHours(key)),
+                    perCourse = perCourse)
             } else {
                 // a gap row: only worth keeping when something is taken in it
                 if (halves.none { it.taken }) continue
@@ -256,7 +267,7 @@ object KurswahlParser {
             else -> null
         }
 
-        val kurswahl = Kurswahl(name, abiturjahr, konfession, rows, sums)
+        val kurswahl = Kurswahl(name, abiturjahr, konfession, completeFromSums(rows, sums), sums)
         var tableRows = rowAnchors.size
         val headerY = lines.filter { line -> HEADER_TEXTS.any { line.text.lowercase().contains(it) } && line.midY < rowAnchors[0].second }
             .maxOfOrNull { it.midY }
@@ -296,11 +307,21 @@ object KurswahlParser {
         val rows = mutableListOf<Kurswahl.Row>()
         for (key in order) {
             val versions = sheets.flatMap { sheet -> sheet.rows.filter { it.subject == key } }
+            val perCourse = mostCommon(versions.map { it.perCourse })
             val halves = (0 until 4).map { h ->
                 val cells = versions.mapNotNull { it.halves.getOrNull(h) }
-                val read = cells.filter { !it.unreadable && it.inferred != true }
+                // a subject required in all four Halbjahre is never "-": such a reading is not a vote
+                val read = cells.filter { !it.unreadable && it.inferred != true && (it.taken || key !in allFourHalves) }
                 if (read.isEmpty()) {
-                    cells.firstOrNull { it.inferred == true } ?: cells.firstOrNull { it.raw != null } ?: Kurswahl.Cell.MISSING
+                    // taken over on every photo: the value agreeing with the photos' "pro Kurs" first, then the most common
+                    val possible = possibleHours(key)
+                    val inferred = cells.filter { it.inferred == true }.let { all ->
+                        all.filter { possible == null || it.hours in possible }.ifEmpty { all }
+                    }
+                    val hours = inferred.map { it.hours }.let { all ->
+                        all.firstOrNull { it != null && "$it" == perCourse } ?: mostCommon(all)
+                    }
+                    inferred.firstOrNull { it.hours == hours } ?: cells.firstOrNull { it.raw != null } ?: Kurswahl.Cell.MISSING
                 } else {
                     val counts = read.groupingBy { it.hours ?: -1 }.eachCount()
                     val winner = read.map { it.hours ?: -1 }.maxWithOrNull { a, b ->
@@ -324,10 +345,19 @@ object KurswahlParser {
         // unrecognised rows of the base stay unless another photo named that subject
         val baseKnown = base.rows.map { it.subject }.toSet()
         val recovered = rows.filter { it.subject !in baseKnown }
+        // a subject whose row is empty in the base but has values on another photo: the base's "?" row with
+        // exactly those values (course number included) is that subject read one row off, not another subject
+        val baseEmpty = base.rows.filter { r -> r.subject != "?" && r.halves.none { it.taken } }.map { it.subject }.toSet()
+        val filledElsewhere = rows.filter { it.subject in baseEmpty && it.halves.any { c -> c.taken && c.inferred != true } }
         for ((index, row) in base.rows.withIndex()) {
             if (row.subject != "?") continue
             val named = recovered.any { r -> r.halves.zip(row.halves).all { (a, b) -> a.hours == b.hours || b.hours == null } }
             if (named) continue
+            val sameValues = filledElsewhere.any { r ->
+                r.halves.zip(row.halves).all { (a, b) -> a.hours == null || b.hours == null || (a.hours == b.hours && (a.parallel == null || b.parallel == null || a.parallel == b.parallel)) } &&
+                    r.halves.zip(row.halves).any { (a, b) -> b.parallel != null && a.parallel == b.parallel }
+            }
+            if (sameValues) continue
             val previous = base.rows.subList(0, index).lastOrNull { it.subject != "?" }?.subject
             val at = previous?.let { p -> rows.indexOfFirst { it.subject == p } }?.takeIf { it >= 0 }?.plus(1) ?: 0
             rows.add(at, row)
@@ -351,6 +381,14 @@ object KurswahlParser {
             return Kurswahl.Cell(raw = text, hours = m.groupValues[1].toInt(), parallel = m.groups[2]?.value?.toInt(),
                 unreadable = false, suffix = m.groups[3]?.value?.lowercase())
         }
+        // a digit read as a look-alike letter ("S(3)", "5(l)"): only in the bracketed form, where the shape is unmistakable
+        LOOSE_CELL.matchEntire(t)?.let { m ->
+            val hours = digitValue(m.groupValues[1])
+            val parallel = digitValue(m.groupValues[2])
+            if (hours in 1..5 && parallel in 1..9) {
+                return Kurswahl.Cell(raw = text, hours = hours, parallel = parallel, unreadable = false, suffix = m.groups[3]?.value?.lowercase())
+            }
+        }
         // specks and table lines read as "..E" are not a value; only text with a digit is worth asking about
         val unreadable = t.any { it.isDigit() }
         return Kurswahl.Cell(raw = if (unreadable) text else null, unreadable = unreadable)
@@ -361,14 +399,21 @@ object KurswahlParser {
      * subject taken all four Halbjahre) and "pro Kurs" does not contradict. For a subject required
      * every Halbjahr ([allHalves]) a gap or dash is a misread, and "pro Kurs" gives the hours.
      */
-    fun inferMissing(halves: List<Kurswahl.Cell>, perCourse: String?, allHalves: Boolean = false): List<Kurswahl.Cell> {
+    fun inferMissing(halves: List<Kurswahl.Cell>, perCourse: String?, allHalves: Boolean = false, possibleHours: Set<Int>? = null): List<Kurswahl.Cell> {
         if (halves.size != 4) return halves
         val result = halves.toMutableList()
         for (i in halves.indices) {
             if (halves[i].taken) continue
             if (allHalves) {
-                val hours = perCourse?.toIntOrNull() ?: mostCommon(halves.map { it.hours })
-                if (hours != null) result[i] = Kurswahl.Cell(hours = hours, unreadable = false, inferred = true)
+                // [possibleHours]: a "pro Kurs" the subject cannot have belongs to a neighbouring row
+                fun possible(hours: Int?) = hours?.takeIf { possibleHours == null || it in possibleHours }
+                val hours = possible(perCourse?.toIntOrNull()) ?: possible(mostCommon(halves.map { it.hours }))
+                if (hours != null) {
+                    result[i] = Kurswahl.Cell(hours = hours, unreadable = false, inferred = true)
+                } else if (!halves[i].unreadable) {
+                    // a "-" is a misread here (the neighbouring row's): not a reading that could outvote another photo
+                    result[i] = Kurswahl.Cell.MISSING
+                }
                 continue
             }
             if (!halves[i].unreadable) continue
@@ -381,6 +426,91 @@ object KurswahlParser {
         }
         return result
     }
+
+    /**
+     * Cells still missing after reading, completed from the "Summen" row: every Halbjahr column adds up
+     * to its sum. A row taken in the other Halbjahre with the same hours whose cell alone is missing
+     * in a column gets its hours when the column's remainder is exactly that. A subject required in all
+     * four Halbjahre ([allFourHalves]) with nothing read at all gets the remainder when it is one of
+     * the subject's possible hours, or the hours its Fachart implies. Cells that were read never change.
+     */
+    fun completeFromSums(rows: List<Kurswahl.Row>, sums: List<Int?>): List<Kurswahl.Row> {
+        val halves = rows.map { it.halves.toMutableList() }
+        fun remainder(h: Int, except: Int): Int? {
+            val sum = sums.getOrNull(h) ?: return null
+            return sum - halves.indices.filter { it != except }.sumOf { halves[it].getOrNull(h)?.hours ?: 0 }
+        }
+        fun fillSingleGaps() {
+            for (h in 0 until 4) {
+                if (sums.getOrNull(h) == null) continue
+                // a required subject not read in this column is a gap too, so the remainder is not handed to another row
+                val gaps = rows.indices.filter { i ->
+                    val cell = halves[i].getOrNull(h)
+                    cell != null && !cell.taken &&
+                        (rows[i].subject in allFourHalves || (cell.unreadable && hoursElsewhere(halves[i], rows[i].perCourse, h) != null))
+                }
+                val i = gaps.singleOrNull() ?: continue
+                val hours = hoursElsewhere(halves[i], rows[i].perCourse, h) ?: continue
+                if (remainder(h, i) == hours) halves[i][h] = Kurswahl.Cell(hours = hours, unreadable = false, inferred = true)
+            }
+        }
+        fillSingleGaps()
+        for ((i, row) in rows.withIndex()) {
+            val basis = BASIS_HOURS[row.subject] ?: continue
+            if (halves[i].size != 4 || halves[i].any { it.taken }) continue
+            val possible = setOf(basis, 5)
+            val votes = (0 until 4).mapNotNull { h -> remainder(h, i)?.takeIf { it in possible } }
+            val byFachart = when (row.fachart) {
+                "L" -> 5
+                "B", "m" -> basis
+                else -> null
+            }
+            val hours = when {
+                votes.isEmpty() -> byFachart
+                votes.distinct().size == 1 && (votes.size >= 2 || byFachart == votes[0]) -> votes[0]
+                byFachart != null && byFachart in votes -> byFachart
+                else -> null
+            } ?: continue
+            for (h in 0 until 4) halves[i][h] = Kurswahl.Cell(hours = hours, unreadable = false, inferred = true)
+        }
+        fillSingleGaps()
+        return rows.mapIndexed { i, row -> if (halves[i] == row.halves) row else row.copy(halves = halves[i]) }
+    }
+
+    /** The hours a row has in the Halbjahre other than [half], when those read agree (and "pro Kurs" does not contradict). */
+    private fun hoursElsewhere(halves: List<Kurswahl.Cell>, perCourse: String?, half: Int): Int? {
+        // a "-" read in another Halbjahr: the subject is not taken throughout, so it says nothing about this one
+        if (halves.withIndex().any { (i, c) -> i != half && !c.taken && !c.unreadable }) return null
+        val others = halves.filterIndexed { i, c -> i != half && c.taken && c.inferred != true }
+        if (others.isEmpty() || others.any { it.suffix != null }) return null
+        // a course of two Halbjahre ("2.p", "2.s", the suffix not read) must not pass for one taken throughout:
+        // the other readings have to be three, or lie on both sides of this Halbjahr, or not be neighbours
+        val at = halves.indices.filter { it != half && halves[it].taken && halves[it].inferred != true }
+        if (at.size < 3 && !(at.first() < half && half < at.last()) && !(at.size == 2 && at[1] - at[0] > 1)) return null
+        val hours = others[0].hours ?: return null
+        if (others.any { it.hours != hours }) return null
+        if (perCourse?.toIntOrNull()?.let { it != hours } == true) return null
+        return hours
+    }
+
+    /** "5" and "(3)" recognised as two boxes side by side: also offered as the one value "5(3)". */
+    private fun withJoinedCells(words: List<TextBox>): List<TextBox> {
+        val brackets = words.filter { BRACKET_PART.matches(it.text) }
+        if (brackets.isEmpty()) return words
+        val joined = mutableListOf<TextBox>()
+        for (digit in words) {
+            if (!SINGLE_DIGIT.matches(digit.text)) continue
+            val bracket = brackets.filter { b ->
+                abs(b.midY - digit.midY) < maxOf(digit.height, b.height) * 0.6 && b.x - digit.maxX in -digit.width..(digit.width * 2 + 0.004)
+            }.minByOrNull { abs(it.x - digit.maxX) } ?: continue
+            val y = minOf(digit.y, bracket.y)
+            joined += TextBox(digit.text + bracket.text, digit.x, y, bracket.maxX - digit.x, maxOf(digit.maxY, bracket.maxY) - y,
+                minOf(digit.confidence ?: 0.5, bracket.confidence ?: 0.5))
+        }
+        return words + joined
+    }
+
+    private fun digitValue(text: String): Int = text[0].digitToIntOrNull() ?: DIGIT_LOOK_ALIKES[text[0]] ?: -1
 
     private fun isValue(text: String, column: Int): Boolean = when (column) {
         0 -> text in setOf("L", "B", "m", "L/B", "LB", "UB", "L/8")

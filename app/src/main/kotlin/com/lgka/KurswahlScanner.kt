@@ -2,8 +2,13 @@ package com.lgka
 
 import android.content.ContentResolver
 import android.graphics.Bitmap
+import android.graphics.Canvas
+import android.graphics.ColorMatrix
+import android.graphics.ColorMatrixColorFilter
+import androidx.core.graphics.createBitmap
 import androidx.core.graphics.scale
 import android.graphics.ImageDecoder
+import android.graphics.Paint
 import android.graphics.RectF
 import android.net.Uri
 import com.google.android.gms.tasks.Task
@@ -23,6 +28,8 @@ import lgka.plan.SchoolReference
 import lgka.plan.Stufenplan
 import lgka.plan.StufenplanParser
 import lgka.plan.TextBox
+import lgka.plan.fillGaps
+import lgka.plan.recheckRegions
 import java.io.File
 import kotlin.coroutines.resume
 import kotlin.coroutines.resumeWithException
@@ -82,7 +89,24 @@ object KurswahlScanner {
             val aspect = image.height.toDouble() / max(1, image.width)
             shots += Shot(boxes, aspect)
             try {
-                sheets += KurswahlParser.parse(boxes, aspect)
+                val detail = KurswahlParser.parseDetailed(boxes, aspect)
+                var sheet = detail.kurswahl
+                // what the first reading missed (required subjects, the plan's Halbjahr column, the sums) read again
+                // in enlarged bands, plain and with raised contrast; those readings only fill cells still unread
+                val regions = KurswahlParser.recheckRegions(detail)
+                if (regions.isNotEmpty()) {
+                    val extra = mutableListOf<TextBox>()
+                    for (region in regions) {
+                        val rect = RectF(region.left.toFloat(), region.top.toFloat(), region.right.toFloat(), region.bottom.toFloat())
+                        extra += recognize(image, rect)
+                        extra += recognize(image, rect, enhance = true)
+                    }
+                    try {
+                        sheet = KurswahlParser.fillGaps(sheet, KurswahlParser.parse(boxes + extra, aspect))
+                    } catch (_: KurswahlParser.Failure) {
+                    }
+                }
+                sheets += sheet
             } catch (e: KurswahlParser.Failure) {
                 if (firstError == null) firstError = e
             }
@@ -91,8 +115,11 @@ object KurswahlScanner {
         Result(KurswahlParser.merge(sheets), shots.first().boxes, shots.first().aspect, shots)
     }
 
-    /** Recognised text of a region (0…1, origin top-left), mapped back to whole-image coordinates. */
-    private suspend fun recognize(image: Bitmap, region: RectF): List<TextBox> {
+    /**
+     * Recognised text of a region (0…1, origin top-left), mapped back to whole-image coordinates.
+     * [enhance]: grey with raised contrast, for faint print and glare.
+     */
+    private suspend fun recognize(image: Bitmap, region: RectF, enhance: Boolean = false): List<TextBox> {
         val left = (region.left * image.width).roundToInt().coerceIn(0, image.width - 1)
         val top = (region.top * image.height).roundToInt().coerceIn(0, image.height - 1)
         val right = (region.right * image.width).roundToInt().coerceIn(left + 1, image.width)
@@ -100,7 +127,8 @@ object KurswahlScanner {
         val cropped = Bitmap.createBitmap(image, left, top, right - left, bottom - top)
         // enlarge small crops so a 2 mm digit is ~40 px tall; cap the size for memory
         val scale = min(3.0, 3600.0 / max(cropped.width, cropped.height))
-        val input = if (scale > 1.2) cropped.scale((cropped.width * scale).roundToInt(), (cropped.height * scale).roundToInt()) else cropped
+        val scaled = if (scale > 1.2) cropped.scale((cropped.width * scale).roundToInt(), (cropped.height * scale).roundToInt()) else cropped
+        val input = if (enhance) contrasted(scaled) else scaled
         val text = recognizer.process(InputImage.fromBitmap(input, 0)).await()
         val regionWidth = (right - left).toDouble() / image.width
         val regionHeight = (bottom - top).toDouble() / image.height
@@ -115,6 +143,22 @@ object KurswahlScanner {
                 height = box.height().toDouble() / input.height * regionHeight,
                 confidence = line.confidence.toDouble())
         }
+    }
+
+    /** Grey, contrast raised around mid grey: faint digits get darker, paper and glare lighter. */
+    private fun contrasted(bitmap: Bitmap): Bitmap {
+        val contrast = 1.8f
+        val offset = 128f * (1 - contrast)
+        val matrix = ColorMatrix().apply { setSaturation(0f) }
+        matrix.postConcat(ColorMatrix(floatArrayOf(
+            contrast, 0f, 0f, 0f, offset,
+            0f, contrast, 0f, 0f, offset,
+            0f, 0f, contrast, 0f, offset,
+            0f, 0f, 0f, 1f, 0f,
+        )))
+        val result = createBitmap(bitmap.width, bitmap.height)
+        Canvas(result).drawBitmap(bitmap, 0f, 0f, Paint(Paint.FILTER_BITMAP_FLAG).apply { colorFilter = ColorMatrixColorFilter(matrix) })
+        return result
     }
 
     /** From the subject column to past the fourth Halbjahr column, first subject to "Summen". */
