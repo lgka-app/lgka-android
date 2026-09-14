@@ -1,9 +1,10 @@
-LGKA+ wurde komplett neu als native Android-App entwickelt
-Vertretungsplan, Stundenplan, News und Termine laden jetzt in Sekundenbruchteilen
-Neues Design mit Material 3
-Stundenplan erkennt die neuen PDFs für Klasse 5 bis 10, J11 und J12 automatisch
-News-Artikel mit Fotoansicht und passenden weiteren Artikeln
-Deine Zugangsdaten werden verschlüsselt auf dem Gerät gespeichert
+Neu: Dein persönlicher Stundenplan für J11 und J12
+Fotografiere dein Kurswahlprotokoll und die App erstellt deinen Plan als PDF
+Die Erkennung läuft komplett auf deinem Handy, nichts verlässt das Gerät
+Kurse kannst du vor dem Speichern prüfen und später jederzeit anpassen
+Sprache der App jetzt in den Einstellungen wählbar
+Neuer PDF-Viewer und Wetter zeigt, woher die Daten kommen
+Anmeldung und Klassenauswahl zuverlässiger
 
 Mehr Infos:
-github.com/lgka-app/lgka-android/releases/tag/v3.0.0
+github.com/lgka-app/lgka-android/releases/tag/v3.1.0
