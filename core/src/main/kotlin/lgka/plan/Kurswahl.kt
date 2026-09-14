@@ -434,6 +434,12 @@ object KurswahlParser {
     /**
      * The x of the first Halbjahr column when the bracketed course numbers are densest one or two columns
      * left of [columns] (where a missed first sum puts them); null when they are where the columns say.
+     *
+     * Not mirrored from iOS (decided 2026-09-14): brackets projected to the sums row along the subject
+     * column's slant, and an extra rebuild when they lie over half a column from the first sum or the sums
+     * leave a gap over 1.6 times the smallest. On Android it made benchmark variant kurswahl_ocr_c combo#1
+     * read worse (rows slip after the rebuild), also behind a guard keeping the rebuilt reading only when it
+     * is as consistent; the strict gate does not allow that. The attempt is kept outside the repo as a patch.
      */
     private fun firstColumnFromBrackets(words: List<TextBox>, columns: List<Double>, columnX: Double): Double? {
         val spacing = columns.adjacentDifferences().median() ?: return null
