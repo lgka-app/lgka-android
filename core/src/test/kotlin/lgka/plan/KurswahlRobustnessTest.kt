@@ -291,6 +291,19 @@ class KurswahlRobustnessTest {
         assertTrue(cell("1").unreadable && cell("1").hours == null)
     }
 
+    /** Englisch with its label and course number unread is not Französisch, whose own row reads "-". */
+    @Test
+    fun unrecognisedRowIsNotASubjectWhoseOwnRowWasRead() {
+        val k = CustomPlanTest.kurswahl()
+        val rows = k.rows.map { r ->
+            if (r.subject == "E") r.copy(subject = "?", fachart = null, perCourse = null, halves = r.halves.map { it.copy(parallel = null, raw = it.raw?.substringBefore("(")) }) else r
+        }
+        assertEquals(false, k.rows.first { it.subject == "F" }.halves[0].unreadable)
+        val plan = CustomPlanBuilder.build(k.copy(rows = rows), CustomPlanTest.stufenplan(), "1. Halbjahr")
+        assertTrue(plan.courses.none { it.subjectKey == "F" })
+        assertTrue(plan.checks.issues.any { it.kind == CustomPlan.Issue.Kind.UNKNOWN_ROW })
+    }
+
     @Test
     fun valueOnlyOnePhotoReadIsDroppedWhenItIsTheExcessOverTheSum() {
         val sums = listOf(5, null, null, null)

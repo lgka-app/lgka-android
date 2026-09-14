@@ -284,6 +284,8 @@ object CustomPlanBuilder {
         val firstOther = kurswahl.rows.indexOfFirst { SchoolReference.subject(it.subject) != null && it.subject !in languages }
             .takeIf { it >= 0 } ?: kurswahl.rows.size
         val named = kurswahl.rows.map { row -> SchoolReference.subject(row.subject)?.let { sheetGroup(it.key) } }
+        // a subject whose own row was read in this Halbjahr ("5" or "-") is not the unrecognised row
+        val readHere = kurswahl.rows.filter { it.halves.getOrNull(half)?.unreadable == false }.mapNotNull { SchoolReference.subject(it.subject)?.key }.toSet()
         for ((index, row) in kurswahl.rows.withIndex()) {
             if (SchoolReference.subject(row.subject) != null) continue
             val cell = row.halves.getOrNull(half) ?: continue
@@ -296,7 +298,7 @@ object CustomPlanBuilder {
             val above = named.subList(0, index).lastOrNull { it != null }
             val below = named.subList(index + 1, named.size).firstOrNull { it != null }
             val matches = SchoolReference.subjects.map { it.key }
-                .filter { key -> key !in taken && (index < firstOther) == (key in languages) }
+                .filter { key -> key !in taken && key !in readHere && (index < firstOther) == (key in languages) }
                 .filter { key -> sheetGroup(key).let { g -> g == null || ((above == null || g >= above) && (below == null || g <= below)) } }
                 .mapNotNull { key ->
                     val choice = CustomPlan.Choice(key, level(row.fachart, hours), hours, parallel)
