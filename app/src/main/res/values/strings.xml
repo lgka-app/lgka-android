@@ -191,7 +191,6 @@
     <string name="custom_pdf_shared_slots">%1$s: %2$s im Kurswahlprotokoll nicht vermerkt, alle zur selben Zeit</string>
     <string name="custom_pdf_stand">Stand %1$s</string>
     <string name="custom_pdf_title">Persönlicher Stundenplan</string>
-    <string name="custom_reading_subtitle">Direkt auf deinem Handy</string>
     <string name="custom_reading_title">Kurswahlprotokoll wird gelesen …</string>
     <string name="custom_review_add_subject">Fach hinzufügen</string>
     <string name="custom_review_basisfach">Basisfach</string>

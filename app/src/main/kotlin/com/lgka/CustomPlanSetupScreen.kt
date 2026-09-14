@@ -103,6 +103,11 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.launch
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.LinearEasing
+import androidx.compose.material3.LinearProgressIndicator
+import androidx.compose.ui.text.style.TextAlign
+import kotlinx.coroutines.delay
 import lgka.plan.KurswahlParser
 
 private val Good = Color(0xFF34C759)
@@ -129,14 +134,18 @@ fun CustomPlanSetupScreen(onBack: () -> Unit, onDraft: (CustomPlanDraft) -> Unit
     val haptics = rememberHaptics()
     val scope = rememberCoroutineScope()
     var showCamera by remember { mutableStateOf(false) }
-    var reading by remember { mutableStateOf<Bitmap?>(null) }
+    var reading by remember { mutableStateOf(false) }
+    val progress = remember { Animatable(0f) }
     var failure by remember { mutableStateOf<String?>(null) }
     var resultExpanded by remember { mutableStateOf(false) }
 
     fun read(images: List<Bitmap>) {
-        val first = images.firstOrNull() ?: return
-        reading = first
+        if (images.isEmpty()) return
+        reading = true
         scope.launch {
+            progress.snapTo(0f)
+            // rises steadily towards 90 % while the work runs, never further before it is done
+            val rising = launch { progress.animateTo(0.9f, tween(6000, easing = LinearEasing)) }
             try {
                 // the Stufenplan PDFs load while the photos are read
                 val next = coroutineScope {
@@ -148,6 +157,9 @@ fun CustomPlanSetupScreen(onBack: () -> Unit, onDraft: (CustomPlanDraft) -> Unit
                     DebugCustomPlan.keep(context, scan)
                     CustomPlanDraft.fromScan(scan.kurswahl, loaded)
                 }
+                rising.cancel()
+                progress.animateTo(1f, tween(350))
+                delay(250)
                 haptics.success()
                 onDraft(next)
             } catch (e: CancellationException) {
@@ -162,7 +174,8 @@ fun CustomPlanSetupScreen(onBack: () -> Unit, onDraft: (CustomPlanDraft) -> Unit
                 haptics.error()
                 failure = resources.getString(R.string.custom_error_generic)
             } finally {
-                reading = null
+                rising.cancel()
+                reading = false
             }
         }
     }
@@ -181,7 +194,7 @@ fun CustomPlanSetupScreen(onBack: () -> Unit, onDraft: (CustomPlanDraft) -> Unit
             bottomBar = {
                 Box(Modifier.fillMaxWidth().background(MaterialTheme.colorScheme.background).navigationBarsPadding()
                     .padding(horizontal = 20.dp, vertical = 12.dp)) {
-                    Button(onClick = { haptics.medium(); showCamera = true }, enabled = reading == null,
+                    Button(onClick = { haptics.medium(); showCamera = true }, enabled = !reading,
                         modifier = Modifier.fillMaxWidth().heightIn(min = 52.dp).testTag("customPlan.scan")) {
                         Icon(Icons.Filled.PhotoCamera, null)
                         Spacer(Modifier.width(10.dp))
@@ -205,7 +218,7 @@ fun CustomPlanSetupScreen(onBack: () -> Unit, onDraft: (CustomPlanDraft) -> Unit
             }
         }
         ResultOverlay(resultExpanded, onClose = { haptics.light(); resultExpanded = false })
-        reading?.let { ReadingOverlay(it) }
+        if (reading) ReadingScreen(progress.value)
         if (showCamera) {
             KurswahlCameraScreen(onCapture = { images -> showCamera = false; read(images) }, onCancel = { showCamera = false })
         }
@@ -361,33 +374,17 @@ private fun ResultOverlay(visible: Boolean, onClose: () -> Unit) {
 
 // ── Reading ────────────────────────────────────────────────────────────────────
 
+/** Plain full-screen progress while the photos are read and the plan is built. */
 @Composable
-private fun ReadingOverlay(image: Bitmap) {
-    val accent = MaterialTheme.colorScheme.primary
-    val reduceMotion = rememberReduceMotion()
-    val transition = rememberInfiniteTransition(label = "sweep")
-    val sweep by transition.animateFloat(0f, 1f, infiniteRepeatable(tween(1300), RepeatMode.Reverse), label = "sweep")
+private fun ReadingScreen(progress: Float) {
     BackHandler {} // reading cannot be interrupted halfway
-    Surface(Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background.copy(alpha = 0.94f)) {
+    Surface(Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
         Column(Modifier.fillMaxSize().padding(32.dp), horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Center) {
-            val bitmap = remember(image) { image.asImageBitmap() }
-            BoxWithConstraints(Modifier.widthIn(max = 220.dp).heightIn(max = 300.dp).aspectRatio(image.width.toFloat() / image.height)
-                    .shadow(18.dp, RoundedCornerShape(14.dp)).clip(RoundedCornerShape(14.dp))) {
-                Image(bitmap, null, Modifier.fillMaxSize(), contentScale = ContentScale.Fit)
-                if (!reduceMotion) {
-                    // a light sweeping over the sheet while it is being read
-                    Box(Modifier.fillMaxWidth().height(60.dp).offset { IntOffset(0, (maxHeight * sweep - 30.dp).roundToPx()) }
-                        .background(Brush.verticalGradient(listOf(Color.Transparent, accent.copy(alpha = 0.55f), Color.Transparent))))
-                }
-            }
-            Spacer(Modifier.height(22.dp))
-            Text(stringResource(R.string.custom_reading_title), style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
-            Spacer(Modifier.height(6.dp))
-            Text(stringResource(R.string.custom_reading_subtitle), style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant)
-            Spacer(Modifier.height(18.dp))
-            CircularProgressIndicator()
+            Text(stringResource(R.string.custom_reading_title), style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.SemiBold, textAlign = TextAlign.Center)
+            Spacer(Modifier.height(20.dp))
+            LinearProgressIndicator(progress = { progress }, modifier = Modifier.width(260.dp))
         }
     }
 }

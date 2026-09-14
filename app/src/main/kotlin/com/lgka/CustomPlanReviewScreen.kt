@@ -104,7 +104,8 @@ fun CustomPlanHost(edit: Boolean, onBack: () -> Unit, onSaved: (SavedCustomPlan)
             BackHandler { reviewing = null }
             CustomPlanReviewScreen(draft, onBack = { reviewing = null }, onSave = save)
         } else {
-            CustomPlanSetupScreen(onBack = onBack, onDraft = { reviewing = it })
+            // a plan without a single issue (scan hints included) is saved and opened at once
+            CustomPlanSetupScreen(onBack = onBack, onDraft = { if (it.plan.checks.issues.isEmpty()) save(it.saved) else reviewing = it })
         }
     }
 }
