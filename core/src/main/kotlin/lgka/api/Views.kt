@@ -3,6 +3,7 @@ package lgka.api
 import lgka.ScheduleGrades
 import java.time.LocalDateTime
 import java.time.temporal.ChronoUnit
+import java.util.Locale
 
 /**
  * The app's hourly window: from the start of [nowLocal]'s hour for 24 hours.
@@ -45,6 +46,18 @@ fun scheduleFor(cls: String, group: List<ScheduleItem>): ScheduleItem? {
     val jahrgang = (ScheduleGrades.gradeOf(cls) ?: 0) >= 11
     return group.firstOrNull { s -> if (jahrgang) s.grades.any { it >= 11 } else s.grades.any { it <= 10 } }
         ?: group.firstOrNull()
+}
+
+/** Typed class input as a class-index key: " 10 B " → "10b", "J11" → "j11". */
+fun normalizeClass(input: String): String = input.filterNot(Char::isWhitespace).lowercase(Locale.ROOT)
+
+/**
+ * The key to store for a typed class, or null when no PDF of [group] lists it in its
+ * class index. Grade ranges alone do not count: "5e" parses but has no page anywhere.
+ */
+fun knownClass(input: String, group: List<ScheduleItem>): String? {
+    val key = normalizeClass(input)
+    return key.takeIf { k -> k.isNotEmpty() && group.any { k in it.classIndex } }
 }
 
 /** Prefer the 2. Halbjahr once it is published, else the 1. Halbjahr. */

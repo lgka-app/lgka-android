@@ -46,8 +46,9 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
-import lgka.ScheduleGrades
 import lgka.api.covers
+import lgka.api.knownClass
+import lgka.api.normalizeClass
 import lgka.api.pagerIndex
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.asImageBitmap
@@ -142,10 +143,11 @@ private fun PdfViewerContent(request: PdfRequest, onClose: () -> Unit) {
     /** _validateAndSaveClass parity: unknown class → "existiert nicht", known → persist, jump, confirm. */
     fun notFound(q: String) { haptics.error(); toast.show(resources.getString(R.string.no_results, q.uppercase())) }
     fun submitClass() {
-        val q = classInput.trim().lowercase()
+        val q = normalizeClass(classInput)
         if (q.length < 2) return
         haptics.medium()
-        if (!ScheduleGrades.isClassToken(q)) { notFound(q); return }
+        // same rule as the home class dialog: only classes in the timetable's class index
+        if (knownClass(q, vm.preferredGroup) == null) { notFound(q); return }
         val current = currentSchedule
         if (current != null && !current.covers(q)) {
             // cross-PDF class switching (_navigateCrossPdf parity): the PDF whose class index / grades contain the class
@@ -226,7 +228,7 @@ private fun PdfViewerContent(request: PdfRequest, onClose: () -> Unit) {
                         singleLine = true,
                         modifier = Modifier.weight(1f).focusRequester(focusRequester).testTag("pdf.classInput"))
                     Spacer(Modifier.width(8.dp))
-                    Button(onClick = { submitClass() }, enabled = classInput.trim().length >= 2,
+                    Button(onClick = { submitClass() }, enabled = normalizeClass(classInput).length >= 2,
                            modifier = Modifier.testTag("pdf.classSubmit")) { Text(stringResource(R.string.set_class_button)) }
                 }
             }

@@ -31,6 +31,8 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.platform.LocalResources
 import lgka.ScheduleGrades
 import lgka.api.Resource
+import lgka.api.knownClass
+import lgka.api.normalizeClass
 import lgka.api.scheduleFor
 import lgka.api.Schedules
 import lgka.api.preferredGroup
@@ -117,20 +119,32 @@ fun classDisplayName(resources: android.content.res.Resources, cls: String): Str
 @Composable
 fun ClassDialog(onDismiss: () -> Unit) {
     val prefs = LocalContainer.current.prefs
+    val vm = LocalHomeViewModel.current
     val haptics = rememberHaptics()
     var input by remember { mutableStateOf(prefs.selectedScheduleClass) }
+    var rejected by remember { mutableStateOf<String?>(null) }
     AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text(stringResource(R.string.set_class_title)) },
         text = {
-            OutlinedTextField(value = input, onValueChange = { input = it.take(3) },
-                              placeholder = { Text(stringResource(R.string.search_hint)) }, singleLine = true)
+            // spaces are dropped while typing, so "10 b" still fits the three-character limit
+            OutlinedTextField(value = input, onValueChange = { input = it.filterNot(Char::isWhitespace).take(3); rejected = null },
+                              placeholder = { Text(stringResource(R.string.search_hint)) }, singleLine = true,
+                              isError = rejected != null,
+                              supportingText = rejected?.let { { Text(stringResource(R.string.no_results, it)) } })
         },
         confirmButton = {
             TextButton(onClick = {
+                if (normalizeClass(input).isEmpty()) { haptics.medium(); onDismiss(); return@TextButton }
+                // only classes with a page in the timetable: anything else would open a PDF on page 1
+                val cls = knownClass(input, vm.preferredGroup)
+                if (cls == null) {
+                    haptics.error()
+                    rejected = normalizeClass(input).uppercase(Locale.ROOT)
+                    return@TextButton
+                }
                 haptics.medium()
-                val cls = input.trim().lowercase(Locale.ROOT)
-                if (cls.isNotEmpty()) prefs.selectedScheduleClass = cls
+                prefs.selectedScheduleClass = cls
                 onDismiss()
             }) { Text(stringResource(R.string.set_class_button)) }
         },

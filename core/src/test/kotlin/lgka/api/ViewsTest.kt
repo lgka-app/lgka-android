@@ -50,4 +50,34 @@ class ViewsTest {
         assertTrue(!group.first { it.gradeLevel == "J11" }.covers("5a"))
         assertNull(scheduleFor("7b", emptyList()))
     }
+
+    @Test
+    fun knownClassIgnoresCaseAndSpaces() {
+        val env = ApiJson.decodeFromString(ResourceEnvelope.serializer(), Fixtures.text("schedules.json"))
+        val group = ApiJson.decodeFromJsonElement(Schedules.serializer(), env.data).preferredGroup()
+        for (input in listOf("10B", "10b", " 10b ", "10 b", "1 0B")) assertEquals("10b", knownClass(input, group))
+        assertEquals("j11", knownClass("J11", group))
+        assertEquals("j11", knownClass("j 11", group))
+    }
+
+    @Test
+    fun knownClassSearchesEveryPdfOfTheGroup() {
+        val env = ApiJson.decodeFromString(ResourceEnvelope.serializer(), Fixtures.text("schedules.json"))
+        val group = ApiJson.decodeFromJsonElement(Schedules.serializer(), env.data).preferredGroup()
+        // one key from each of the three uploads (5-10, J11, J12)
+        assertEquals("7b", knownClass("7b", group))
+        assertEquals("j11", knownClass("j11", group))
+        assertEquals("j12", knownClass("J12", group))
+        assertEquals("j12", knownClass("j12", group.filter { it.gradeLevel == "J12" }))
+        assertNull(knownClass("j11", group.filter { it.gradeLevel == "J12" }))
+    }
+
+    @Test
+    fun knownClassRejectsUnknownInput() {
+        val env = ApiJson.decodeFromString(ResourceEnvelope.serializer(), Fixtures.text("schedules.json"))
+        val group = ApiJson.decodeFromJsonElement(Schedules.serializer(), env.data).preferredGroup()
+        // "5e" and "j13" are valid class tokens but have no page in any PDF
+        for (input in listOf("5e", "j13", "11a", "abc", "", "   ", "10bb")) assertNull(knownClass(input, group), input)
+        assertNull(knownClass("7b", emptyList()))
+    }
 }
