@@ -335,7 +335,7 @@ private fun CourseRow(draft: CustomPlanDraft, plan: CustomPlan, choice: CustomPl
                             Icon(Icons.Filled.Error, null, Modifier.size(14.dp), tint = EstimatedText)
                             Spacer(Modifier.width(4.dp))
                             Text(stringResource(R.string.custom_review_estimated), style = MaterialTheme.typography.labelSmall,
-                                color = EstimatedText, fontWeight = FontWeight.Medium)
+                                color = EstimatedText, fontWeight = FontWeight.SemiBold)
                         }
                     }
                 }

@@ -254,7 +254,8 @@ private fun NeedSection() {
                     .aspectRatio(210f / 297f)
                     .rotate(if (reduceMotion) 0f else -2.5f)
                     .shadow(16.dp, RoundedCornerShape(6.dp))
-                    .clip(RoundedCornerShape(6.dp))) {
+                    .clip(RoundedCornerShape(6.dp))
+                    .border(0.5.dp, Color.Black.copy(alpha = 0.08f), RoundedCornerShape(6.dp))) {
                 Image(painterResource(R.drawable.kurswahl_sample), null, Modifier.fillMaxSize(), contentScale = ContentScale.Crop)
                 // where the scan reads on the sample sheet (fractions of the image)
                 Callout(stringResource(R.string.custom_setup_callout_subjects), 0.33f, 0.48f)
@@ -343,6 +344,7 @@ private fun ResultSection(expanded: Boolean, onExpand: () -> Unit) {
         Image(painterResource(R.drawable.plan_result), null,
             Modifier.fillMaxWidth().aspectRatio(297f / 210f).alpha(if (expanded) 0f else 1f)
                 .shadow(12.dp, RoundedCornerShape(8.dp)).clip(RoundedCornerShape(8.dp))
+                .border(0.5.dp, Color.Black.copy(alpha = 0.08f), RoundedCornerShape(8.dp))
                 .clickable { haptics.light(); onExpand() }
                 .clearAndSetSemantics { contentDescription = label; onClick { onExpand(); true } },
             contentScale = ContentScale.Crop)
@@ -356,7 +358,7 @@ private fun ResultOverlay(visible: Boolean, onClose: () -> Unit) {
     val label = stringResource(R.string.custom_setup_a11y_result)
     if (visible) BackHandler(onBack = onClose)
     AnimatedVisibility(visible, enter = fadeIn(tween(if (reduceMotion) 0 else 220)), exit = fadeOut(tween(if (reduceMotion) 0 else 200))) {
-        Box(Modifier.fillMaxSize().background(Color.Black.copy(alpha = 0.92f))
+        Box(Modifier.fillMaxSize().background(Color.Black.copy(alpha = 0.88f))
                 .clickable(interactionSource = remember { MutableInteractionSource() }, indication = null, onClick = onClose)) {
             Image(painterResource(R.drawable.plan_result), label,
                 Modifier.align(Alignment.Center).safeDrawingPadding().padding(16.dp).fillMaxWidth().aspectRatio(297f / 210f)

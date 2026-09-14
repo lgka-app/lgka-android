@@ -182,7 +182,7 @@ private fun CameraContent(onCapture: (List<Bitmap>) -> Unit, onCancel: () -> Uni
                     InstructionPill(camera, photosTaken, accent)
                 }
             }
-            if (hint == ScanHint.HOLD_PARALLEL && !camera.isCapturing) SpiritLevel(camera.level, accent)
+            if (hint == ScanHint.HOLD_PARALLEL) SpiritLevel(camera.level, accent)
         }
         Box(Modifier.fillMaxSize().background(Color.White.copy(alpha = flashAlpha)))
     }
@@ -313,7 +313,7 @@ private fun InstructionPill(camera: KurswahlCamera, photosTaken: Int, accent: Co
             .animateContentSize()
             .semantics(mergeDescendants = true) { liveRegion = LiveRegionMode.Polite; contentDescription = text },
         verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-        Icon(if (bursting) Icons.Filled.PanTool else hintIcon(hint), null, tint = if (highlighted) Color.White else Color.White)
+        Icon(if (bursting) Icons.Filled.PanTool else hintIcon(hint), null, tint = if (highlighted) accent else Color.White)
         Text(if (bursting) stringResource(R.string.scan_burst_hold) else text, color = Color.White,
             style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold, textAlign = TextAlign.Center,
             maxLines = 2, autoSize = TextAutoSize.StepBased(minFontSize = 12.sp, maxFontSize = 14.sp),
@@ -321,7 +321,7 @@ private fun InstructionPill(camera: KurswahlCamera, photosTaken: Int, accent: Co
         if (bursting) {
             Row(horizontalArrangement = Arrangement.spacedBy(5.dp)) {
                 repeat(BURST) { index ->
-                    Box(Modifier.size(8.dp).clip(CircleShape).background(if (index < photosTaken) Color.White else Color.White.copy(alpha = 0.3f)))
+                    Box(Modifier.size(8.dp).clip(CircleShape).background(if (index < photosTaken) accent else Color.White.copy(alpha = 0.3f)))
                 }
             }
         }

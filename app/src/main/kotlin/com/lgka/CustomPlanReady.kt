@@ -51,6 +51,7 @@ import androidx.compose.ui.semantics.role
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.Constraints
+import androidx.compose.ui.unit.coerceAtMost
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.util.lerp
 import kotlinx.coroutines.CancellationException
@@ -124,7 +125,8 @@ fun CustomPlanReadyScreen(saved: SavedCustomPlan, onClose: () -> Unit) {
         }
 
         if (phase != ReadyPhase.VIEWER) {
-            val restingWidth = with(density) { (width * 0.86f).toDp() }
+            // at most 520 wide, like the iOS thumbnail
+            val restingWidth = with(density) { (width * 0.86f).toDp() }.coerceAtMost(520.dp)
             Column(
                 // only the thumbnail opens the plan; the rest of the page does not react
                 Modifier.fillMaxSize()
