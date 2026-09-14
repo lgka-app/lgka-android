@@ -192,7 +192,7 @@ object KurswahlParser {
             // the line holds more two-digit numbers right of the sums (the "Anrechnung" columns): a missed first sum
             // takes the next four and every column lands one too far right. The bracketed course numbers ("5(3)")
             // are printed in the first Halbjahr column only, so the columns go where the brackets are.
-            val bracketsAt = firstColumnFromBrackets(words, columns, columnX)
+            val bracketsAt = firstColumnFromBrackets(words, columns, columnX) ?: firstColumnFromSuffixes(words, columns, columnX)
             if (bracketsAt != null) {
                 val reference = sumLine.first.first()
                 val onLine = words.filter { w ->
@@ -429,6 +429,20 @@ object KurswahlParser {
         if (xs.count { abs(it - at) < spacing * 0.3 } < 3) return null
         val shift = ((at - columns[0]) / spacing).roundToInt()
         return at.takeIf { shift in -2..-1 && abs(at - (columns[0] + shift * spacing)) < spacing * 0.3 }
+    }
+
+    /**
+     * The x of the first Halbjahr column, one column left of [columns], when too few brackets were read for
+     * [firstColumnFromBrackets]: a plain "2.p" / "2.s" (a course of two later Halbjahre) sits in the column
+     * taken for the first Halbjahr, no bracketed value does, and the column to its left has one.
+     */
+    private fun firstColumnFromSuffixes(words: List<TextBox>, columns: List<Double>, columnX: Double): Double? {
+        val spacing = columns.adjacentDifferences().median() ?: return null
+        fun cells(x: Double) = words.filter { it.midX > columnX + 0.05 && abs(it.midX - x) < spacing * 0.3 }.map { parseCell(it.text) }
+        val first = cells(columns[0])
+        if (first.any { it.parallel != null } || first.none { it.suffix != null && it.parallel == null }) return null
+        val left = columns[0] - spacing
+        return left.takeIf { cells(it).any { c -> c.parallel != null } }
     }
 
     /** "5(3)" → 5 hours, course 3; "2(3).p" → 2, course 3; "2.s" → 2; "-" → not taken. */

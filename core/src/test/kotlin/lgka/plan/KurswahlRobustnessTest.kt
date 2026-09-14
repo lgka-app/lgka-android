@@ -1,6 +1,7 @@
 package lgka.plan
 
 import org.junit.jupiter.api.Test
+import kotlin.math.abs
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertNotNull
@@ -181,6 +182,40 @@ class KurswahlRobustnessTest {
         assertEquals(34, plan.checks.totalHours)
         assertTrue(plan.choices.none { it.subject == "Geo" })
         assertEquals(listOf(), plan.checks.issues.filter { it.kind != CustomPlan.Issue.Kind.INFERRED }.map { it.message })
+    }
+
+    private fun burst(name: String): Burst {
+        val text = checkNotNull(javaClass.getResourceAsStream("/plan/$name.json")) { "missing fixture $name" }.bufferedReader().use { it.readText() }
+        return json.decodeFromString(Burst.serializer(), text)
+    }
+
+    /** A second real burst of the same sheet (anonymised): the iPhone read Geo's "2.p" into the 1. Hj, 42 hours. */
+    @Test
+    fun secondBurstKeepsGeoOutOfTheFirstHalbjahr() {
+        val sheets = burst("kurswahl_ocr_burst_b").shots.map { KurswahlParser.parse(it.boxes, it.aspect) }
+        assertTrue(sheets.all { it.sums == listOf(34, 36, 36, 34) })
+        assertTrue(sheets.none { sheet -> sheet.rows.first { it.subject == "Geo" }.halves[0].taken })
+        val plan = CustomPlanBuilder.build(KurswahlParser.merge(sheets), CustomPlanTest.stufenplan(), "1. Halbjahr")
+        assertEquals(34, plan.checks.totalHours)
+        assertTrue(plan.choices.none { it.subject == "Geo" })
+        assertEquals(listOf(), plan.checks.issues.filter { it.kind != CustomPlan.Issue.Kind.INFERRED }.map { it.message })
+    }
+
+    /** Too few brackets read to place the columns by them: Geo's plain "2.p" in the column taken for the 1. Hj does. */
+    @Test
+    fun plainSuffixValueInTheFirstColumnShiftsTheColumns() {
+        val shot = burst("kurswahl_ocr_burst_b").shots[0]
+        val firstSum = shot.boxes.filter { it.text == "34" }.minOf { it.midX }
+        var brackets = 0
+        val boxes = shot.boxes.filter { b ->
+            val firstSumBox = b.text == "34" && abs(b.midX - firstSum) < 0.01
+            val bracket = KurswahlParser.parseCell(b.text).parallel != null
+            !firstSumBox && (!bracket || brackets++ < 2)
+        }
+        val kurswahl = KurswahlParser.parse(boxes, shot.aspect)
+        assertEquals(listOf(36, 36, 34), kurswahl.sums.drop(1))
+        assertFalse(kurswahl.rows.first { it.subject == "Geo" }.halves[0].taken)
+        assertEquals(2, kurswahl.rows.first { it.subject == "Geo" }.halves[1].hours)
     }
 
     @Test
