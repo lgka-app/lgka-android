@@ -14,7 +14,7 @@ import java.io.File
  * PdfRenderer (not thread-safe) is serialized behind the instance lock. [close]
  * takes the same lock: closing the renderer under a page that is still rendering crashes.
  */
-class PdfPages(file: File, cacheSize: Int = 6) : AutoCloseable {
+class PdfPages(file: File) : AutoCloseable {
     private val fd = ParcelFileDescriptor.open(file, ParcelFileDescriptor.MODE_READ_ONLY)
     private val renderer = try {
         PdfRenderer(fd)
@@ -22,7 +22,10 @@ class PdfPages(file: File, cacheSize: Int = 6) : AutoCloseable {
         fd.close()
         throw e
     }
-    private val cache = object : LruCache<Int, Bitmap>(cacheSize) {}
+    // by memory, not by count: zoomed pages are rendered several times larger
+    private val cache = object : LruCache<Int, Bitmap>(64 * 1024 * 1024) {
+        override fun sizeOf(key: Int, value: Bitmap) = value.allocationByteCount
+    }
     private var closed = false
     val pageCount: Int = renderer.pageCount
     /** width/height ratios so placeholders reserve the right space. */
