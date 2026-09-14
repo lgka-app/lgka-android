@@ -264,6 +264,34 @@ class KurswahlRobustnessTest {
     }
 
     @Test
+    fun courseNumberOfAnUnrecognisedRowGoesToTheSubjectAnotherPhotoNamed() {
+        val sums = listOf(null, null, null, null)
+        val base = Kurswahl(rows = listOf(
+            row("D", cell("3(3)"), cell("3"), cell("3"), cell("3")), row("?", cell("5(4)"), cell("5"), missing, missing),
+            row("Mu", cell("2(2)"), cell("2"), missing, missing),
+        ), sums = sums)
+        val other = Kurswahl(rows = listOf(row("E", cell("5"), cell("5"), cell("5"), cell("5"), fachart = "L")), sums = sums)
+        val merged = KurswahlParser.merge(listOf(base, other))
+        assertTrue(merged.rows.none { it.subject == "?" })
+        val e = merged.rows.first { it.subject == "E" }.halves[0]
+        assertTrue(e.hours == 5 && e.parallel == 4)
+    }
+
+    @Test
+    fun leistungsfachCellNotReadIsFive() {
+        val rows = listOf(row("D", cell("3"), cell("3"), cell("3"), cell("3")), row("Ch", missing, cell("5"), missing, missing, fachart = "L"))
+        val filled = KurswahlParser.completeFromSums(rows, listOf(null, null, null, null))
+        assertEquals(listOf(5, 5, 5, 5), filled[1].halves.map { it.hours })
+        assertTrue(filled[1].halves[0].inferred == true)
+        // nothing backing it but the column's remainder, as the only gap
+        val alone = listOf(row("D", cell("3"), cell("3"), cell("3"), cell("3")), row("Ch", missing, missing, missing, missing, fachart = "L"))
+        assertEquals(5, KurswahlParser.completeFromSums(alone, listOf(8, null, null, null))[1].halves[0].hours)
+        assertFalse(KurswahlParser.completeFromSums(alone, listOf(9, null, null, null))[1].halves[0].taken)
+        // a course never has 1 hour: "1" is a misread
+        assertTrue(cell("1").unreadable && cell("1").hours == null)
+    }
+
+    @Test
     fun valueOnlyOnePhotoReadIsDroppedWhenItIsTheExcessOverTheSum() {
         val sums = listOf(5, null, null, null)
         fun sheet(geo: Kurswahl.Cell) = Kurswahl(rows = listOf(

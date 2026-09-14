@@ -288,7 +288,8 @@ object CustomPlanBuilder {
             if (SchoolReference.subject(row.subject) != null) continue
             val cell = row.halves.getOrNull(half) ?: continue
             val hours = cell.hours ?: continue
-            val parallel = cell.parallel
+            // winprosa prints the course number in the first Halbjahr column only: a later one continues it
+            val parallel = cell.parallel ?: row.halves.take(half).reversed().firstOrNull { it.parallel != null && it.hours == hours }?.parallel
             val occupied = cells(choices, kurswahl.konfession, plan)
             val taken = choices.map { it.subject }.toSet()
             // the sheet lists subjects in groups: a row can only be a subject of a group between its named neighbours'
@@ -304,8 +305,17 @@ object CustomPlanBuilder {
                     val courseCells = cells(listOf(choice), kurswahl.konfession, plan)
                     choice.takeIf { courseCells.size == hours && courseCells.none { it in occupied } }
                 }
+            // several unrecognised rows with the very same values (two Leistungsfach languages "5(1)"): as many
+            // subjects as rows fit, so they are those subjects in the sheet's order
+            val alike = kurswahl.rows.withIndex().count { (j, other) ->
+                j >= index && SchoolReference.subject(other.subject) == null && other.halves.getOrNull(half)?.let { c ->
+                    c.hours == hours && (c.parallel ?: other.halves.take(half).reversed().firstOrNull { it.parallel != null && it.hours == hours }?.parallel) == parallel
+                } == true
+            }
             if (matches.size == 1) {
                 choices += matches[0]
+            } else if (matches.size > 1 && matches.size == alike) {
+                choices += matches.minBy { order(it.subject) }
             } else {
                 issues += CustomPlan.Issue(CustomPlan.Issue.Kind.UNKNOWN_ROW, codes = listOf("$hours"),
                     message = "Ein Fach mit $hours Wochenstunden wurde im Kurswahlprotokoll nicht erkannt")

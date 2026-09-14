@@ -379,8 +379,16 @@ object KurswahlParser {
         val filledElsewhere = rows.filter { it.subject in baseEmpty && it.halves.any { c -> c.taken && c.inferred != true } }
         for ((index, row) in base.rows.withIndex()) {
             if (row.subject != "?") continue
-            val named = recovered.any { r -> r.halves.zip(row.halves).all { (a, b) -> a.hours == b.hours || b.hours == null } }
-            if (named) continue
+            val named = recovered.firstOrNull { r -> r.halves.zip(row.halves).all { (a, b) -> a.hours == b.hours || b.hours == null } }
+            if (named != null) {
+                // the photo that named the subject may have missed its course number; this row has it
+                val at = rows.indexOf(named)
+                val halves = named.halves.zip(row.halves).map { (a, b) ->
+                    if (a.parallel == null && b.parallel != null && a.hours == b.hours) a.copy(parallel = b.parallel) else a
+                }
+                if (at >= 0 && halves != named.halves) rows[at] = named.copy(halves = halves)
+                continue
+            }
             val sameValues = filledElsewhere.any { r ->
                 r.halves.zip(row.halves).all { (a, b) -> a.hours == null || b.hours == null || (a.hours == b.hours && (a.parallel == null || b.parallel == null || a.parallel == b.parallel)) } &&
                     r.halves.zip(row.halves).any { (a, b) -> b.parallel != null && a.parallel == b.parallel }
@@ -457,6 +465,8 @@ object KurswahlParser {
         if (t.isEmpty()) return Kurswahl.Cell.MISSING
         if (t.all { it in "-–—_." }) return Kurswahl.Cell(raw = text, unreadable = false)
         CELL.matchEntire(t)?.let { m ->
+            // Kursstufe courses have 2 to 5 weekly hours: "1", "6", "8" … is a misread digit
+            if (m.groupValues[1].toInt() !in 2..5) return Kurswahl.Cell(raw = text, unreadable = true)
             return Kurswahl.Cell(raw = text, hours = m.groupValues[1].toInt(), parallel = m.groups[2]?.value?.toInt(),
                 unreadable = false, suffix = m.groups[3]?.value?.lowercase())
         }
@@ -464,7 +474,7 @@ object KurswahlParser {
         LOOSE_CELL.matchEntire(t)?.let { m ->
             val hours = digitValue(m.groupValues[1])
             val parallel = digitValue(m.groupValues[2])
-            if (hours in 1..5 && parallel in 1..9) {
+            if (hours in 2..5 && parallel in 1..9) {
                 return Kurswahl.Cell(raw = text, hours = hours, parallel = parallel, unreadable = false, suffix = m.groups[3]?.value?.lowercase())
             }
         }
@@ -551,6 +561,22 @@ object KurswahlParser {
                 else -> null
             } ?: continue
             for (h in 0 until 4) halves[i][h] = Kurswahl.Cell(hours = hours, unreadable = false, inferred = true)
+        }
+        // a Leistungsfach ("L") has 5 hours in all four Halbjahre: a cell not read is 5 when the row says 5
+        // elsewhere ("pro Kurs", another Halbjahr) or it is the column's only gap and the remainder is 5
+        for ((i, row) in rows.withIndex()) {
+            if (row.fachart != "L" || halves[i].size != 4) continue
+            val backed = row.perCourse == "5" || halves[i].any { it.hours == 5 && it.inferred != true }
+            for (h in 0 until 4) {
+                val cell = halves[i][h]
+                if (cell.taken || !cell.unreadable) continue
+                val onlyGap = rows.indices.none { j ->
+                    val other = halves[j].getOrNull(h)
+                    j != i && other != null && !other.taken &&
+                        (rows[j].subject in allFourHalves || other.raw != null || hoursElsewhere(halves[j], rows[j].perCourse, h) != null)
+                }
+                if (backed || (onlyGap && remainder(h, i) == 5)) halves[i][h] = Kurswahl.Cell(hours = 5, unreadable = false, inferred = true)
+            }
         }
         fillSingleGaps()
         return rows.mapIndexed { i, row -> if (halves[i] == row.halves) row else row.copy(halves = halves[i]) }
