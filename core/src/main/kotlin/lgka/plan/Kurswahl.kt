@@ -184,10 +184,33 @@ object KurswahlParser {
             w.midY > lastRowY && w.midY < lastRowY + pitch * 8 && w.midX > columnX + 0.12 && TWO_DIGITS.matches(w.text)
         }.sortedBy { it.midX }
         val sumLine = sumAnchors.asSequence().mapNotNull { sumRow(words, it, columnX, pitch) }.firstOrNull()
+        var sumBoxes: List<TextBox> = sumLine?.first ?: emptyList()
         if (sumLine != null) {
             columns = sumLine.first.map { it.midX }
             sums = sumLine.first.map { b -> b.text.filter { it.isDigit() }.toIntOrNull() }
             slope = sumLine.second
+            // the line holds more two-digit numbers right of the sums (the "Anrechnung" columns): a missed first sum
+            // takes the next four and every column lands one too far right. The bracketed course numbers ("5(3)")
+            // are printed in the first Halbjahr column only, so the columns go where the brackets are.
+            val bracketsAt = firstColumnFromBrackets(words, columns, columnX)
+            if (bracketsAt != null) {
+                val reference = sumLine.first.first()
+                val onLine = words.filter { w ->
+                    TWO_DIGITS.matches(w.text) && w.midX > columnX + 0.12 &&
+                        abs(w.midY - (reference.midY + slope * (w.midX - reference.midX))) < pitch * 0.6
+                }
+                // the printed spacing is the common small gap between the line's numbers (a missed sum leaves a double gap)
+                val gaps = onLine.map { it.midX }.sorted().adjacentDifferences().filter { it > 0.02 }
+                val smallest = gaps.minOrNull()
+                if (smallest != null) {
+                    val spacing = gaps.filter { it < smallest * 1.25 }.median() ?: smallest
+                    columns = (0 until 4).map { bracketsAt + it * spacing }
+                    val shifted = columns.map { x -> onLine.filter { abs(it.midX - x) < spacing * 0.3 }.minByOrNull { abs(it.midX - x) } }
+                    sums = shifted.map { b -> b?.text?.filter { it.isDigit() }?.toIntOrNull() }
+                    sumBoxes = shifted.filterNotNull()
+                    columns = columns.mapIndexed { i, x -> shifted[i]?.midX ?: x }
+                }
+            }
         } else {
             slope = bracketSlope(words, found.map { it.second }, pitch)
         }
@@ -277,7 +300,7 @@ object KurswahlParser {
             readCells = columns.indices.map { h -> picked.count { it[2 + h] != null } },
             subjectBoxes = found.map { it.second },
             cellBoxes = columns.indices.map { h -> picked.mapNotNull { it[2 + h] } },
-            sumBoxes = sumLine?.first ?: emptyList())
+            sumBoxes = sumBoxes)
     }
 
     /**
@@ -368,7 +391,44 @@ object KurswahlParser {
             name = sheets.firstNotNullOfOrNull { it.name },
             abiturjahr = sheets.firstNotNullOfOrNull { it.abiturjahr },
             konfession = sheets.firstNotNullOfOrNull { it.konfession },
-            rows = rows, sums = sums)
+            rows = withoutLoneExcess(rows, sheets, sums), sums = sums)
+    }
+
+    /**
+     * A Halbjahr that adds up to more than its sum after merging: the usual cause is a value only one photo
+     * read while the others found the row without it (a photo whose columns were placed one too far right).
+     * When exactly one such value is the whole excess, it is dropped. Required subjects keep theirs.
+     */
+    private fun withoutLoneExcess(rows: List<Kurswahl.Row>, sheets: List<Kurswahl>, sums: List<Int?>): List<Kurswahl.Row> {
+        val halves = rows.map { it.halves.toMutableList() }
+        for (h in 0 until 4) {
+            val sum = sums.getOrNull(h) ?: continue
+            val excess = halves.sumOf { it.getOrNull(h)?.hours ?: 0 } - sum
+            if (excess <= 0) continue
+            val lone = rows.indices.filter { i ->
+                val row = rows[i]
+                val cell = halves[i].getOrNull(h) ?: return@filter false
+                if (row.subject == "?" || row.subject in allFourHalves || cell.inferred == true || cell.hours != excess) return@filter false
+                val versions = sheets.mapNotNull { sheet -> sheet.rows.firstOrNull { it.subject == row.subject }?.halves?.getOrNull(h) }
+                versions.count { !it.unreadable && it.inferred != true && it.hours == cell.hours } == 1 && versions.any { it.unreadable }
+            }
+            val i = lone.singleOrNull() ?: continue
+            halves[i][h] = Kurswahl.Cell.MISSING
+        }
+        return rows.mapIndexed { i, row -> if (halves[i] == row.halves) row else row.copy(halves = halves[i]) }
+    }
+
+    /**
+     * The x of the first Halbjahr column when the bracketed course numbers are densest one or two columns
+     * left of [columns] (where a missed first sum puts them); null when they are where the columns say.
+     */
+    private fun firstColumnFromBrackets(words: List<TextBox>, columns: List<Double>, columnX: Double): Double? {
+        val spacing = columns.adjacentDifferences().median() ?: return null
+        val xs = words.filter { it.midX > columnX + 0.05 && parseCell(it.text).parallel != null }.map { it.midX }
+        val at = densestX(xs, spacing * 0.3) ?: return null
+        if (xs.count { abs(it - at) < spacing * 0.3 } < 3) return null
+        val shift = ((at - columns[0]) / spacing).roundToInt()
+        return at.takeIf { shift in -2..-1 && abs(at - (columns[0] + shift * spacing)) < spacing * 0.3 }
     }
 
     /** "5(3)" → 5 hours, course 3; "2(3).p" → 2, course 3; "2.s" → 2; "-" → not taken. */

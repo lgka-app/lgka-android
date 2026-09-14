@@ -165,6 +165,48 @@ class KurswahlRobustnessTest {
         assertTrue(regions.all { it.left >= 0 && it.top >= 0 && it.right <= 1 && it.bottom <= 1 })
     }
 
+    /**
+     * A real 3-photo burst (name replaced, SchID and birth date removed): on the first photo the sums line
+     * search took 36 36 34 46 (the fourth sum and the "Anrechnung" numbers), every Halbjahr column moved one
+     * to the right, Geo's "2.p" of the 2. Hj became a 1. Hj value and the merged plan had 39 hours.
+     */
+    @Test
+    fun sumsRowWithAnrechnungNumbersDoesNotShiftTheHalbjahre() {
+        val text = checkNotNull(javaClass.getResourceAsStream("/plan/kurswahl_ocr_burst.json")).bufferedReader().use { it.readText() }
+        val burst = json.decodeFromString(Burst.serializer(), text)
+        val sheets = burst.shots.map { KurswahlParser.parse(it.boxes, it.aspect) }
+        assertEquals(listOf(34, 36, 36, 34), sheets[0].sums)
+        assertTrue(sheets.none { sheet -> sheet.rows.first { it.subject == "Geo" }.halves[0].taken })
+        val plan = CustomPlanBuilder.build(KurswahlParser.merge(sheets), CustomPlanTest.stufenplan(), "1. Halbjahr")
+        assertEquals(34, plan.checks.totalHours)
+        assertTrue(plan.choices.none { it.subject == "Geo" })
+        assertEquals(listOf(), plan.checks.issues.filter { it.kind != CustomPlan.Issue.Kind.INFERRED }.map { it.message })
+    }
+
+    @Test
+    fun valueOnlyOnePhotoReadIsDroppedWhenItIsTheExcessOverTheSum() {
+        val sums = listOf(5, null, null, null)
+        fun sheet(geo: Kurswahl.Cell) = Kurswahl(rows = listOf(
+            row("D", cell("3(3)"), cell("3"), cell("3"), cell("3")), row("Geo", geo, cell("2.p"), cell("2.s"), cell("-")),
+            row("Bio", cell("2(1)"), missing, missing, missing),
+        ), sums = sums)
+        val merged = KurswahlParser.merge(listOf(sheet(cell("2")), sheet(missing), sheet(missing)))
+        assertFalse(merged.rows.first { it.subject == "Geo" }.halves[0].taken)
+        // without an excess the lone value stays
+        val fits = KurswahlParser.merge(listOf(sheet(cell("2")), sheet(missing)).map { it.copy(sums = listOf(7, null, null, null)) })
+        assertEquals(2, fits.rows.first { it.subject == "Geo" }.halves[0].hours)
+    }
+
+    @kotlinx.serialization.Serializable
+    data class Shot(val boxes: List<TextBox>, val aspect: Double)
+
+    @kotlinx.serialization.Serializable
+    data class Burst(val shots: List<Shot>)
+
+    private companion object {
+        val json = kotlinx.serialization.json.Json { ignoreUnknownKeys = true }
+    }
+
     // ── plan ────────────────────────────────────────────────────────────────────
 
     @Test
