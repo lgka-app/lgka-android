@@ -1,8 +1,7 @@
 package com.lgka
 
 import androidx.compose.ui.semantics.semantics
-import androidx.compose.ui.graphics.compositeOver
-import androidx.compose.material3.CardDefaults
+import androidx.compose.ui.graphics.luminance
 import androidx.compose.material.icons.filled.Error
 import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.activity.compose.BackHandler
@@ -75,7 +74,9 @@ import lgka.plan.SchoolReference
 private val Ok = Color(0xFF34C759)
 private val Warn = Color(0xFFFF9500)
 private val Remove = Color(0xFFFF3B30)
-private val Estimated = Color(0xFFFFCC00)
+/** Title of an estimated course: a deeper yellow on light backgrounds, the system yellow on dark ones. */
+private val EstimatedLight = Color(0.8f, 0.6f, 0f)
+private val EstimatedDark = Color(0xFFFFD60A)
 /** Dark yellow, readable on the yellow row. */
 private val EstimatedText = Color(0xFF9E7A00)
 
@@ -290,10 +291,11 @@ private fun CourseRow(draft: CustomPlanDraft, plan: CustomPlan, choice: CustomPl
     val haptics = rememberHaptics()
     val course = plan.courses.firstOrNull { it.subjectKey == choice.subject }
     val status = rowStatus(choice.subject, course, plan)
-    val cardColor = CardDefaults.cardColors().containerColor
-    val tint = when (status) {
-        RowStatus.PROBLEM -> Remove.copy(alpha = 0.16f).compositeOver(cardColor)
-        RowStatus.ESTIMATED -> Estimated.copy(alpha = 0.22f).compositeOver(cardColor)
+    // the course name carries the status; the row itself stays plain
+    val dark = MaterialTheme.colorScheme.background.luminance() < 0.5f
+    val titleColor = when (status) {
+        RowStatus.PROBLEM -> Remove
+        RowStatus.ESTIMATED -> if (dark) EstimatedDark else EstimatedLight
         RowStatus.FINE -> Color.Unspecified
     }
     val name = CustomPlanLabels.subject(resources, choice.subject, choice.code)
@@ -317,9 +319,9 @@ private fun CourseRow(draft: CustomPlanDraft, plan: CustomPlan, choice: CustomPl
             }
         }) {
         Box {
-            HomeCard(onClick = { open = true }, containerColor = tint) {
+            HomeCard(onClick = { open = true }) {
                 Column(Modifier.weight(1f)) {
-                    Text(course?.let { CustomPlanLabels.title(resources, it) } ?: name, fontWeight = FontWeight.SemiBold)
+                    Text(course?.let { CustomPlanLabels.title(resources, it) } ?: name, fontWeight = FontWeight.SemiBold, color = titleColor)
                     if (course != null) {
                         Text("${course.teacherLabel} · ${stringResource(R.string.custom_review_hours, course.hours)}",
                             style = MaterialTheme.typography.bodySmall,

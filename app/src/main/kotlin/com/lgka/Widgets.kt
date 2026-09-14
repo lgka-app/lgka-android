@@ -1,8 +1,5 @@
 package com.lgka
 
-import androidx.compose.ui.graphics.isSpecified
-import androidx.compose.ui.graphics.Color
-import androidx.compose.material3.CardDefaults
 import androidx.compose.foundation.background
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.draw.clip
@@ -71,12 +68,9 @@ fun HomeCard(
     onClick: (() -> Unit)? = null,
     onLongClick: (() -> Unit)? = null,
     enabled: Boolean = true,
-    /** The card's own colour, e.g. a status tint; unspecified keeps the theme's card colour. */
-    containerColor: Color = Color.Unspecified,
     content: @Composable RowScope.() -> Unit,
 ) {
     val haptics = rememberHaptics()
-    val colors = if (containerColor.isSpecified) CardDefaults.cardColors(containerColor = containerColor) else CardDefaults.cardColors()
     val row: @Composable () -> Unit = {
         Row(
             Modifier.fillMaxWidth().heightIn(min = 76.dp).padding(horizontal = 18.dp, vertical = 12.dp),
@@ -85,12 +79,12 @@ fun HomeCard(
     }
     if (onClick != null) {
         val shape = CardShape
-        Card(shape = shape, colors = colors, modifier = modifier.clip(shape).combinedClickable(
+        Card(shape = shape, modifier = modifier.clip(shape).combinedClickable(
             enabled = enabled, role = Role.Button,
             onClick = { haptics.medium(); onClick() },
             onLongClick = onLongClick?.let { { haptics.light(); it() } })) { row() }
     } else {
-        Card(shape = CardShape, colors = colors, modifier = modifier) { row() }
+        Card(shape = CardShape, modifier = modifier) { row() }
     }
 }
 
