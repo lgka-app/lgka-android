@@ -111,7 +111,7 @@
     <string name="uvi_medium">Mittel</string>
     <string name="uvi_very_high">Sehr hoch</string>
     <string name="views">Zugriffe</string>
-    <string name="weather_source_school">Aktuelle Werte von der Wetterstation auf dem Schuldach</string>
+    <string name="weather_source_school">Live von der Wetterstation auf dem Schuldach</string>
     <string name="weather_data_not_available">Wetterdaten nicht verfügbar</string>
     <string name="weather_humidity_short">Luftfeuchte</string>
     <string name="weather_page_title">Wetter</string>

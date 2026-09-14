@@ -111,7 +111,7 @@
     <string name="uvi_medium">Medium</string>
     <string name="uvi_very_high">Very high</string>
     <string name="views">Views</string>
-    <string name="weather_source_school">Current values from the weather station on the school roof</string>
+    <string name="weather_source_school">Live from the school\'s rooftop weather station</string>
     <string name="weather_data_not_available">Weather data not available</string>
     <string name="weather_humidity_short">Humidity</string>
     <string name="weather_page_title">Weather</string>
