@@ -8,3 +8,6 @@
 }
 -keep,includedescriptorclasses class lgka.api.**$$serializer { *; }
 # OkHttp ships its own consumer rules; nothing else here uses reflection.
+
+# pdfbox-android: the optional JPEG 2000 decoder is not bundled (Stufenplan PDFs are text only).
+-dontwarn com.gemalto.jp2.JP2Decoder

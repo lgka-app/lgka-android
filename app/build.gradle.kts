@@ -66,8 +66,18 @@ android {
         ignoreTestSources = true
     }
 
+    // phones only: ML Kit's bundled OCR library is ~11 MB per ABI and the release ships one universal APK
+    defaultConfig.ndk.abiFilters += setOf("arm64-v8a", "armeabi-v7a")
+
+    // the language can be switched in Settings, so every language must be installed
+    bundle {
+        language { enableSplit = false }
+    }
+
     packaging {
-        resources.excludes += setOf("META-INF/LICENSE*", "META-INF/NOTICE*", "META-INF/DEPENDENCIES")
+        resources.excludes += setOf("META-INF/LICENSE*", "META-INF/NOTICE*", "META-INF/DEPENDENCIES",
+            // bouncycastle (via pdfbox-android) post-quantum tables: never used, ~4 MB
+            "org/bouncycastle/pqc/**")
     }
 }
 
@@ -104,10 +114,22 @@ dependencies {
     implementation(libs.coil.compose)
     implementation(libs.coil.network.okhttp)
 
+    // custom J11/J12 timetable: camera, on-device text recognition (bundled model, no network), PDF text positions
+    implementation(libs.camera.core)
+    implementation(libs.camera.camera2)
+    implementation(libs.camera.lifecycle)
+    implementation(libs.camera.view)
+    implementation(libs.mlkit.text.recognition)
+    implementation(libs.pdfbox.android)
+
+    // string resources are complete in every locale (app/src/test)
+    testImplementation(libs.junit4)
+
     // AGP aligns the androidTest classpath with the app's; androidx.test
     // needs newer support libraries than the app would otherwise pull in.
     constraints {
         implementation(libs.androidx.concurrent.futures)
+        implementation(libs.errorprone.annotations) // CameraX / ML Kit bring 2.28, espresso needs 2.30
         implementation(libs.androidx.tracing)
     }
 

@@ -5,4 +5,11 @@
     <issue id="ObsoleteSdkInt">
         <ignore path="src/main/res/mipmap-anydpi-v26" />
     </issue>
+    <!-- bouncycastle comes with pdfbox-android for PDF signatures; the app never uses it for TLS. -->
+    <!-- The universal release APK is for phones: ML Kit's OCR library costs ~11 MB per ABI, so the
+         x86 ABIs are left out (ARM Chromebooks still run the app). -->
+    <issue id="ChromeOsAbiSupport" severity="ignore" />
+    <issue id="TrustAllX509TrustManager">
+        <ignore regexp="bcpkix-jdk15to18" />
+    </issue>
 </lint>
