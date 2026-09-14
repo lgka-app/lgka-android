@@ -304,6 +304,41 @@ class KurswahlRobustnessTest {
         assertTrue(plan.checks.issues.any { it.kind == CustomPlan.Issue.Kind.UNKNOWN_ROW })
     }
 
+    /** ML Kit on a blurred photo: "2(2).p" read as "22)p" or "212)p". */
+    @Test
+    fun bracketedValueWhoseOpeningBracketWasLost() {
+        assertTrue(cell("22)p").let { it.hours == 2 && it.parallel == 2 && it.suffix == "p" })
+        assertTrue(cell("212)p").let { it.hours == 2 && it.parallel == 2 && it.suffix == "p" })
+        assertTrue(cell("51)").let { it.hours == 5 && it.parallel == 1 && it.suffix == null })
+        // without the closing bracket, or with hours a course cannot have, it stays unreadable
+        assertNull(cell("22p").hours)
+        assertNull(cell("81)").hours)
+    }
+
+    /** The Belegpflicht label ("4 Hj") read into a table row is not an unreadable cell value. */
+    @Test
+    fun belegpflichtLabelIsNotAnUnreadableValue() {
+        for (text in listOf("H3H4", "4H", "4 Hj", "2x4 Hj")) {
+            val parsed = cell(text)
+            assertNull(parsed.raw, text)
+            assertFalse(parsed.unreadable, text)
+        }
+        assertTrue(cell("a7x").unreadable)
+    }
+
+    @Test
+    fun completeReadingIsNotReadAgain() {
+        val sums = listOf(8, 8, 8, 8)
+        val complete = Kurswahl(rows = listOf(row("D", cell("3(3)"), cell("3"), cell("3"), cell("3")), row("E", cell("5(4)"), cell("5"), cell("5"), cell("5"))), sums = sums)
+        assertFalse(KurswahlParser.needsRereads(complete))
+        assertTrue(KurswahlParser.needsRereads(complete.copy(sums = listOf(8, 8, null, 8))))
+        assertTrue(KurswahlParser.needsRereads(complete.copy(sums = listOf(8, 8, 9, 8))))
+        val inferred = Kurswahl.Cell(hours = 5, unreadable = false, inferred = true)
+        assertTrue(KurswahlParser.needsRereads(complete.copy(rows = listOf(complete.rows[0], row("E", cell("5(4)"), inferred, cell("5"), cell("5"))))))
+        assertTrue(KurswahlParser.needsRereads(complete.copy(rows = listOf(complete.rows[0], row("E", cell("5(4)"), cell("5"), cell("a5"), cell("5"))))))
+        assertTrue(KurswahlParser.needsRereads(complete.copy(rows = listOf(complete.rows[0], row("?", cell("5(4)"), cell("5"), cell("5"), cell("5"))))))
+    }
+
     @Test
     fun valueOnlyOnePhotoReadIsDroppedWhenItIsTheExcessOverTheSum() {
         val sums = listOf(5, null, null, null)

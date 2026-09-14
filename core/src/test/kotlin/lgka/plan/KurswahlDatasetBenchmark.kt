@@ -93,6 +93,17 @@ class KurswahlDatasetBenchmark {
         assertEquals(results.map { it.first to "ok" }, results)
     }
 
+    /** The same bursts as ML Kit read them on a Pixel 7 (first readings of the three shots, without rereads). */
+    @Test
+    fun everyMlKitBurstGivesItsExpectedPlan() {
+        val results = (1..10).map { n ->
+            val name = "%02d".format(n)
+            name to burst(json.decodeFromString(Case.serializer(), resource("/plan/dataset_mlkit/$name.json")))
+        }
+        results.forEach { (name, result) -> println("DATASET mlkit $name: $result") }
+        assertEquals(results.map { it.first to "ok" }, results)
+    }
+
     @Test
     fun liveDataset() {
         val dataset = System.getenv("KURSWAHL_DATASET")?.let(::File) ?: return

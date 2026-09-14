@@ -103,3 +103,18 @@ fun KurswahlParser.fillGaps(base: Kurswahl, extra: Kurswahl): Kurswahl {
     }
     return base.copy(rows = completeFromSums(rows, sums), sums = sums)
 }
+
+/**
+ * Whether a burst's merged reading is worth reading again in enlarged bands: a sum missing, a Halbjahr column
+ * that does not add up to its sum, a value taken over instead of read, a value found but unreadable, or a row
+ * with values whose subject was not recognised. A complete reading is not read again (that costs seconds).
+ */
+fun KurswahlParser.needsRereads(kurswahl: Kurswahl): Boolean {
+    if (kurswahl.sums.size < 4 || kurswahl.sums.any { it == null }) return true
+    for (h in 0 until 4) {
+        if (kurswahl.rows.sumOf { it.halves.getOrNull(h)?.hours ?: 0 } != kurswahl.sums[h]) return true
+    }
+    return kurswahl.rows.any { row ->
+        row.halves.any { it.inferred == true || (it.unreadable && it.raw != null) } || (row.subject == "?" && row.halves.any { it.taken })
+    }
+}

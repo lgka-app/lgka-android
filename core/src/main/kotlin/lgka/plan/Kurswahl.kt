@@ -109,6 +109,7 @@ object KurswahlParser {
     private val SINGLE_DIGIT = Regex("\\d")
     private val BRACKET_PART = Regex("[(\\[{]\\d[)\\]}]?(?:\\.?[psPS])?")
     private val LOOSE_CELL = Regex("([0-9OoIl|SsZzB])[(C]([0-9OoIl|SsZzB])\\)?(?:\\.?([psPS]))?")
+    private val LOST_BRACKET = Regex("(\\d)[1lI|]?(\\d)\\)(?:\\.?([psPS]))?")
     private val DIGIT_LOOK_ALIKES = mapOf('O' to 0, 'o' to 0, 'I' to 1, 'l' to 1, '|' to 1, 'S' to 5, 's' to 5, 'Z' to 2, 'z' to 2, 'B' to 8)
 
     /** Basisfach hours of the subjects required in all four Halbjahre; as Leistungsfach they have 5. */
@@ -484,8 +485,17 @@ object KurswahlParser {
                 return Kurswahl.Cell(raw = text, hours = hours, parallel = parallel, unreadable = false, suffix = m.groups[3]?.value?.lowercase())
             }
         }
-        // specks and table lines read as "..E" are not a value; only text with a digit is worth asking about
-        val unreadable = t.any { it.isDigit() }
+        // "2(2).p" whose opening bracket was lost or read as a digit ("22)p", "212)p"): the closing bracket is still there
+        LOST_BRACKET.matchEntire(t)?.let { m ->
+            val hours = m.groupValues[1].toInt()
+            val parallel = m.groupValues[2].toInt()
+            if (hours in 2..5 && parallel in 1..9) {
+                return Kurswahl.Cell(raw = text, hours = hours, parallel = parallel, unreadable = false, suffix = m.groups[3]?.value?.lowercase())
+            }
+        }
+        // specks and table lines read as "..E" are not a value; only text with a digit is worth asking about.
+        // An "H" never occurs in a cell: "4 Hj", "H3H4" is the Belegpflicht column's label drifting into a row
+        val unreadable = t.any { it.isDigit() } && t.none { it == 'H' || it == 'h' }
         return Kurswahl.Cell(raw = if (unreadable) text else null, unreadable = unreadable)
     }
 

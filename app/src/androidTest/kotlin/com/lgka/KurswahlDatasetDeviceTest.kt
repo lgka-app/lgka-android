@@ -93,7 +93,8 @@ class KurswahlDatasetDeviceTest {
             val line = try {
                 val result = runBlocking { KurswahlScanner.read(images) }
                 result.shots?.let { File(outDir, "${case.name}_shots.json").writeText(json.encodeToString(ListSerializer(KurswahlScanner.Shot.serializer()), it)) }
-                "${case.name} (${truth.expectedPlan.stufe}, ${images.size} shots, ${System.currentTimeMillis() - started} ms): ${compare(result.kurswahl, truth, plan)}"
+                val phases = result.timings?.entries?.joinToString(" ") { "${it.key}=${it.value}" }.orEmpty()
+                "${case.name} (${truth.expectedPlan.stufe}, ${images.size} shots, ${System.currentTimeMillis() - started} ms, $phases): ${compare(result.kurswahl, truth, plan)}"
             } catch (e: Exception) {
                 "${case.name}: failed ${e.message}"
             } finally {
