@@ -98,8 +98,8 @@ private const val BURST = 3
 
 /**
  * Guided camera for the Kurswahlprotokoll, fully automatic: outlines the sheet live, paints a faint
- * table grid on it, tells the user what to change (closer, parallel, still), turns the torch on when it
- * is too dark and takes a burst of photos by itself once everything holds. No shutter button.
+ * table grid on it, tells the user what to change (closer, parallel, still), keeps the torch on (brighter
+ * when too dark, dimmer on glare) and takes a burst of photos by itself once everything holds. No shutter button.
  */
 @Composable
 fun KurswahlCameraScreen(onCapture: (List<Bitmap>) -> Unit, onCancel: () -> Unit) {

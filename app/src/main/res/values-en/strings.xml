@@ -194,7 +194,7 @@
     <string name="custom_ready_title">Your timetable is ready</string>
     <string name="custom_ready_tap">Tap to view it</string>
     <string name="custom_ready_a11y">Preview of your new timetable. Tap to open.</string>
-    <string name="custom_reading_title">Reading your course selection record …</string>
+    <string name="custom_reading_title">Reading your course selection record</string>
     <string name="custom_review_add_subject">Add subject</string>
     <string name="custom_review_basisfach">Basic course</string>
     <string name="custom_review_courses">Your courses</string>

@@ -69,7 +69,11 @@ data class ScanFrame(
  * is still too dark, dimmer when it glares on the paper. Once on it stays on for the rest of the
  * session, so the picture never flickers between lit and unlit frames.
  */
-class TorchPolicy {
+/**
+ * The torch while scanning. [alwaysOn]: on from the first frame at [START_LEVEL] and never off during the
+ * session, only raised when too dark and lowered on glare; otherwise it comes on after a moment of darkness.
+ */
+class TorchPolicy(private val alwaysOn: Boolean = false) {
     companion object {
         /** Dark enough for the torch: below what the guidance accepts. */
         val DARK_LUMA = ScanGuidance.MIN_LUMA
@@ -92,6 +96,11 @@ class TorchPolicy {
 
     /** The torch level for this frame. */
     fun update(luma: Double, glare: Double, time: Double): Double {
+        if (!isOn && alwaysOn) {
+            level = START_LEVEL
+            lastChange = time
+            return level
+        }
         if (!isOn) {
             if (luma < DARK_LUMA) {
                 val since = darkSince ?: time

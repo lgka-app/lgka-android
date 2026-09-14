@@ -41,7 +41,7 @@ import kotlin.math.sqrt
 
 /**
  * The Kurswahlprotokoll camera: CameraX preview, ~9 analysed frames a second (sheet outline, brightness,
- * glare, motion), the automatic torch and a burst of photos. State is Compose state on the main thread.
+ * glare, motion), the torch (always on, adjusted automatically) and a burst of photos. State is Compose state on the main thread.
  */
 class KurswahlCamera(private val context: Context) : SensorEventListener {
     var quad by mutableStateOf<ScanQuad?>(null); private set
@@ -58,7 +58,7 @@ class KurswahlCamera(private val context: Context) : SensorEventListener {
 
     private val executor = Executors.newSingleThreadExecutor()
     private val guidance = ScanGuidance()
-    private var torch = TorchPolicy()
+    private var torch = TorchPolicy(alwaysOn = true)
     private var camera: Camera? = null
     private var provider: ProcessCameraProvider? = null
     private var capture: ImageCapture? = null
@@ -107,7 +107,7 @@ class KurswahlCamera(private val context: Context) : SensorEventListener {
         sensors?.unregisterListener(this)
         camera?.cameraControl?.enableTorch(false)
         torchOn = false
-        torch = TorchPolicy()
+        torch = TorchPolicy(alwaysOn = true)
         provider?.unbindAll()
     }
 
@@ -202,7 +202,7 @@ class KurswahlCamera(private val context: Context) : SensorEventListener {
         level = (-g[0] / 9.81f) to (-g[1] / 9.81f)
         quad = analysed.quad
 
-        // the torch decides itself: on when it stays dark, stronger or weaker as the frames show
+        // the torch is on from the first frame; stronger when too dark, weaker on glare, never off while scanning
         var frame = analysed
         if (camera?.cameraInfo?.hasFlashUnit() == true) {
             val previous = torch.level

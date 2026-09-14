@@ -55,7 +55,6 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.util.lerp
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.io.File
@@ -116,10 +115,7 @@ fun CustomPlanReadyScreen(saved: SavedCustomPlan, onClose: () -> Unit) {
         fun open() {
             if (phase != ReadyPhase.PREVIEW || bitmap == null || file == null) return
             phase = ReadyPhase.EXPANDING
-            scope.launch {
-                haptics.success()
-                repeat(3) { delay(60); haptics.light() }
-            }
+            haptics.medium()
             scope.launch {
                 expand.animateTo(1f, spring(dampingRatio = 1f, stiffness = 380f)) // ~450 ms, no overshoot
                 viewerAlpha.animateTo(1f, tween(180))
@@ -130,8 +126,8 @@ fun CustomPlanReadyScreen(saved: SavedCustomPlan, onClose: () -> Unit) {
         if (phase != ReadyPhase.VIEWER) {
             val restingWidth = with(density) { (width * 0.86f).toDp() }
             Column(
+                // only the thumbnail opens the plan; the rest of the page does not react
                 Modifier.fillMaxSize()
-                    .clickable(interactionSource = remember { MutableInteractionSource() }, indication = null) { open() }
                     .padding(horizontal = 24.dp)
                     .graphicsLayer { alpha = appear.value * (1f - expand.value * 2f).coerceIn(0f, 1f) },
                 horizontalAlignment = Alignment.CenterHorizontally,

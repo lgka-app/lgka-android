@@ -194,7 +194,7 @@
     <string name="custom_ready_title">Dein Stundenplan ist fertig</string>
     <string name="custom_ready_tap">Tippe, um ihn anzusehen</string>
     <string name="custom_ready_a11y">Vorschau deines neuen Stundenplans. Tippen zum Öffnen.</string>
-    <string name="custom_reading_title">Kurswahlprotokoll wird gelesen …</string>
+    <string name="custom_reading_title">Kurswahlprotokoll wird gelesen</string>
     <string name="custom_review_add_subject">Fach hinzufügen</string>
     <string name="custom_review_basisfach">Basisfach</string>
     <string name="custom_review_courses">Deine Kurse</string>

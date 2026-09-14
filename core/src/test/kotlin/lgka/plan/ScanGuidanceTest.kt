@@ -113,6 +113,21 @@ class ScanGuidanceTest {
     }
 
     @Test
+    fun alwaysOnTorchStartsWithTheFirstFrameAndNeverGoesOff() {
+        val torch = TorchPolicy(alwaysOn = true)
+        // bright from the start: on anyway, at the start level
+        assertEquals(TorchPolicy.START_LEVEL, torch.update(0.8, 0.0, 0.0))
+        assertTrue(torch.isOn)
+        // glare lowers it, down to the minimum, never off
+        assertEquals(TorchPolicy.START_LEVEL - 0.2, torch.update(0.8, 0.2, 0.7), 1e-9)
+        assertEquals(TorchPolicy.MIN_LEVEL, torch.update(0.8, 0.2, 1.4), 1e-9)
+        assertEquals(TorchPolicy.MIN_LEVEL, torch.update(0.8, 0.2, 2.1), 1e-9)
+        // too dark raises it again
+        assertEquals(TorchPolicy.MIN_LEVEL + 0.25, torch.update(0.05, 0.0, 2.8), 1e-9)
+        assertTrue(torch.isOn)
+    }
+
+    @Test
     fun torchStaysOnAndAdjusts() {
         val torch = TorchPolicy()
         torch.update(0.1, 0.0, 0.0)
