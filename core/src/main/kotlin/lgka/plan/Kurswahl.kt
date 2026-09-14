@@ -154,6 +154,9 @@ object KurswahlParser {
         val diffs = found.map { it.second.midY }.adjacentDifferences()
         var pitch = diffs.median() ?: 0.018
         diffs.filter { it < pitch * 1.5 }.median()?.let { pitch = it }
+        // many subjects missed: labels two or three rows apart make that a multiple of the real pitch.
+        // A row is about 1.5 times as high as its label, never lower than the label itself
+        pitch = finerPitch(diffs, pitch, minimum = (found.map { it.second.height }.median() ?: 0.0) * 1.1)
 
         // rows: every recognised subject, plus rows in gaps of the regular pitch (a subject the
         // recognition missed, or an empty "--" row) and between the table header and the first row
@@ -206,7 +209,9 @@ object KurswahlParser {
                     val spacing = gaps.filter { it < smallest * 1.25 }.median() ?: smallest
                     columns = (0 until 4).map { bracketsAt + it * spacing }
                     val shifted = columns.map { x -> onLine.filter { abs(it.midX - x) < spacing * 0.3 }.minByOrNull { abs(it.midX - x) } }
-                    sums = shifted.map { b -> b?.text?.filter { it.isDigit() }?.toIntOrNull() }
+                    // a sum not found at its column keeps the value the line search had taken for that place
+                    val lineSums = sums
+                    sums = shifted.mapIndexed { i, b -> b?.text?.filter { it.isDigit() }?.toIntOrNull() ?: lineSums.getOrNull(i) }
                     sumBoxes = shifted.filterNotNull()
                     columns = columns.mapIndexed { i, x -> shifted[i]?.midX ?: x }
                 }
@@ -674,6 +679,29 @@ object KurswahlParser {
     private fun normalisedText(text: String): String = text.map { LOOK_ALIKES[it] ?: it }.joinToString("").trim()
 
     private fun normalised(box: TextBox): TextBox = box.copy(text = normalisedText(box.text))
+
+    /**
+     * The row pitch when [pitch] is a multiple of it: at least three neighbouring subjects about a half or a
+     * third of [pitch] apart, and that finer pitch explains more of the distances as whole rows. Never below
+     * [minimum]: labels of two recognition passes a little apart are not rows.
+     */
+    fun finerPitch(diffs: List<Double>, pitch: Double, minimum: Double = 0.0): Double {
+        fun explained(p: Double) = diffs.count { d ->
+            val n = (d / p).roundToInt()
+            n >= 1 && abs(d - n * p) < p * 0.2
+        }
+        // most distances already whole rows of [pitch]: nothing to refine (two passes' labels a little apart look like half rows)
+        if (explained(pitch) >= diffs.size * 0.8) return pitch
+        var best = pitch
+        for (k in 2..3) {
+            val rows = diffs.filter { abs(it - pitch / k) < pitch / k * 0.25 }
+            if (rows.size < 3) continue
+            val finer = rows.median() ?: continue
+            if (finer < minimum) continue
+            if (explained(finer) > explained(best)) best = finer
+        }
+        return best
+    }
 
     /** The centre of the densest cluster of x values. */
     private fun densestX(xs: List<Double>, window: Double): Double? {

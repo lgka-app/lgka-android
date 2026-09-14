@@ -201,6 +201,22 @@ class KurswahlRobustnessTest {
         assertEquals(listOf(), plan.checks.issues.filter { it.kind != CustomPlan.Issue.Kind.INFERRED }.map { it.message })
     }
 
+    /** A third real burst of the same sheet (anonymised) that the phone already read right, Sport included: it stays right. */
+    @Test
+    fun thirdBurstStaysRight() {
+        val sheets = burst("kurswahl_ocr_burst_c").shots.map { KurswahlParser.parse(it.boxes, it.aspect) }
+        for (sheet in sheets) {
+            val plan = CustomPlanBuilder.build(sheet, CustomPlanTest.stufenplan(), "1. Halbjahr")
+            assertEquals(34, plan.checks.totalHours)
+            assertTrue(plan.choices.none { it.subject == "Geo" })
+        }
+        val plan = CustomPlanBuilder.build(KurswahlParser.merge(sheets), CustomPlanTest.stufenplan(), "1. Halbjahr")
+        assertEquals(34, plan.checks.totalHours)
+        assertEquals(2, plan.choices.first { it.subject == "Sport" }.hours)
+        assertTrue(plan.choices.none { it.subject == "Geo" })
+        assertEquals(listOf(), plan.checks.issues.map { it.message })
+    }
+
     /** Too few brackets read to place the columns by them: Geo's plain "2.p" in the column taken for the 1. Hj does. */
     @Test
     fun plainSuffixValueInTheFirstColumnShiftsTheColumns() {
@@ -216,6 +232,35 @@ class KurswahlRobustnessTest {
         assertEquals(listOf(36, 36, 34), kurswahl.sums.drop(1))
         assertFalse(kurswahl.rows.first { it.subject == "Geo" }.halves[0].taken)
         assertEquals(2, kurswahl.rows.first { it.subject == "Geo" }.halves[1].hours)
+    }
+
+    @Test
+    fun rowPitchFromLabelsTwoRowsApart() {
+        // D, F, Mu and M not recognised: many neighbouring labels are two rows apart
+        val sparse = listOf(0.030, 0.030, 0.031, 0.015, 0.015, 0.031, 0.016, 0.031, 0.014, 0.017, 0.046, 0.028, 0.015, 0.030)
+        assertEquals(0.015, KurswahlParser.finerPitch(sparse, 0.028), 0.001)
+        // every label read, and a jittered second pass: the pitch stays
+        val clean = List(12) { 0.018 } + 0.036
+        assertEquals(0.018, KurswahlParser.finerPitch(clean, 0.018))
+        val jittered = List(12) { 0.018 } + listOf(0.009, 0.010)
+        assertEquals(0.018, KurswahlParser.finerPitch(jittered, 0.018))
+        // labels about 0.0104 high: the real half pitch is still taken
+        assertEquals(0.015, KurswahlParser.finerPitch(sparse, 0.028, minimum = 0.0104 * 1.1), 0.001)
+        // two passes' labels a little apart under jitter look like half rows, but lower than a label
+        val split = listOf(0.0287, 0.0127, 0.0135, 0.0121, 0.0172, 0.0308, 0.0153, 0.0106, 0.0127, 0.0153, 0.0062, 0.0070,
+            0.0480, 0.0316, 0.0120, 0.0165, 0.0062, 0.0127)
+        assertEquals(0.0127, KurswahlParser.finerPitch(split, 0.0127, minimum = 0.0102 * 1.1))
+    }
+
+    @Test
+    fun sumNotFoundAfterMovingTheColumnsKeepsTheLineReading() {
+        val shot = burst("kurswahl_ocr_burst").shots[0]
+        val firstSum = shot.boxes.filter { it.text == "34" }.minOf { it.midX }
+        val boxes = shot.boxes.filterNot { it.text == "34" && abs(it.midX - firstSum) < 0.01 }
+        val kurswahl = KurswahlParser.parse(boxes, shot.aspect)
+        assertNotNull(kurswahl.sums[0])
+        assertEquals(listOf(36, 36, 34), kurswahl.sums.drop(1))
+        assertFalse(kurswahl.rows.first { it.subject == "Geo" }.halves[0].taken)
     }
 
     @Test
