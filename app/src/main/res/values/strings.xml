@@ -207,7 +207,12 @@
     <string name="custom_review_name_placeholder">Dein Name (optional)</string>
     <string name="custom_review_pick_course">Kurs wählen</string>
     <string name="custom_review_plan">Stundenplan</string>
-    <string name="custom_review_save">Speichern</string>
+    <string name="custom_review_next">Weiter</string>
+    <string name="custom_review_greeting">Nice, %1$s! Das Scannen hat funktioniert.</string>
+    <string name="custom_review_greeting_no_name">Nice! Das Scannen hat funktioniert.</string>
+    <string name="custom_review_greeting_body">Prüf hier noch einmal, ob alles passt. Gelb ist geschätzt, Rot fehlt oder passt nicht.</string>
+    <string name="custom_review_note">So steht es in deinem Kurswahlprotokoll. Deine endgültigen Kurse können davon abweichen – passe sie jetzt an oder später mit langem Druck auf die Karte auf dem Startbildschirm. Die Erkennung übernimmt KI, prüf sie also kurz.</string>
+    <string name="custom_review_estimated">Geschätzt – bitte prüfen</string>
     <string name="custom_review_title">Kurse prüfen</string>
     <string name="custom_setup_a11y_bad">Schlechtes Beispielfoto: schräg, abgeschnitten, unscharf oder zu dunkel</string>
     <string name="custom_setup_a11y_good">Gutes Beispielfoto: Blatt flach, ganz im Bild, scharf und hell</string>

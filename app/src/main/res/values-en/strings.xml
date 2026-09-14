@@ -207,7 +207,12 @@
     <string name="custom_review_name_placeholder">Your name (optional)</string>
     <string name="custom_review_pick_course">Pick a course</string>
     <string name="custom_review_plan">Timetable</string>
-    <string name="custom_review_save">Save</string>
+    <string name="custom_review_next">Next</string>
+    <string name="custom_review_greeting">Nice, %1$s! Scanning worked.</string>
+    <string name="custom_review_greeting_no_name">Nice! Scanning worked.</string>
+    <string name="custom_review_greeting_body">Check once more that everything is right. Yellow is estimated, red is missing or doesn\'t fit.</string>
+    <string name="custom_review_note">This is what your course selection record says. Your final courses may differ – adjust them now or later by long-pressing the card on the home screen. AI does the recognition, so give it a quick check.</string>
+    <string name="custom_review_estimated">Estimated – please check</string>
     <string name="custom_review_title">Check courses</string>
     <string name="custom_setup_a11y_bad">Bad example photo: tilted, cut off, blurry or too dark</string>
     <string name="custom_setup_a11y_good">Good example photo: sheet flat, fully in frame, sharp and bright</string>
