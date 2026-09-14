@@ -232,8 +232,9 @@
     <string name="custom_setup_result_body">Dein persönlicher Stundenplan als PDF – nur mit deinen Kursen.</string>
     <string name="custom_setup_result_title">Das bekommst du</string>
     <string name="custom_setup_scan">Kurswahlprotokoll scannen</string>
-    <string name="custom_setup_tip_auto">Die Kamera fotografiert von selbst und macht bei Bedarf Licht an</string>
-    <string name="custom_setup_tip_flat">Blatt flach auf den Tisch legen</string>
+    <string name="custom_setup_tip_auto">Die Kamera fotografiert von selbst, das Licht geht dabei automatisch an</string>
+    <string name="custom_setup_tip_background">Eine nicht weiße Unterlage nutzen – so erkennt die Kamera das Blatt</string>
+    <string name="custom_setup_tip_flat">Blatt flach auf einen Tisch legen – nicht in der Hand halten und nicht auf eine schräge Fläche</string>
     <string name="custom_setup_tip_whole">Das ganze Blatt ins Bild</string>
     <string name="custom_title">Eigener Stundenplan</string>
     <string name="plan_delete">Stundenplan löschen</string>
@@ -253,6 +254,7 @@
     <string name="scan_permission_body">Erlaube LGKA+ den Zugriff auf die Kamera, um dein Kurswahlprotokoll zu fotografieren. Das Foto wird nur auf diesem Handy gelesen.</string>
     <string name="scan_permission_settings">Einstellungen öffnen</string>
     <string name="scan_permission_title">Kamerazugriff benötigt</string>
+    <string name="scan_stuck">Leg das Blatt flach auf einen Tisch mit einer nicht weißen Unterlage.</string>
     <string name="subject_ast">Astronomie</string>
     <string name="subject_bk">Bildende Kunst</string>
     <string name="subject_bio">Biologie</string>

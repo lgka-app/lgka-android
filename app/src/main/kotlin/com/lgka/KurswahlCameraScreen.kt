@@ -4,6 +4,17 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.ui.unit.sp
 import androidx.compose.foundation.text.TextAutoSize
 import android.Manifest
+import android.os.SystemClock
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.EnterTransition
+import androidx.compose.animation.ExitTransition
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
+import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.runtime.mutableLongStateOf
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.graphics.Bitmap
@@ -162,6 +173,21 @@ private fun CameraContent(onCapture: (List<Bitmap>) -> Unit, onCancel: () -> Uni
 
     val hint = camera.state.hint
     LaunchedEffect(hint) { if (hint == ScanHint.READY && !camera.isCapturing) haptics.light() }
+    val bursting = camera.isCapturing
+    val ready = hint == ScanHint.READY
+    // not "perfect" for 8 s since the camera opened or since it last was: explain how to place the sheet
+    var notReadySince by remember { mutableLongStateOf(SystemClock.elapsedRealtime()) }
+    var showsTip by remember { mutableStateOf(false) }
+    LaunchedEffect(ready) {
+        if (ready) showsTip = false else notReadySince = SystemClock.elapsedRealtime()
+    }
+    LaunchedEffect(Unit) {
+        while (true) {
+            delay(500)
+            if (!showsTip && camera.state.hint != ScanHint.READY && !camera.isCapturing &&
+                SystemClock.elapsedRealtime() - notReadySince >= 8_000) showsTip = true
+        }
+    }
     val flashAlpha by animateFloatAsState(
         targetValue = if (flash) (if (reduceMotion) 0.35f else 0.9f) else 0f,
         animationSpec = tween(if (flash) 60 else 300), label = "flash")
@@ -183,6 +209,12 @@ private fun CameraContent(onCapture: (List<Bitmap>) -> Unit, onCancel: () -> Uni
                 }
             }
             if (hint == ScanHint.HOLD_PARALLEL) SpiritLevel(camera.level, accent)
+            Spacer(Modifier.weight(1f))
+            AnimatedVisibility(showsTip && !ready && !bursting,
+                enter = (if (reduceMotion) EnterTransition.None else slideInVertically { it }) + fadeIn(),
+                exit = (if (reduceMotion) ExitTransition.None else slideOutVertically { it }) + fadeOut()) {
+                PlacementTip()
+            }
         }
         Box(Modifier.fillMaxSize().background(Color.White.copy(alpha = flashAlpha)))
     }
@@ -326,6 +358,18 @@ private fun InstructionPill(camera: KurswahlCamera, photosTaken: Int, accent: Co
             }
         }
     }
+}
+
+/** How to place the sheet, for a scan that hasn't become ready for a while; announced when it appears. */
+@Composable
+private fun PlacementTip() {
+    val shape = RoundedCornerShape(18.dp)
+    Text(stringResource(R.string.scan_stuck), color = Color.White, style = MaterialTheme.typography.bodySmall,
+        fontWeight = FontWeight.Medium, textAlign = TextAlign.Center,
+        modifier = Modifier.padding(horizontal = 20.dp).widthIn(max = 420.dp).fillMaxWidth()
+            .clip(shape).background(Color.Black.copy(alpha = 0.55f)).border(1.dp, Color.White.copy(alpha = 0.18f), shape)
+            .padding(horizontal = 16.dp, vertical = 12.dp)
+            .semantics { liveRegion = LiveRegionMode.Polite })
 }
 
 @Composable

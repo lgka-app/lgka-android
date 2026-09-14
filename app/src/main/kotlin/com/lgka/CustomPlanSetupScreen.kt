@@ -41,6 +41,7 @@ import androidx.compose.material.icons.outlined.AutoMode
 import androidx.compose.material.icons.outlined.CropFree
 import androidx.compose.material.icons.outlined.Layers
 import androidx.compose.material.icons.outlined.Lock
+import androidx.compose.material.icons.outlined.Palette
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
@@ -283,6 +284,7 @@ private fun PhotoSection() {
         Card(shape = CardShape) {
             Column(Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 Tip(Icons.Outlined.Layers, stringResource(R.string.custom_setup_tip_flat))
+                Tip(Icons.Outlined.Palette, stringResource(R.string.custom_setup_tip_background))
                 Tip(Icons.Outlined.CropFree, stringResource(R.string.custom_setup_tip_whole))
                 Tip(Icons.Outlined.AutoMode, stringResource(R.string.custom_setup_tip_auto))
             }

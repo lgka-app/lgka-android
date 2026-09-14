@@ -232,8 +232,9 @@
     <string name="custom_setup_result_body">Your personal timetable as a PDF – only your courses.</string>
     <string name="custom_setup_result_title">What you get</string>
     <string name="custom_setup_scan">Scan course selection record</string>
-    <string name="custom_setup_tip_auto">The camera takes the photos by itself and turns on the light if needed</string>
-    <string name="custom_setup_tip_flat">Lay the sheet flat on a table</string>
+    <string name="custom_setup_tip_auto">The camera takes the photos by itself and turns the light on automatically</string>
+    <string name="custom_setup_tip_background">Use a surface that isn\'t white – that way the camera can find the sheet</string>
+    <string name="custom_setup_tip_flat">Lay the sheet flat on a table – don\'t hold it in your hand or put it on a slanted surface</string>
     <string name="custom_setup_tip_whole">Get the whole sheet in the frame</string>
     <string name="custom_title">Custom timetable</string>
     <string name="plan_delete">Delete timetable</string>
@@ -253,6 +254,7 @@
     <string name="scan_permission_body">Allow LGKA+ to use the camera to photograph your course selection record. The photo is only read on this phone.</string>
     <string name="scan_permission_settings">Open Settings</string>
     <string name="scan_permission_title">Camera access needed</string>
+    <string name="scan_stuck">Lay the sheet flat on a table on a surface that isn\'t white.</string>
     <string name="subject_ast">Astronomy</string>
     <string name="subject_bk">Art</string>
     <string name="subject_bio">Biology</string>
