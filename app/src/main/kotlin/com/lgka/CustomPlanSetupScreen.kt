@@ -3,22 +3,7 @@ package com.lgka
 import android.graphics.Bitmap
 import android.provider.Settings
 import androidx.activity.compose.BackHandler
-import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.EnterTransition
-import androidx.compose.animation.ExitTransition
 import androidx.compose.animation.core.RepeatMode
-import androidx.compose.animation.core.Spring
-import androidx.compose.animation.core.spring
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
-import androidx.compose.animation.scaleIn
-import androidx.compose.animation.scaleOut
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.interaction.MutableInteractionSource
-import androidx.compose.foundation.layout.safeDrawingPadding
-import androidx.compose.material.icons.filled.Close
-import androidx.compose.ui.draw.alpha
-import androidx.compose.ui.semantics.onClick
 import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
@@ -137,7 +122,6 @@ fun CustomPlanSetupScreen(onBack: () -> Unit, onDraft: (CustomPlanDraft) -> Unit
     var reading by remember { mutableStateOf(false) }
     val progress = remember { Animatable(0f) }
     var failure by remember { mutableStateOf<String?>(null) }
-    var resultExpanded by remember { mutableStateOf(false) }
 
     fun read(images: List<Bitmap>) {
         if (images.isEmpty()) return
@@ -207,7 +191,7 @@ fun CustomPlanSetupScreen(onBack: () -> Unit, onDraft: (CustomPlanDraft) -> Unit
                 Spacer(Modifier.height(0.dp))
                 NeedSection()
                 PhotoSection()
-                ResultSection(expanded = resultExpanded, onExpand = { resultExpanded = true })
+                ResultSection()
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Icon(Icons.Outlined.Lock, null, Modifier.size(18.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
                     Spacer(Modifier.width(10.dp))
@@ -217,7 +201,6 @@ fun CustomPlanSetupScreen(onBack: () -> Unit, onDraft: (CustomPlanDraft) -> Unit
                 Spacer(Modifier.height(8.dp))
             }
         }
-        ResultOverlay(resultExpanded, onClose = { haptics.light(); resultExpanded = false })
         if (reading) ReadingScreen { progress.value }
         if (showCamera) {
             KurswahlCameraScreen(onCapture = { images -> showCamera = false; read(images) }, onCancel = { showCamera = false })
@@ -335,42 +318,16 @@ private fun Tip(icon: ImageVector, text: String) {
 // ── 3 · What you get ───────────────────────────────────────────────────────────
 
 @Composable
-private fun ResultSection(expanded: Boolean, onExpand: () -> Unit) {
+private fun ResultSection() {
     val label = stringResource(R.string.custom_setup_a11y_result)
-    val haptics = rememberHaptics()
     Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
         TutorialHeader(stringResource(R.string.custom_setup_result_title), stringResource(R.string.custom_setup_result_body))
-        // hidden while enlarged, so the image seems to move into the overlay
         Image(painterResource(R.drawable.plan_result), null,
-            Modifier.fillMaxWidth().aspectRatio(297f / 210f).alpha(if (expanded) 0f else 1f)
+            Modifier.fillMaxWidth().aspectRatio(297f / 210f)
                 .shadow(12.dp, RoundedCornerShape(8.dp)).clip(RoundedCornerShape(8.dp))
                 .border(0.5.dp, Color.Black.copy(alpha = 0.08f), RoundedCornerShape(8.dp))
-                .clickable { haptics.light(); onExpand() }
-                .clearAndSetSemantics { contentDescription = label; onClick { onExpand(); true } },
+                .clearAndSetSemantics { contentDescription = label },
             contentScale = ContentScale.Crop)
-    }
-}
-
-/** The result image enlarged over a dark background; a tap anywhere (or the X) collapses it. No zoom or pan. */
-@Composable
-private fun ResultOverlay(visible: Boolean, onClose: () -> Unit) {
-    val reduceMotion = rememberReduceMotion()
-    val label = stringResource(R.string.custom_setup_a11y_result)
-    if (visible) BackHandler(onBack = onClose)
-    AnimatedVisibility(visible, enter = fadeIn(tween(if (reduceMotion) 0 else 220)), exit = fadeOut(tween(if (reduceMotion) 0 else 200))) {
-        Box(Modifier.fillMaxSize().background(Color.Black.copy(alpha = 0.88f))
-                .clickable(interactionSource = remember { MutableInteractionSource() }, indication = null, onClick = onClose)) {
-            Image(painterResource(R.drawable.plan_result), label,
-                Modifier.align(Alignment.Center).safeDrawingPadding().padding(16.dp).fillMaxWidth().aspectRatio(297f / 210f)
-                    .animateEnterExit(
-                        enter = if (reduceMotion) EnterTransition.None else scaleIn(spring(dampingRatio = 0.8f, stiffness = Spring.StiffnessMediumLow), initialScale = 0.6f),
-                        exit = if (reduceMotion) ExitTransition.None else scaleOut(tween(200), targetScale = 0.6f))
-                    .clip(RoundedCornerShape(8.dp)),
-                contentScale = ContentScale.Fit)
-            IconButton(onClick = onClose, modifier = Modifier.align(Alignment.TopStart).safeDrawingPadding().padding(8.dp)) {
-                Icon(Icons.Filled.Close, stringResource(R.string.a11y_close), tint = Color.White)
-            }
-        }
     }
 }
 

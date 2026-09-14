@@ -84,12 +84,14 @@ class LgkaApiTest {
             hashes = mapOf(Resource.News to "abc", Resource.Weather to null),
             only = setOf(Resource.News, Resource.Weather),
         )
-        assertEquals(5, response.resources.size)
+        assertEquals(6, response.resources.size)
         val url = server.takeRequest().url
         assertEquals("/v1/sync", url.encodedPath)
         assertEquals("abc", url.queryParameter("news"))
         assertEquals("", url.queryParameter("weather"))
         assertEquals("", url.queryParameter("substitutions"))
+        // opt-in on the server: always named, empty until the first copy is stored
+        assertEquals("", url.queryParameter("kollegium"))
         assertEquals("news,weather", url.queryParameter("only"))
         assertEquals("pdf", url.queryParameter("embed"))
     }

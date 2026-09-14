@@ -8,6 +8,7 @@ import lgka.api.ScheduleItem
 import lgka.plan.CustomPlan
 import lgka.plan.CustomPlanBuilder
 import lgka.plan.Kurswahl
+import lgka.plan.SchoolReference
 import lgka.plan.Stufenplan
 import java.io.File
 
@@ -68,7 +69,11 @@ object CustomPlanSource {
     suspend fun pdfFile(context: Context, plan: CustomPlan): File = withContext(Dispatchers.IO) {
         val dir = File(context.cacheDir, "custom-plan").apply { mkdirs() }
         val file = File(dir, "Stundenplan.pdf")
-        file.outputStream().use { CustomPlanPdf.render(plan, CustomPlanLabels.pdf(context.resources), it) }
+        // a saved plan keeps the names from when it was built: take the current staff list
+        val current = plan.copy(courses = plan.courses.map { course ->
+            course.copy(teachers = course.teachers.map { it.copy(name = SchoolReference.teacherName(it.code) ?: it.name) })
+        })
+        file.outputStream().use { CustomPlanPdf.render(current, CustomPlanLabels.pdf(context.resources), it) }
         file
     }
 }

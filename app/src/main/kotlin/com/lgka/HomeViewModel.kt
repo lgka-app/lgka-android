@@ -22,6 +22,7 @@ import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import lgka.api.Embed
 import lgka.api.Events
+import lgka.api.Kollegium
 import lgka.api.LgkaApi
 import lgka.api.News
 import lgka.api.NewsArticle
@@ -29,6 +30,7 @@ import lgka.api.Schedules
 import lgka.api.Substitutions
 import lgka.api.SyncStatus
 import lgka.api.SyncStore
+import lgka.api.TeacherDirectory
 import lgka.api.UnauthorizedException
 import lgka.api.Weather
 import lgka.api.preferredGroup
@@ -120,6 +122,8 @@ class HomeViewModel(private val container: AppContainer) : ViewModel() {
         val n = store.load<News>(Resource.News)?.data
         val e = store.load<Events>(Resource.Events)?.data
         val w = store.load<Weather>(Resource.Weather)?.data
+        // teacher names everywhere (custom plan, PDF) follow the synced staff list
+        TeacherDirectory.update(store.load<Kollegium>(Resource.Kollegium)?.data?.staff.orEmpty())
         withContext(Dispatchers.Main) {
             substitutions = s; schedules = sch; news = n; events = e; weatherData = w
         }
@@ -189,6 +193,7 @@ class HomeViewModel(private val container: AppContainer) : ViewModel() {
 
     private fun resetState() {
         substitutions = null; schedules = null; news = null; events = null; weatherData = null
+        TeacherDirectory.update(emptyList())
         unavailable = emptySet(); syncFailed = false; lastSyncAt = 0L
     }
 

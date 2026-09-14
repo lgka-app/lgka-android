@@ -35,6 +35,15 @@ class SyncStoreTest {
         assertNotNull(store.load<News>(Resource.News))
         assertNotNull(store.load<Events>(Resource.Events))
         assertNotNull(store.load<Weather>(Resource.Weather))
+        val kollegium = assertNotNull(store.load<Kollegium>(Resource.Kollegium))
+        assertEquals(3, kollegium.data.staff.size)
+    }
+
+    @Test
+    fun kollegiumHashGoesIntoTheNextSync() {
+        val store = SyncStore(Fixtures.tempDir())
+        store.apply(embed())
+        assertEquals("5a1b2c3d4e5f6a7b", store.hashes()[Resource.Kollegium])
     }
 
     @Test

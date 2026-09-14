@@ -4,6 +4,7 @@ import org.junit.jupiter.api.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertNotNull
+import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
 /** Recorded live responses of api.lgka.app (2026-09-12) must decode with the app's models. */
@@ -82,6 +83,31 @@ class ModelsTest {
         assertEquals("m/s", w.station.units["windSpeed"])
         assertTrue(w.attribution.any { it.contains("Open-Meteo") })
         assertTrue(w.current.temp > -50 && w.current.temp < 60)
+    }
+
+    @Test
+    fun kollegiumFeedsTheTeacherDirectory() {
+        val response = ApiJson.decodeFromString(SyncResponse.serializer(), Fixtures.text("sync_embed.json"))
+        val data = ApiJson.decodeFromJsonElement(Kollegium.serializer(), response.resources["kollegium"]!!.data!!)
+        assertEquals("2026/2027", data.schoolYear)
+        val head = data.staff.first()
+        assertEquals("Dr.", head.title)
+        assertEquals(listOf("M", "Ph"), head.subjects)
+        assertEquals("schulleitung", head.role)
+        // a role the app doesn't know stays as sent; the UI treats it like sonstige
+        assertEquals("hausmeister", data.staff.last().role)
+
+        try {
+            TeacherDirectory.update(data.staff)
+            assertEquals("Dr. Erika Muster", TeacherDirectory.name("Mus"))
+            assertEquals("Muster", TeacherDirectory.lastName("Mus"))
+            assertEquals("Neumann-Test", TeacherDirectory.lastName("Neu"))
+            // a code the list doesn't know: no name, shown as the code
+            assertNull(TeacherDirectory.name("Xyz"))
+            assertEquals("Xyz", TeacherDirectory.lastName("Xyz"))
+        } finally {
+            TeacherDirectory.update(emptyList())
+        }
     }
 
     @Test

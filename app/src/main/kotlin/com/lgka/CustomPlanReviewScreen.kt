@@ -1,9 +1,9 @@
 package com.lgka
 
+import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.graphics.luminance
 import androidx.compose.material.icons.filled.Error
-import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -140,14 +140,18 @@ private fun LoadingScreen(failed: Boolean, onBack: () -> Unit) {
     }
 }
 
-/** The courses found, checked against the Stufenplan; every course can be corrected by hand. */
+/**
+ * The courses found, checked against the Stufenplan; every course can be corrected by hand. The plan is built
+ * once on opening; corrections only change the list of choices, and "Weiter" builds the real plan from them.
+ */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun CustomPlanReviewScreen(initial: CustomPlanDraft, onBack: () -> Unit, onSave: (SavedCustomPlan) -> Unit) {
     val resources = LocalResources.current
     val haptics = rememberHaptics()
     var draft by remember(initial) { mutableStateOf(initial) }
-    val plan = remember(draft) { draft.plan }
+    val checked = remember(initial) { initial.plan }
+    val review = remember(initial, draft.choices) { ReviewState.of(initial, checked, draft.choices) }
     var addSubject by remember { mutableStateOf(false) }
 
     Scaffold(topBar = {
@@ -157,7 +161,7 @@ fun CustomPlanReviewScreen(initial: CustomPlanDraft, onBack: () -> Unit, onSave:
                 IconButton(onClick = { haptics.light(); onBack() }) { Icon(Icons.AutoMirrored.Filled.ArrowBack, stringResource(R.string.a11y_back)) }
             },
             actions = {
-                // saves and presents the finished plan
+                // builds the plan from the choices, saves it and presents it
                 TextButton(onClick = { haptics.success(); onSave(draft.saved) }, modifier = Modifier.testTag("customPlan.save")) {
                     Text(stringResource(R.string.custom_review_next), fontWeight = FontWeight.SemiBold)
                 }
@@ -165,7 +169,8 @@ fun CustomPlanReviewScreen(initial: CustomPlanDraft, onBack: () -> Unit, onSave:
     }) { padding ->
         LazyColumn(Modifier.fillMaxSize().padding(top = padding.calculateTopPadding()).readableWidth().padding(horizontal = 20.dp),
             contentPadding = WindowInsets.navigationBars.asPaddingValues(), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-            item { Greeting(draft.name) }
+            item { Greeting(draft.name, review.marked) }
+            item { SectionHeader(stringResource(R.string.custom_review_overview)) }
             item {
                 Card(shape = CardShape) {
                     Column(Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -173,22 +178,22 @@ fun CustomPlanReviewScreen(initial: CustomPlanDraft, onBack: () -> Unit, onSave:
                             placeholder = { Text(stringResource(R.string.custom_review_name_placeholder)) }, modifier = Modifier.fillMaxWidth())
                         Row {
                             Text(stringResource(R.string.custom_review_plan), Modifier.weight(1f))
-                            Text("${plan.stufe} · ${CustomPlanLabels.halbjahr(resources, plan.halbjahr)}", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            Text("${checked.stufe} · ${CustomPlanLabels.halbjahr(resources, checked.halbjahr)}", color = MaterialTheme.colorScheme.onSurfaceVariant)
                         }
-                        HoursRow(plan)
+                        HoursRow(review.totalHours, checked.checks.expectedTotal)
                     }
                 }
             }
-            if (plan.checks.issues.isNotEmpty()) {
+            if (review.issues.isNotEmpty()) {
                 item { SectionHeader(stringResource(R.string.custom_review_issues)) }
                 item {
                     Card(shape = CardShape) {
                         Column(Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                            plan.checks.issues.forEach { issue ->
+                            review.issues.forEach { issue ->
                                 Row(verticalAlignment = Alignment.Top) {
                                     Icon(Icons.Filled.Warning, null, Modifier.size(20.dp), tint = Warn)
                                     Spacer(Modifier.width(10.dp))
-                                    Text(CustomPlanLabels.issue(resources, issue, plan), style = MaterialTheme.typography.bodyMedium)
+                                    Text(CustomPlanLabels.issue(resources, issue, checked), style = MaterialTheme.typography.bodyMedium)
                                 }
                             }
                         }
@@ -197,9 +202,10 @@ fun CustomPlanReviewScreen(initial: CustomPlanDraft, onBack: () -> Unit, onSave:
             }
             item { SectionHeader(stringResource(R.string.custom_review_courses)) }
             items(draft.choices, key = { it.subject }) { choice ->
-                CourseRow(draft, plan, choice,
+                val row = review.rows.getValue(choice.subject)
+                CourseRow(draft, row, choice,
                     onChange = { updated -> draft = draft.copy(choices = draft.choices.map { if (it.subject == choice.subject) updated else it }) },
-                    onRemove = { haptics.medium(); draft = draft.copy(choices = draft.choices - choice) })
+                    onRemove = { haptics.medium(); draft = draft.copy(choices = draft.choices.filter { it.subject != choice.subject }) })
             }
             item {
                 TextButton(onClick = { haptics.light(); addSubject = true }) {
@@ -224,32 +230,69 @@ fun CustomPlanReviewScreen(initial: CustomPlanDraft, onBack: () -> Unit, onSave:
     }
 }
 
-/** "Nice, Luka! …" with the first word of the name field, what the colours mean, and that AI read the sheet. */
-@Composable
-private fun Greeting(name: String) {
-    val first = name.trim().split(Regex("\\s+")).firstOrNull().orEmpty()
-    Card(shape = CardShape) {
-        Column(Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-            Column(Modifier.semantics(mergeDescendants = true) {}, verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                Text(if (first.isEmpty()) stringResource(R.string.custom_review_greeting_no_name) else stringResource(R.string.custom_review_greeting, first),
-                    style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
-                Text(stringResource(R.string.custom_review_greeting_body), style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant)
+private enum class RowStatus { FINE, ESTIMATED, PROBLEM }
+
+/** A course row as shown: its course (null when none matched) and the colour of its title. */
+private data class ReviewRow(val course: CustomPlan.Course?, val status: RowStatus)
+
+/**
+ * What the review shows for the current choices, without building the plan: a choice still as on opening
+ * keeps its course and status from that check; a changed or added one is read from the Stufenplan slots
+ * of its code and counts as fine.
+ */
+private data class ReviewState(val rows: Map<String, ReviewRow>, val issues: List<CustomPlan.Issue>, val totalHours: Int) {
+    /** Some course is yellow or red: only then is the colour explained. */
+    val marked: Boolean get() = rows.values.any { it.status != RowStatus.FINE }
+
+    companion object {
+        fun of(initial: CustomPlanDraft, checked: CustomPlan, choices: List<CustomPlan.Choice>): ReviewState {
+            val before = initial.choices.associateBy { it.subject }
+            val now = choices.associateBy { it.subject }
+            // subjects changed, added or removed since opening: their findings no longer apply
+            val edited = (before.keys + now.keys).filter { before[it] != now[it] }.toSet()
+            val editedCodes = checked.courses.filter { it.subjectKey in edited }.flatMap { it.codes + it.id }.toSet()
+            val issues = checked.checks.issues.filter { issue ->
+                when {
+                    issue.kind == CustomPlan.Issue.Kind.TOTAL_MISMATCH -> edited.isEmpty()
+                    issue.kind == CustomPlan.Issue.Kind.UNKNOWN_ROW -> choices.size <= initial.initialChoiceCount
+                    issue.kind == CustomPlan.Issue.Kind.CONFLICT -> issue.codes.none { it in editedCodes }
+                    else -> issue.subject == null || issue.subject !in edited
+                }
             }
-            Row(verticalAlignment = Alignment.Top) {
-                Icon(Icons.Filled.AutoAwesome, null, Modifier.size(18.dp), tint = MaterialTheme.colorScheme.primary)
-                Spacer(Modifier.width(10.dp))
-                Text(stringResource(R.string.custom_review_note), style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant)
+            val stufenplan = initial.loaded.stufenplan
+            val rows = choices.associate { choice ->
+                val code = choice.code
+                choice.subject to if (choice.subject !in edited || code == null) {
+                    val course = checked.courses.firstOrNull { it.subjectKey == choice.subject }
+                    ReviewRow(course, if (choice.subject in edited) RowStatus.FINE else rowStatus(choice.subject, course, issues))
+                } else {
+                    val subject = SchoolReference.subjectName(choice.subject, code)
+                    val teachers = stufenplan.slotsFor(code).mapNotNull { it.teacher }.distinct()
+                        .map { CustomPlan.Teacher(it, SchoolReference.teacherName(it)) }
+                    ReviewRow(CustomPlan.Course(code, choice.subject, subject, choice.level, listOf(code),
+                        CustomPlanBuilder.title(subject, choice.level, listOf(code)), teachers, choice.hours, choice.hours), RowStatus.FINE)
+                }
             }
+            return ReviewState(rows, issues, rows.values.sumOf { it.course?.hours ?: 0 })
         }
     }
 }
 
+/** "Hey Luka, …" with the first word of the name field, and what to check (with the colours only when some are marked). */
 @Composable
-private fun HoursRow(plan: CustomPlan) {
-    val total = plan.checks.totalHours
-    val expected = plan.checks.expectedTotal
+private fun Greeting(name: String, marked: Boolean) {
+    val first = name.trim().split(Regex("\\s+")).firstOrNull().orEmpty()
+    // plain text on the page like the tutorial, not a card
+    Column(Modifier.semantics(mergeDescendants = true) {}, verticalArrangement = Arrangement.spacedBy(6.dp)) {
+        Text(if (first.isEmpty()) stringResource(R.string.custom_review_greeting_no_name) else stringResource(R.string.custom_review_greeting, first),
+            Modifier.semantics { heading() }, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.SemiBold)
+        Text(stringResource(if (marked) R.string.custom_review_greeting_body_marked else R.string.custom_review_greeting_body_clean),
+            style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+    }
+}
+
+@Composable
+private fun HoursRow(total: Int, expected: Int?) {
     val matches = expected == null || expected == total
     Row(verticalAlignment = Alignment.CenterVertically) {
         Icon(if (matches) Icons.Filled.CheckCircle else Icons.Filled.Warning, null, tint = if (matches) Ok else Warn)
@@ -263,8 +306,6 @@ private fun HoursRow(plan: CustomPlan) {
     }
 }
 
-private enum class RowStatus { FINE, ESTIMATED, PROBLEM }
-
 private val ProblemKinds = setOf(CustomPlan.Issue.Kind.NOT_IN_PLAN, CustomPlan.Issue.Kind.AMBIGUOUS,
     CustomPlan.Issue.Kind.UNREADABLE, CustomPlan.Issue.Kind.HOURS_MISMATCH)
 
@@ -272,9 +313,8 @@ private val ProblemKinds = setOf(CustomPlan.Issue.Kind.NOT_IN_PLAN, CustomPlan.I
  * Red: the course could not be matched, is missing or clashes; yellow: its hours were not readable on the
  * sheet and were filled in from the rest of it (iOS rowStatus).
  */
-private fun rowStatus(subject: String, course: CustomPlan.Course?, plan: CustomPlan): RowStatus {
+private fun rowStatus(subject: String, course: CustomPlan.Course?, issues: List<CustomPlan.Issue>): RowStatus {
     if (course == null) return RowStatus.PROBLEM
-    val issues = plan.checks.issues
     if (issues.any { it.subject == subject && it.kind in ProblemKinds }) return RowStatus.PROBLEM
     val own = course.codes + course.id
     if (issues.any { it.kind == CustomPlan.Issue.Kind.CONFLICT && it.codes.any { code -> code in own } }) return RowStatus.PROBLEM
@@ -282,18 +322,17 @@ private fun rowStatus(subject: String, course: CustomPlan.Course?, plan: CustomP
     return RowStatus.FINE
 }
 
-/** A course; tap to pick another parallel course, swipe left to remove it. */
+/** A course; tap to pick another parallel course or remove it, or swipe left to remove it. */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun CourseRow(draft: CustomPlanDraft, plan: CustomPlan, choice: CustomPlan.Choice,
+private fun CourseRow(draft: CustomPlanDraft, row: ReviewRow, choice: CustomPlan.Choice,
                       onChange: (CustomPlan.Choice) -> Unit, onRemove: () -> Unit) {
     val resources = LocalResources.current
     val haptics = rememberHaptics()
-    val course = plan.courses.firstOrNull { it.subjectKey == choice.subject }
-    val status = rowStatus(choice.subject, course, plan)
+    val course = row.course
     // the course name carries the status; the row itself stays plain
     val dark = MaterialTheme.colorScheme.background.luminance() < 0.5f
-    val titleColor = when (status) {
+    val titleColor = when (row.status) {
         RowStatus.PROBLEM -> Remove
         RowStatus.ESTIMATED -> if (dark) EstimatedDark else EstimatedLight
         RowStatus.FINE -> Color.Unspecified
@@ -301,8 +340,8 @@ private fun CourseRow(draft: CustomPlanDraft, plan: CustomPlan, choice: CustomPl
     val name = CustomPlanLabels.subject(resources, choice.subject, choice.code)
     val stufenplan = draft.loaded.stufenplan
     val konfession = draft.kurswahl?.konfession
-    val lf = CustomPlanBuilder.candidates(choice.subject, CustomPlan.Level.LEISTUNGSFACH, konfession, stufenplan)
-    val basis = CustomPlanBuilder.candidates(choice.subject, CustomPlan.Level.BASISFACH, konfession, stufenplan)
+    val lf = remember(choice.subject) { CustomPlanBuilder.candidates(choice.subject, CustomPlan.Level.LEISTUNGSFACH, konfession, stufenplan) }
+    val basis = remember(choice.subject) { CustomPlanBuilder.candidates(choice.subject, CustomPlan.Level.BASISFACH, konfession, stufenplan) }
     var open by remember { mutableStateOf(false) }
     val swipe = rememberSwipeToDismissBoxState()
     LaunchedEffect(swipe.currentValue) {
@@ -330,7 +369,7 @@ private fun CourseRow(draft: CustomPlanDraft, plan: CustomPlan, choice: CustomPl
                         Text(stringResource(R.string.custom_review_pick_course), style = MaterialTheme.typography.bodySmall,
                             color = Remove, fontWeight = FontWeight.Medium)
                     }
-                    if (status == RowStatus.ESTIMATED) {
+                    if (row.status == RowStatus.ESTIMATED) {
                         Row(Modifier.padding(top = 2.dp), verticalAlignment = Alignment.CenterVertically) {
                             Icon(Icons.Filled.Error, null, Modifier.size(14.dp), tint = EstimatedText)
                             Spacer(Modifier.width(4.dp))
@@ -357,6 +396,12 @@ private fun CourseRow(draft: CustomPlanDraft, plan: CustomPlan, choice: CustomPl
                 } else {
                     CodeItems(lf, choice.level, draft, choice, course, pick)
                 }
+                HorizontalDivider()
+                DropdownMenuItem(
+                    text = { Text(stringResource(R.string.custom_review_remove, name), color = Remove) },
+                    leadingIcon = { Icon(Icons.Outlined.Delete, null, tint = Remove) },
+                    onClick = { open = false; onRemove() },
+                    modifier = Modifier.testTag("customPlan.remove"))
             }
         }
     }

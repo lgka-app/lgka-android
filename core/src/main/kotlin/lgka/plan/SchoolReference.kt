@@ -1,10 +1,11 @@
 package lgka.plan
 
 import kotlinx.serialization.Serializable
+import lgka.api.TeacherDirectory
 
 /**
  * Fixed facts of the Lessing-Gymnasium the custom plan needs: Läuteordnung, subjects of the
- * Kurswahlprotokoll with their Untis course stems, and the teacher codes of the Kollegium.
+ * Kurswahlprotokoll with their Untis course stems, and teacher names from the synced Kollegium.
  */
 object SchoolReference {
     // ── Läuteordnung (Schulordnung 2025, valid from SJ 2025/26) ──────────────────
@@ -82,38 +83,16 @@ object SchoolReference {
         return subject(key)?.name ?: key
     }
 
-    // ── Kollegium (school website, list 2024/25 plus the 2026/27 newcomers) ──────
+    // ── Kollegium ────────────────────────────────────────────────────────────────
 
-    /** Untis teacher code → "Vorname Nachname". Codes not listed stay as they are. */
-    val teachers: Map<String, String> = mapOf(
-        "Sez" to "Ulrike Seitz", "Kle" to "Carsten Klering", "Nm" to "Ursula Neumann", "Ro" to "Dr. Daniel Roth",
-        "Shn" to "Michael Schneider", "Bch" to "Thorid Bachmor", "Baz" to "Frank Balzer", "Btl" to "Kristina Bartl",
-        "Bas" to "Sarha Basler", "Bau" to "Annemarie Bauer", "Bm" to "Katja Baumer", "Bet" to "Christiane Bernet",
-        "Bie" to "Patricia Bieringer", "Blm" to "Judith Blum", "Bre" to "Dr. Birgit Breiding", "Brr" to "Simone Breier",
-        "Brn" to "Richard Brenner", "Brd" to "Patricia Bruder", "Blb" to "Dr. Andrea Brucher-Lembach",
-        "Bur" to "Johannes Burger", "Del" to "Julien Debailleul", "Dit" to "Georg Dittes", "Dom" to "Evamaria Domin",
-        "Fei" to "Julia Feißt", "Ger" to "Annika Gerwien", "Gei" to "Selina Geist", "Glz" to "Juliane Glinz",
-        "Hei" to "Matthias Heinz", "Hed" to "Dr. Marcus Held", "Hel" to "Marius Helfrich", "Hir" to "Patricia Hirt",
-        "Hoe" to "Katja Hoeffer", "Hof" to "Katja Hoeffer", "Hld" to "Barbara Hold", "Hu" to "Andrea Hummel",
-        "Hum" to "Andrea Hummel", "Jak" to "Antje Jakobi", "Kau" to "Corinna Kauth", "Kob" to "Andrea Koob",
-        "Kp" to "Michael Kopp", "Ku" to "Marco Kubacki", "Kub" to "Marco Kubacki", "Len" to "Dr. Franziska Lenz",
-        "Lev" to "Astrid Leven", "Lm" to "Katja Lohmann", "Loi" to "Gabriele Loida-Sengpiel", "Man" to "Jenny Manaia",
-        "Mai" to "Simone Maier", "Meh" to "Sophie Mehne", "Mit" to "Christine Mittnacht", "Now" to "Laura Nowicki",
-        "Oes" to "Isabel Oestreich", "Pie" to "Mareike Pietzsch", "Rhe" to "Hye-Rin Rhee-Dantscher",
-        "Sa" to "Silke Sander", "Sdt" to "Anna-Benita Scheidt", "Scd" to "Heidi Schmid", "Shs" to "Michael Schnaus",
-        "Shö" to "Christian Schröder", "Smi" to "Anja Smikale", "Stb" to "Peter Staub", "Ste" to "Simon Stein",
-        "Stm" to "Maysun Stemler", "Stz" to "Helen Strotz", "Stü" to "Frank Stürmer", "Ung" to "Kai-Arwed Unger",
-        "Vog" to "Katrin Vogel", "Vot" to "Sabine Vogt", "Web" to "Nathalie Weber", "Wes" to "Sarah Wenzel",
-        "Zep" to "Ralph Zepfel", "Zil" to "Katrin Zilly", "Blu" to "Pia Blau", "Brkr" to "Laura Brenker",
-        "OrJ" to "Anna Ormann-Jeserski", "Sir" to "Helen Schirdewahn", "Sloy" to "Luca Slotty",
-        "HH-Es" to "Helmholtz-Gymnasium", "HH-es" to "Helmholtz-Gymnasium", "HH-BK" to "Helmholtz-Gymnasium",
-        "HH-f" to "Helmholtz-Gymnasium",
-    )
+    /**
+     * "Dr. Daniel Roth" from the synced staff list (api.lgka.app/v1/kollegium); null for a code it
+     * doesn't know yet, which is then shown as it is printed in the timetable.
+     */
+    fun teacherName(code: String): String? = TeacherDirectory.name(code)
 
-    fun teacherName(code: String): String? = teachers[code]
-
-    /** "Dr. Birgit Breiding" → "Breiding", for cells naming several teachers. */
-    fun lastName(code: String): String = teachers[code]?.split(" ")?.lastOrNull() ?: code
+    /** "Roth", for cells naming several teachers; the code for one the staff list doesn't know. */
+    fun lastName(code: String): String = TeacherDirectory.lastName(code)
 }
 
 /** An Untis course code split into its parts: "M3" → stem "m", number 3, leistungsfach. */

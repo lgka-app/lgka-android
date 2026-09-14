@@ -198,9 +198,9 @@
     <string name="custom_review_add_subject">Fach hinzufügen</string>
     <string name="custom_review_basisfach">Basisfach</string>
     <string name="custom_review_courses">Deine Kurse</string>
-    <string name="custom_review_footer">Tippe auf einen Kurs, um einen anderen Parallelkurs zu wählen. Zum Entfernen nach links wischen.</string>
+    <string name="custom_review_footer">Tippe auf einen Kurs, um einen anderen Parallelkurs zu wählen oder ihn zu entfernen.</string>
     <string name="custom_review_hours" tools:ignore="PluralsCandidate">%1$d Std.</string>
-    <string name="custom_review_hours_match" tools:ignore="PluralsCandidate">%1$d Wochenstunden, passt zu deinem Kurswahlprotokoll</string>
+    <string name="custom_review_hours_match" tools:ignore="PluralsCandidate">%1$d Wochenstunden</string>
     <string name="custom_review_hours_mismatch" tools:ignore="PluralsCandidate">%1$d Wochenstunden, laut Kurswahlprotokoll %2$d</string>
     <string name="custom_review_issues">Bitte prüfen</string>
     <string name="custom_review_leistungsfach">Leistungsfach</string>
@@ -208,10 +208,12 @@
     <string name="custom_review_pick_course">Kurs wählen</string>
     <string name="custom_review_plan">Stundenplan</string>
     <string name="custom_review_next">Weiter</string>
-    <string name="custom_review_greeting">Nice, %1$s! Das Scannen hat funktioniert.</string>
-    <string name="custom_review_greeting_no_name">Nice! Das Scannen hat funktioniert.</string>
-    <string name="custom_review_greeting_body">Prüf hier noch einmal, ob alles passt. Gelb ist geschätzt, Rot fehlt oder passt nicht.</string>
-    <string name="custom_review_note">So steht es in deinem Kurswahlprotokoll. Deine endgültigen Kurse können davon abweichen – passe sie jetzt an oder später mit langem Druck auf die Karte auf dem Startbildschirm. Die Erkennung übernimmt KI, prüf sie also kurz.</string>
+    <string name="custom_review_greeting">Hey %1$s, dein Scan hat geklappt!</string>
+    <string name="custom_review_greeting_no_name">Hey, dein Scan hat geklappt!</string>
+    <string name="custom_review_greeting_body_clean">Die KI hat dein Kurswahlprotokoll gelesen und alle Kurse gefunden. Schau trotzdem kurz drüber, ob Kurse, Lehrkräfte und Stunden stimmen – tipp auf einen Kurs, um einen anderen Parallelkurs zu wählen oder ihn zu entfernen. Falls sich seit dem Kurswahlprotokoll etwas geändert hat, zählt die Kursliste von deiner Lehrkraft. Anpassen kannst du das auch später noch: Halt dafür einfach die Stundenplan-Karte auf dem Startbildschirm gedrückt.</string>
+    <string name="custom_review_greeting_body_marked">Die KI hat dein Kurswahlprotokoll gelesen und daraus deine Kurse zusammengestellt. An ein paar Stellen war sie sich aber nicht ganz sicher: Bei gelben Kursen konnte sie die Stunden nicht klar lesen und hat sie geschätzt, rote fehlen oder passen nicht zum aktuellen Stundenplan. Tipp einfach auf einen Kurs, um den richtigen Parallelkurs zu wählen oder ihn zu entfernen. Falls sich seit dem Kurswahlprotokoll etwas geändert hat, zählt die Kursliste von deiner Lehrkraft – pass deine Kurse daran an. Das geht auch später noch: Halt dafür einfach die Stundenplan-Karte auf dem Startbildschirm gedrückt.</string>
+    <string name="custom_review_overview">Überblick</string>
+    <string name="custom_review_remove">%1$s entfernen</string>
     <string name="custom_review_estimated">Geschätzt – bitte prüfen</string>
     <string name="custom_review_title">Kurse prüfen</string>
     <string name="custom_setup_a11y_bad">Schlechtes Beispielfoto: schräg, abgeschnitten, unscharf oder zu dunkel</string>

@@ -17,13 +17,18 @@ val ApiJson: Json = Json {
     coerceInputValues = true
 }
 
-/** The five synced resources, keyed exactly as the API names them. */
+/** The synced resources, keyed exactly as the API names them. */
 enum class Resource(val key: String) {
     Substitutions("substitutions"),
     Schedules("schedules"),
     News("news"),
     Events("events"),
-    Weather("weather");
+    Weather("weather"),
+    /**
+     * The school's public staff list (Untis code → name, subjects, role). Opt-in on `/v1/sync`: the API
+     * only includes it when the query names it, which this client always does.
+     */
+    Kollegium("kollegium");
 
     companion object {
         fun of(key: String): Resource? = entries.firstOrNull { it.key == key }
@@ -36,6 +41,7 @@ enum class Resource(val key: String) {
         News -> lgka.api.News.serializer()
         Events -> lgka.api.Events.serializer()
         Weather -> lgka.api.Weather.serializer()
+        Kollegium -> lgka.api.Kollegium.serializer()
     } as KSerializer<T>
 }
 

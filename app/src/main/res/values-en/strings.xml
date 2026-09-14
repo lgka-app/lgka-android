@@ -198,9 +198,9 @@
     <string name="custom_review_add_subject">Add subject</string>
     <string name="custom_review_basisfach">Basic course</string>
     <string name="custom_review_courses">Your courses</string>
-    <string name="custom_review_footer">Tap a course to pick another parallel course. Swipe left to remove it.</string>
+    <string name="custom_review_footer">Tap a course to pick a different parallel course or remove it.</string>
     <string name="custom_review_hours" tools:ignore="PluralsCandidate">%1$d h</string>
-    <string name="custom_review_hours_match" tools:ignore="PluralsCandidate">%1$d hours a week, matches your course selection record</string>
+    <string name="custom_review_hours_match" tools:ignore="PluralsCandidate">%1$d hours a week</string>
     <string name="custom_review_hours_mismatch" tools:ignore="PluralsCandidate">%1$d hours a week, your course selection record says %2$d</string>
     <string name="custom_review_issues">Please check</string>
     <string name="custom_review_leistungsfach">Advanced course</string>
@@ -208,10 +208,12 @@
     <string name="custom_review_pick_course">Pick a course</string>
     <string name="custom_review_plan">Timetable</string>
     <string name="custom_review_next">Next</string>
-    <string name="custom_review_greeting">Nice, %1$s! Scanning worked.</string>
-    <string name="custom_review_greeting_no_name">Nice! Scanning worked.</string>
-    <string name="custom_review_greeting_body">Check once more that everything is right. Yellow is estimated, red is missing or doesn\'t fit.</string>
-    <string name="custom_review_note">This is what your course selection record says. Your final courses may differ – adjust them now or later by long-pressing the card on the home screen. AI does the recognition, so give it a quick check.</string>
+    <string name="custom_review_greeting">Hey %1$s, your scan worked!</string>
+    <string name="custom_review_greeting_no_name">Hey, your scan worked!</string>
+    <string name="custom_review_greeting_body_clean">The AI read your course selection record and found all your courses. Still take a quick look that courses, teachers and hours are right – tap a course to pick a different parallel course or remove it. If anything has changed since your course selection record, the course list from your teacher is what counts. You can adjust it later too: just press and hold the timetable card on the home screen.</string>
+    <string name="custom_review_greeting_body_marked">The AI read your course selection record and put your courses together from it. It wasn\'t completely sure in a few places, though: for yellow courses it couldn\'t read the hours clearly and estimated them, red ones are missing or don\'t fit the current timetable. Just tap a course to pick the right parallel course or remove it. If anything has changed since your course selection record, the course list from your teacher is what counts – adjust your courses to match. You can do that later too: just press and hold the timetable card on the home screen.</string>
+    <string name="custom_review_overview">Overview</string>
+    <string name="custom_review_remove">Remove %1$s</string>
     <string name="custom_review_estimated">Estimated – please check</string>
     <string name="custom_review_title">Check courses</string>
     <string name="custom_setup_a11y_bad">Bad example photo: tilted, cut off, blurry or too dark</string>
