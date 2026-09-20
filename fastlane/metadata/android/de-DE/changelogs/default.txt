@@ -1,10 +1,8 @@
-Neu: Dein persönlicher Stundenplan für J11 und J12
-Fotografiere dein Kurswahlprotokoll und die App erstellt deinen Plan als PDF
-Die Erkennung läuft komplett auf deinem Handy, nichts verlässt das Gerät
-Kurse kannst du vor dem Speichern prüfen und später jederzeit anpassen
-Sprache der App jetzt in den Einstellungen wählbar
-Neuer PDF-Viewer und Wetter zeigt, woher die Daten kommen
-Anmeldung und Klassenauswahl zuverlässiger
+Behebt den Fehler beim Scannen des Kurswahlprotokolls
+
+In Version 3.1.0 brach die Texterkennung in der veröffentlichten App ab: nach jedem Scan erschien "Das hat nicht geklappt". Der Scan funktioniert jetzt wieder.
+
+Bitte auf diese Version aktualisieren – 3.1.0 ist unbrauchbar.
 
 Mehr Infos:
-github.com/lgka-app/lgka-android/releases/tag/v3.1.0
+github.com/lgka-app/lgka-android/releases/tag/v3.1.1

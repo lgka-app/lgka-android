@@ -15,8 +15,8 @@ android {
         minSdk = 29
         targetSdk = 37
         // The release workflow passes the next free Play version code (fastlane/Fastfile).
-        versionCode = providers.gradleProperty("lgka.versionCode").orNull?.toInt() ?: 310
-        versionName = providers.gradleProperty("lgka.versionName").orNull ?: "3.1.0"
+        versionCode = providers.gradleProperty("lgka.versionCode").orNull?.toInt() ?: 316
+        versionName = providers.gradleProperty("lgka.versionName").orNull ?: "3.1.1"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
