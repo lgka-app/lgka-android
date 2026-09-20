@@ -114,7 +114,7 @@ fun MainNav() {
             }
             entry<BugReportRoute> {
                 WebScreen(
-                    url = "https://docs.google.com/forms/d/e/1FAIpQLSdknGu7-xgFurrghbUYOwoYu-Vsaftar6PGLzMv64UFpwJtRw/viewform?usp=publish-editor",
+                    url = "https://bugreport.lgka.app",
                     title = androidx.compose.ui.res.stringResource(R.string.bug_report_title),
                     onBack = pop,
                 )

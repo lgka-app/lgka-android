@@ -1,10 +1,11 @@
 # LGKA+ Android release lanes, run by .github/workflows/release.yml.
 #
-#   bundle exec fastlane android release    # signed AAB with release notes → Play internal track (draft)
+#   bundle exec fastlane android release    # signed AAB with release notes → Play, sent for review
 #   bundle exec fastlane android metadata   # store texts and screenshots only
 #
 # Needs PLAY_SERVICE_ACCOUNT_JSON and, for release, the ANDROID_KEY* variables the
-# Gradle signing config reads. Promotion to production and review stay manual.
+# Gradle signing config reads. Both lanes send their changes for review by themselves;
+# Google's review is what stands between an upload and the store.
 
 require "fileutils"
 
@@ -13,7 +14,7 @@ default_platform(:android)
 PACKAGE = "com.lgka"
 ROOT    = File.expand_path("..", __dir__)
 THEME   = ENV.fetch("SCREENSHOT_THEME", "dark")
-TRACK   = ENV.fetch("PLAY_TRACK", "internal")
+TRACK   = ENV.fetch("PLAY_TRACK", "production")
 # Screenshot folders in app_store_assets → Play listing locales.
 LOCALES = { "de" => "de-DE", "en" => "en-US" }.freeze
 # Screenshot form factor → supply image folder.
@@ -41,11 +42,12 @@ platform :android do
       json_key_data: ENV.fetch("PLAY_SERVICE_ACCOUNT_JSON"),
       package_name: PACKAGE,
       track: TRACK,
-      # Draft only: nothing reaches testers or users until it is rolled out by hand in Play Console.
-      release_status: "draft",
+      # Rolled out on upload and sent for review: a draft cannot be reviewed, so anything
+      # left as a draft would sit in Play Console until someone noticed.
+      release_status: "completed",
       aab: lane_context[SharedValues::GRADLE_AAB_OUTPUT_PATH],
       skip_upload_apk: true, # the CI gate's `gradlew build` leaves APKs next to the bundle
-      changes_not_sent_for_review: true, # the owner sends changes for review in Play Console
+      changes_not_sent_for_review: false, # sent for review right away
       version_name: version,
       # Release notes come from metadata/android/<locale>/changelogs/default.txt;
       # listing texts and images are the metadata lane's job.
@@ -73,8 +75,7 @@ platform :android do
       skip_upload_apk: true,
       skip_upload_changelogs: true,
       sync_image_upload: true,
-      # Stays in "Changes not sent for review" until the owner sends it in Play Console.
-      changes_not_sent_for_review: true,
+      changes_not_sent_for_review: false, # sent for review right away
     )
   end
 end
