@@ -143,3 +143,44 @@ dependencies {
     androidTestImplementation(libs.compose.ui.test.junit4)
     debugImplementation(libs.compose.ui.test.manifest)
 }
+
+/**
+ * Guards the shrunk release against the 3.1.0 bug: R8 kept ML Kit's ComponentRegistrar classes but
+ * removed their no-arg constructors, which ML Kit calls reflectively, so text recognition threw an
+ * NPE on first use and every Kurswahl scan failed. Only minified builds were affected, so no debug
+ * build and no JVM test could have caught it — R8's own removal report is the cheapest thing that can.
+ */
+val verifyReleaseKeepsRegistrars by tasks.registering {
+    val usage = layout.buildDirectory.file("outputs/mapping/release/usage.txt")
+    inputs.file(usage).withPropertyName("usageReport")
+    doLast {
+        val report = usage.get().asFile
+        // usage.txt lists every removed item: an unindented "class.name:" header, then its removed members
+        var current: String? = null
+        val broken = mutableListOf<String>()
+        report.forEachLine { line ->
+            when {
+                !line.startsWith(" ") -> current = line.removeSuffix(":")
+                line.trim() == "public void <init>()" -> {
+                    val owner = current ?: return@forEachLine
+                    // reflectively constructed: Firebase's ComponentDiscovery instantiates them by name
+                    if (owner.endsWith("Registrar") && (owner.startsWith("com.google.mlkit") || owner.startsWith("com.google.firebase"))) {
+                        broken += owner
+                    }
+                }
+            }
+        }
+        if (broken.isNotEmpty()) {
+            throw GradleException(
+                "R8 removed the no-arg constructor of ${broken.size} ComponentRegistrar(s), so ML Kit " +
+                    "cannot instantiate them and text recognition will throw at runtime:\n" +
+                    broken.joinToString("\n") { "  $it" } +
+                    "\nKeep their members in app/proguard-rules.pro.",
+            )
+        }
+    }
+}
+
+tasks.matching { it.name == "assembleRelease" || it.name == "bundleRelease" }.configureEach {
+    finalizedBy(verifyReleaseKeepsRegistrars)
+}
