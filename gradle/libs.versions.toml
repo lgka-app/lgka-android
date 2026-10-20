@@ -23,7 +23,7 @@ camerax = "1.6.2"
 mlkitTextRecognition = "16.0.1"
 pdfboxAndroid = "2.0.27.0"
 junit4 = "4.13.2"
-errorProneAnnotations = "2.30.0"
+errorProneAnnotations = "2.50.0"
 
 [libraries]
 compose-bom = { group = "androidx.compose", name = "compose-bom", version.ref = "composeBom" }
