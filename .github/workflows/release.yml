@@ -1,14 +1,15 @@
 name: Release
 
-# Tag v3.1.0 → build + tests, signed AAB to the Play internal track, store texts + screenshots.
-# "metadata" pushes only the store listing. Promotion to production and review stay manual.
+# Tag vX.Y.Z → build + tests, signed AAB with its release notes to the Play production track,
+# sent for review right away (fastlane/Fastfile). "metadata" uploads only the store listing
+# (texts + screenshots) and sends it for review too.
 on:
   push:
     tags: ["v*"]
   workflow_dispatch:
     inputs:
       lane:
-        description: "release = signed AAB to internal + store listing; metadata = store listing only"
+        description: "release = signed AAB to production, sent for review; metadata = store listing only"
         type: choice
         options: [release, metadata]
         default: release

@@ -23,7 +23,7 @@ IMAGE_DIRS = { "phone" => "phoneScreenshots", "tablet" => "tenInchScreenshots" }
 STORE_SHOTS = %w[01_welcome.png 02_home.png 03_weather.png 04_news.png].freeze
 
 platform :android do
-  desc "Build the signed AAB, upload it to the internal track, update the store listing"
+  desc "Build the signed AAB and upload it with its release notes to production, sent for review"
   lane :release do
     version = version_name
     # Continues after every code on any track (the Flutter app used up to ~300).
