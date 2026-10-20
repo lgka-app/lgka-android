@@ -3,7 +3,9 @@ package lgka.api
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
 import org.junit.jupiter.api.Test
+import java.io.IOException
 import kotlin.test.assertEquals
+import kotlin.test.assertFailsWith
 import kotlin.test.assertFalse
 import kotlin.test.assertNotNull
 import kotlin.test.assertNull
@@ -117,6 +119,28 @@ class SyncStoreTest {
         store.apply(embed())
         assertTrue(store.dir.listFiles()!!.none { it.name.endsWith(".tmp") })
         assertTrue(store.dir.resolve("pdf").listFiles()!!.all { it.name.endsWith(".pdf") })
+    }
+
+    @Test
+    fun aHashThatIsNotSha256NeverNamesAFile() {
+        val root = Fixtures.tempDir()
+        val store = SyncStore(root.resolve("sync"))
+        val evil = "../../escaped"
+        assertFailsWith<IOException> { store.putPdf(evil, "%PDF-1.4 x".toByteArray()) }
+        assertNull(store.pdfFile(evil))
+
+        // an inline payload with such a hash keeps its data but writes no file anywhere
+        val json = ApiJson.parseToJsonElement(Fixtures.text("substitutions.json")) as JsonObject
+        val data = json["data"] as JsonObject
+        val today = data["today"] as JsonObject
+        val pdf = today["pdf"] as JsonObject
+        val evilPdf = JsonObject(pdf + ("sha256" to JsonPrimitive(evil)) + ("base64" to JsonPrimitive("JVBERi0xLjQK")))
+        val newData = JsonObject(data + ("today" to JsonObject(today + ("pdf" to evilPdf))))
+        store.apply(SyncResponse("now", mapOf("substitutions" to SyncEntry("updated", "0123456789abcdef", "now", null, newData))))
+
+        assertEquals("0123456789abcdef", store.hash(Resource.Substitutions))
+        assertFalse(root.resolve("escaped.pdf").exists())
+        assertTrue(root.walkTopDown().none { it.name == "escaped.pdf" })
     }
 
     @Test

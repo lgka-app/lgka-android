@@ -5,6 +5,7 @@ import mockwebserver3.MockResponse
 import mockwebserver3.MockWebServer
 import mockwebserver3.junit5.StartStop
 import org.junit.jupiter.api.Test
+import java.io.IOException
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
 import kotlin.test.assertFalse
@@ -125,5 +126,23 @@ class LgkaApiTest {
         val bytes = api().file(login, "/v1/files/${"a".repeat(64)}.pdf")
         assertEquals("%PDF-1.4 bytes", String(bytes))
         assertNotNull(server.takeRequest().headers["Authorization"])
+    }
+
+    @Test
+    fun fileNeverSendsTheLoginOffTheApiOrigin() = runTest {
+        val other = MockWebServer()
+        other.start()
+        try {
+            val paths = listOf(
+                other.url("/v1/files/x.pdf").toString(), // absolute, same host, other port
+                "//${other.hostName}:${other.port}/v1/files/x.pdf", // protocol-relative
+                "https://example.invalid/v1/files/x.pdf", // another host
+            )
+            for (path in paths) assertFailsWith<IOException>(path) { api().file(login, path) }
+            assertEquals(0, other.requestCount)
+            assertEquals(0, server.requestCount)
+        } finally {
+            other.close()
+        }
     }
 }

@@ -110,9 +110,17 @@ class LgkaApi(
         ApiJson.decodeFromString(SyncResponse.serializer(), body)
     }
 
-    /** A mirrored PDF by its API path (`/v1/files/<sha>.pdf`) — fallback when a payload had no inline bytes. */
+    /**
+     * A mirrored PDF by its API path (`/v1/files/<sha>.pdf`) — fallback when a payload had no inline bytes.
+     * The path comes from a payload, so it must stay on the API's own origin: an absolute or
+     * protocol-relative URL to another host never gets the Authorization header.
+     */
     suspend fun file(login: Login, path: String): ByteArray = withContext(Dispatchers.IO) {
-        val req = Request.Builder().url(base.resolve(path)!!).header("Authorization", login.header).build()
+        val url = base.resolve(path)
+        if (url == null || url.scheme != base.scheme || url.host != base.host || url.port != base.port) {
+            throw IOException("refusing to fetch a file outside ${base.host}")
+        }
+        val req = Request.Builder().url(url).header("Authorization", login.header).build()
         http.newCall(req).execute().use { res ->
             check(res, req)
             res.body.bytes()

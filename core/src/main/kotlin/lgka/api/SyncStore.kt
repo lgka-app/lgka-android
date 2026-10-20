@@ -7,12 +7,15 @@ import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.jsonPrimitive
 import java.io.File
+import java.io.IOException
 import java.util.Base64
 
 /** What the device holds for one resource. */
 data class Stored<T>(val hash: String, val updatedAt: String, val sourceUpdatedAt: String?, val data: T)
 
 enum class SyncStatus { Fresh, Updated, Unavailable }
+
+private val SHA256_HEX = Regex("[0-9a-fA-F]{64}")
 
 /**
  * On-disk copy of every resource plus the mirrored PDFs, so the app renders
@@ -50,11 +53,16 @@ class SyncStore(val dir: File) {
         return Stored(rec.hash, rec.updatedAt, rec.sourceUpdatedAt, data)
     }
 
-    /** The mirrored PDF for a content hash, or null when not on disk. */
-    fun pdfFile(sha256: String): File? = File(pdfDir, "$sha256.pdf").takeIf { it.length() > 0 }
+    /** The mirrored PDF for a content hash, or null when not on disk (or the hash is not one). */
+    fun pdfFile(sha256: String): File? = pdfPath(sha256)?.takeIf { it.length() > 0 }
 
     /** Stores PDF bytes fetched separately (payload without inline bytes). */
-    fun putPdf(sha256: String, bytes: ByteArray): File = File(pdfDir, "$sha256.pdf").also { writeAtomically(it, bytes) }
+    fun putPdf(sha256: String, bytes: ByteArray): File =
+        (pdfPath(sha256) ?: throw IOException("not a SHA-256 hash")).also { writeAtomically(it, bytes) }
+
+    /** The hash names a file, so only a plain SHA-256 hex string may: never a path like `../x`. */
+    private fun pdfPath(sha256: String): File? =
+        if (SHA256_HEX.matches(sha256)) File(pdfDir, "$sha256.pdf") else null
 
     /**
      * Applies a sync response: `updated` payloads are persisted (PDFs decoded to
@@ -125,8 +133,8 @@ class SyncStore(val dir: File) {
                 val sha = el["sha256"]!!.jsonPrimitive.content
                 val b64 = el["base64"]
                 if (b64 is JsonPrimitive && b64.isString) {
-                    runCatching { Base64.getDecoder().decode(b64.content) }.getOrNull()?.let { bytes ->
-                        val f = File(pdfDir, "$sha.pdf")
+                    val f = pdfPath(sha)
+                    if (f != null) runCatching { Base64.getDecoder().decode(b64.content) }.getOrNull()?.let { bytes ->
                         if (f.length() != bytes.size.toLong()) writeAtomically(f, bytes)
                     }
                 }
