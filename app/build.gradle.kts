@@ -131,6 +131,11 @@ dependencies {
         implementation(libs.androidx.concurrent.futures)
         implementation(libs.errorprone.annotations) // CameraX / ML Kit bring 2.28, espresso needs 2.30
         implementation(libs.androidx.tracing)
+        // pdfbox-android 2.0.27.0 (the latest) pins bouncycastle 1.72, which has known high and
+        // critical advisories; the jdk15to18 line keeps its API, so lift it to the fixed release.
+        implementation(libs.bouncycastle.bcprov)
+        implementation(libs.bouncycastle.bcpkix)
+        implementation(libs.bouncycastle.bcutil)
     }
 
     // Screenshot suite (app/src/androidTest, scripts/screenshots.sh)

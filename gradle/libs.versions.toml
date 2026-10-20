@@ -24,6 +24,7 @@ mlkitTextRecognition = "16.0.1"
 pdfboxAndroid = "2.0.27.0"
 junit4 = "4.13.2"
 errorProneAnnotations = "2.50.0"
+bouncycastle = "1.86"
 
 [libraries]
 compose-bom = { group = "androidx.compose", name = "compose-bom", version.ref = "composeBom" }
@@ -69,6 +70,9 @@ mlkit-text-recognition = { group = "com.google.mlkit", name = "text-recognition"
 pdfbox-android = { group = "com.tom-roush", name = "pdfbox-android", version.ref = "pdfboxAndroid" }
 junit4 = { group = "junit", name = "junit", version.ref = "junit4" }
 errorprone-annotations = { group = "com.google.errorprone", name = "error_prone_annotations", version.ref = "errorProneAnnotations" }
+bouncycastle-bcprov = { group = "org.bouncycastle", name = "bcprov-jdk15to18", version.ref = "bouncycastle" }
+bouncycastle-bcpkix = { group = "org.bouncycastle", name = "bcpkix-jdk15to18", version.ref = "bouncycastle" }
+bouncycastle-bcutil = { group = "org.bouncycastle", name = "bcutil-jdk15to18", version.ref = "bouncycastle" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }
