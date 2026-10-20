@@ -1,6 +1,7 @@
 package com.lgka
 
 import android.content.Context
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import lgka.ScheduleGrades
@@ -55,6 +56,8 @@ object CustomPlanSource {
     suspend fun refreshed(saved: SavedCustomPlan, vm: HomeViewModel, store: CustomPlanStore): Pair<SavedCustomPlan, Boolean> {
         val plans = try {
             plans(vm)
+        } catch (e: CancellationException) {
+            throw e // the caller was cancelled: do not go on to open the old plan
         } catch (e: Exception) {
             return saved to false
         }

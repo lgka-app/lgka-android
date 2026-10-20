@@ -19,6 +19,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.launch
 import androidx.compose.material.icons.automirrored.filled.ArrowForwardIos
 import androidx.compose.material.icons.filled.Refresh
@@ -94,6 +95,8 @@ private fun SubCard(plan: DayPlan?, onOpen: (PdfRequest) -> Unit, onUnavailable:
         scope.launch {
             try {
                 onOpen(PdfRequest(vm.pdfFile(plan.pdf.sha256, plan.pdf.url), weekday, null))
+            } catch (e: CancellationException) {
+                throw e // left the screen: no "unavailable" message
             } catch (e: Exception) {
                 onUnavailable(connectionFailed)
             }

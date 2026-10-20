@@ -31,6 +31,7 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.launch
 import kotlinx.serialization.builtins.ListSerializer
 import lgka.api.ScheduleItem
@@ -65,6 +66,8 @@ fun CustomPlanCard(onOpen: (PdfRequest) -> Unit, onCustomPlan: (edit: Boolean) -
                     }
                     try {
                         onOpen(PdfRequest(CustomPlanSource.pdfFile(context, current.plan), myTitle, null, shareName = myTitle))
+                    } catch (e: CancellationException) {
+                        throw e
                     } catch (e: Exception) {
                         Log.w("CustomPlanCard", "PDF not rendered", e)
                         haptics.error()

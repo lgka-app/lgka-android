@@ -232,6 +232,8 @@ fun PdfViewer(request: PdfRequest, onClose: () -> Unit) {
                     currentSchedule = other
                     currentIndex = index
                     applyClass(q, page)
+                } catch (e: CancellationException) {
+                    throw e
                 } catch (e: Exception) {
                     haptics.error(); toast.show(connectionFailed)
                 }

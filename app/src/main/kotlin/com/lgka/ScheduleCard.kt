@@ -18,6 +18,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.launch
 import java.util.Locale
 import androidx.compose.material.icons.automirrored.filled.ArrowForwardIos
@@ -89,6 +90,8 @@ fun ScheduleCard(onSetClass: () -> Unit, onOpen: (PdfRequest) -> Unit, onUnavail
                         try {
                             val file = vm.pdfFile(pdf.sha256, pdf.url)
                             onOpen(PdfRequest(file, className, target.classIndex[cls], target, target.classIndex)) // header: class only
+                        } catch (e: CancellationException) {
+                            throw e // left the screen: no "unavailable" message
                         } catch (e: Exception) {
                             onUnavailable(unavailable) // home_screen SnackBar parity
                         }
